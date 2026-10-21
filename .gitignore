@@ -13,7 +13,7 @@ __pycache__/
 *.local.yaml
 docker-compose.override.yml
 docker-compose.prod.yml
-Caddyfile
+/Caddyfile
 deploy.local/
 *.pem
 *.key

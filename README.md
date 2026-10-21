@@ -25,6 +25,28 @@ Der letzte Befehl zeigt den **persönlichen Link** (`http://…/s/<geheimes-toke
 
 Die Daten liegen in einer SQLite-Datei im Docker-Volume `mampfplan-data` (Backup: Volume sichern oder statt des Volumes `./data:/data` einbinden und vorher `chown 10001 data` ausführen).
 
+### Produktivbetrieb mit HTTPS (Caddy + certbot)
+
+`docker-compose.caddy.yml` stellt Caddy als HTTPS-Reverse-Proxy auf Port **8443** vor die App. Die App selbst ist dann nur noch lokal (`127.0.0.1:8000`) erreichbar. Caddy nutzt die Zertifikate des auf dem Server vorhandenen **certbot** (read-only eingebunden) und holt selbst keine.
+
+1. DNS-Eintrag für die Domain anlegen und sie in das certbot-Zertifikat aufnehmen (`certbot certificates` zeigt Name und enthaltene Domains).
+2. In der `.env` setzen (Beispielwerte, siehe `.env.example`):
+   ```
+   DOMAIN=mampf.example.org
+   CERT_NAME=example.org            # nur nötig, wenn der certbot-Ordnername abweicht
+   PUBLIC_URL=https://mampf.example.org:8443
+   SECURE_COOKIES=true
+   COMPOSE_FILE=docker-compose.yml:docker-compose.caddy.yml
+   ```
+3. `docker compose up -d --build`, Port 8443/tcp in der Firewall freigeben.
+4. **Nach jeder Zertifikatserneuerung** muss Caddy die Dateien neu laden. Dafür ein certbot-Deploy-Hook, z. B. `/etc/letsencrypt/renewal-hooks/deploy/mampfplan-caddy.sh` (ausführbar):
+   ```sh
+   #!/bin/sh
+   docker exec mampfplan-caddy caddy reload --config /etc/caddy/Caddyfile
+   ```
+
+Zugriffslogs sind in Caddy standardmäßig aus – der geheime Link steht also in keiner Logdatei dieser Komponente.
+
 ### Offline im Supermarkt & Display an beim Kochen
 
 - **Offline abhaken:** Die Einkaufsliste (und alle Seiten, die du schon einmal geöffnet hast) steht auch ohne Internet zur Verfügung. Abhaken und Umsortieren funktionieren offline weiter: Die Änderungen werden auf dem Handy gemerkt (Banner „📴 …“) und automatisch übertragen, sobald wieder Verbindung besteht. Wurde derselbe Artikel inzwischen von jemand anderem geändert, gilt der zuletzt gesendete Stand. Hinzufügen, Löschen und Rezeptsuche brauchen Verbindung.

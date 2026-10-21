@@ -1,0 +1,17 @@
+# HTTPS-Reverse-Proxy vor Mampfplan.
+# Generisch: Domain und Zertifikatsname kommen aus der .env (DOMAIN, CERT_NAME) – nichts
+# Umgebungsspezifisches steht im Repository.
+#
+# - Zertifikate stammen vom certbot des Servers (read-only unter /certs eingebunden).
+#   Caddy holt selbst keine Zertifikate (auto_https off).
+# - Nach einer Erneuerung durch certbot muss Caddy neu laden (siehe README, "Deploy-Hook").
+# - Zugriffslogs sind in Caddy standardmäßig aus: Der geheime Link im URL-Pfad landet in keiner Logdatei.
+{
+	auto_https off
+}
+
+{$DOMAIN}:8443 {
+	tls /certs/live/{$CERT_NAME}/fullchain.pem /certs/live/{$CERT_NAME}/privkey.pem
+	encode zstd gzip
+	reverse_proxy mampfplan:8000
+}

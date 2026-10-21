@@ -1,0 +1,32 @@
+# Produktivbetrieb: Caddy als HTTPS-Reverse-Proxy vor Mampfplan (Zertifikate vom certbot des Servers).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+#
+# oder dauerhaft in der .env:  COMPOSE_FILE=docker-compose.yml:docker-compose.caddy.yml
+services:
+  caddy:
+    image: caddy:2
+    container_name: mampfplan-caddy
+    restart: unless-stopped
+    depends_on:
+      - mampfplan
+    ports:
+      - "8443:8443"
+    environment:
+      DOMAIN: ${DOMAIN:?Bitte DOMAIN in der .env setzen}
+      # Name des certbot-Zertifikats (Ordner unter live/); Standard: gleich wie die Domain
+      CERT_NAME: ${CERT_NAME:-${DOMAIN}}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Ganzer certbot-Ordner (live/ enthält nur Symlinks nach archive/), nur lesend
+      - ${CERT_DIR:-/etc/letsencrypt}:/certs:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  caddy-data:
+  caddy-config:

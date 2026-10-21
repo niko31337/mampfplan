@@ -5,7 +5,8 @@ services:
     container_name: mampfplan
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      # Nur lokal erreichbar. Von außen kommt man über den Reverse Proxy (siehe docker-compose.caddy.yml).
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     volumes:
