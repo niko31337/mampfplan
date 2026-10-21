@@ -46,6 +46,16 @@ class Browser:
         assert response.status_code == 303
 
 
+@pytest.fixture(autouse=True)
+def _clean_source_caches():
+    """Die Rezeptquellen merken sich Ergebnisse 10 Minuten – das darf Tests nicht beeinflussen."""
+    from app.recipe_sources import get_sources
+
+    for source in get_sources().values():
+        source._cache.clear()
+    yield
+
+
 @pytest.fixture
 def anon():
     Base.metadata.drop_all(engine)

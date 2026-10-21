@@ -21,7 +21,7 @@
     {% for r in recipes %}
     <li>
       <a class="list-item" href="{{ base }}/recipes/{{ r.id }}">
-        {% if r.image_url %}<img class="thumb" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        {% set img = r.image_url|cached_img(base) %}{% if img %}<img class="thumb" src="{{ img }}" alt="" loading="lazy">{% endif %}
         <div class="grow">
           <strong>{{ r.title }}</strong>
           <span class="small muted">{{ r.ingredients|length }} Zutaten{% if r.source != 'manual' %} · {{ r.source }}{% endif %}</span>

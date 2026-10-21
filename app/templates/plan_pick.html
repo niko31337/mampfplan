@@ -19,7 +19,7 @@
   <ul class="list">
     {% for r in recipes %}
     <li class="list-item">
-      {% if r.image_url %}<img class="thumb" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+      {% set img = r.image_url|cached_img(base) %}{% if img %}<img class="thumb" src="{{ img }}" alt="" loading="lazy">{% endif %}
       <div class="grow">{{ r.title }}</div>
       <form method="post" action="{{ base }}/plan/recipe">
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">

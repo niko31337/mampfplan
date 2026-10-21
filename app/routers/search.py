@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from typing import Annotated
 
@@ -6,10 +7,11 @@ from sqlalchemy import select
 
 from app.models import Recipe
 from app.recipe_sources import SourceError, get_source, get_sources
-from app.services import history
+from app.services import history, images
 from app.services import recipes as recipe_service
 from app.web import Ctx, get_ctx, redirect, render
 
+log = logging.getLogger("mampfplan")
 router = APIRouter(prefix="/s/{token}")
 
 DEFAULT_SOURCE = "chefkoch"
@@ -95,4 +97,15 @@ def import_recipe(
             source=external.source,
             source_url=external.source_url,
         )
+    _warm_image_cache(external.image_url)
     return redirect(f"{ctx.base}/recipes/{recipe.id}{suffix}")
+
+
+def _warm_image_cache(url: str | None) -> None:
+    """Bild gleich beim Übernehmen laden, damit es später ohne Zugriff auf die Quelle (auch offline) verfügbar ist."""
+    if not url:
+        return
+    try:
+        images.get_image_cache().get(url)
+    except Exception:  # noqa: BLE001 – ein fehlendes Bild darf das Übernehmen nie verhindern
+        log.exception("Bild konnte nicht vorgeladen werden")

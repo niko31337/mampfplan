@@ -5,6 +5,8 @@
 const VERSION = "v1";
 const STATIC_CACHE = `mampfplan-static-${VERSION}`;
 const PAGE_CACHE = `mampfplan-pages-${VERSION}`;
+const IMAGE_CACHE = `mampfplan-images-${VERSION}`;
+const MAX_CACHED_IMAGES = 300;
 const PRECACHE = [
   "/static/style.css",
   "/static/app.js",
@@ -24,7 +26,9 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => ![STATIC_CACHE, PAGE_CACHE].includes(key)).map((key) => caches.delete(key)))
+        Promise.all(
+          keys.filter((key) => ![STATIC_CACHE, PAGE_CACHE, IMAGE_CACHE].includes(key)).map((key) => caches.delete(key))
+        )
       )
       .then(() => self.clients.claim())
   );
@@ -38,6 +42,8 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/static/")) {
     event.respondWith(staleWhileRevalidate(request));
+  } else if (url.pathname.startsWith("/s/") && url.pathname.endsWith("/img")) {
+    event.respondWith(cacheFirstImage(request)); // Rezeptbilder: ändern sich nie, auch offline anzeigen
   } else if (url.pathname.startsWith("/s/") && isCacheablePage(request, url)) {
     event.respondWith(networkFirst(request));
   }
@@ -63,6 +69,28 @@ async function staleWhileRevalidate(request) {
     })
     .catch(() => cached);
   return cached || refresh;
+}
+
+async function cacheFirstImage(request) {
+  const cache = await caches.open(IMAGE_CACHE);
+  const cached = await cache.match(request.url);
+  if (cached) return cached;
+  try {
+    const response = await fetchWithTimeout(request, NETWORK_TIMEOUT_MS);
+    if (response.ok && (response.headers.get("content-type") || "").startsWith("image/")) {
+      await cache.put(request.url, response.clone());
+      trimCache(cache, MAX_CACHED_IMAGES);
+    }
+    return response;
+  } catch {
+    return new Response("", { status: 504 });
+  }
+}
+
+// Älteste Einträge zuerst entfernen (Cache.keys() liefert in Einfügereihenfolge).
+async function trimCache(cache, max) {
+  const keys = await cache.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - max)).map((key) => cache.delete(key)));
 }
 
 async function networkFirst(request) {

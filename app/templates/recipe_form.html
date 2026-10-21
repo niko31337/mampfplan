@@ -19,9 +19,6 @@
   <label for="steps">Zubereitung</label>
   <textarea id="steps" name="steps" rows="10" maxlength="20000">{{ recipe.steps if recipe }}</textarea>
 
-  <label for="image_url">Bild-URL <small>(optional, https)</small></label>
-  <input id="image_url" type="url" name="image_url" value="{{ recipe.image_url if recipe and recipe.image_url }}" maxlength="500">
-
   <div class="row spread">
     <a class="btn" href="{{ base }}/recipes{{ '/' ~ recipe.id if recipe }}">Abbrechen</a>
     <button class="btn primary">Speichern</button>

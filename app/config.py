@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from functools import lru_cache
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from pydantic import field_validator
@@ -19,6 +20,8 @@ class Settings(BaseSettings):
     secure_cookies: bool = False
     public_url: str = "http://localhost:8000"
     spoonacular_api_key: str | None = None
+    image_cache_dir: str | None = None  # Standard: Ordner "imagecache" neben der Datenbank
+    image_cache_max_mb: int = 300
 
     @field_validator("space_token")
     @classmethod
@@ -26,6 +29,14 @@ class Settings(BaseSettings):
         if value and len(value) < MIN_TOKEN_LENGTH:
             raise ValueError(f"SPACE_TOKEN muss mindestens {MIN_TOKEN_LENGTH} Zeichen lang sein")
         return value or None
+
+    @property
+    def image_cache_path(self) -> Path:
+        if self.image_cache_dir:
+            return Path(self.image_cache_dir)
+        if self.database_url.startswith("sqlite:///") and ":memory:" not in self.database_url:
+            return Path(self.database_url.removeprefix("sqlite:///")).parent / "imagecache"
+        return Path("data") / "imagecache"
 
     @property
     def member_names(self) -> list[str]:

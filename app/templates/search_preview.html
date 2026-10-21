@@ -3,7 +3,7 @@
 {% block title %}{{ recipe.title }} – Mampfplan{% endblock %}
 {% block content %}
 <div data-wake-lock hidden></div>
-{% if recipe.image_url %}<img class="hero" src="{{ recipe.image_url }}" alt="" referrerpolicy="no-referrer">{% endif %}
+{% set img = recipe.image_url|cached_img(base) %}{% if img %}<img class="hero" src="{{ img }}" alt="">{% endif %}
 <h1>{{ recipe.title }}</h1>
 <p class="wake-status small" data-wake-status hidden></p>
 <p class="muted small">

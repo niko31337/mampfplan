@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query
 
 from app.config import now, today
 from app.models import Recipe
-from app.recipe_sources.base import safe_https_url
 from app.services import history
 from app.services import recipes as recipe_service
 from app.services import shopping as shopping_service
@@ -37,7 +36,6 @@ def create_recipe(
     ctx: Annotated[Ctx, Depends(get_ctx)],
     title: Annotated[str, Form(max_length=200)],
     servings: Annotated[str, Form(max_length=5)] = "",
-    image_url: Annotated[str, Form(max_length=500)] = "",
     ingredients: Annotated[str, Form(max_length=10000)] = "",
     steps: Annotated[str, Form(max_length=20000)] = "",
 ):
@@ -53,7 +51,6 @@ def create_recipe(
             recipe_service.parse_servings(servings),
             steps,
             parse_lines(ingredients),
-            image_url=image_url or None,
         )
     return redirect(f"{ctx.base}/recipes/{recipe.id}")
 
@@ -77,7 +74,6 @@ def update_recipe(
     recipe_id: int,
     title: Annotated[str, Form(max_length=200)],
     servings: Annotated[str, Form(max_length=5)] = "",
-    image_url: Annotated[str, Form(max_length=500)] = "",
     ingredients: Annotated[str, Form(max_length=10000)] = "",
     steps: Annotated[str, Form(max_length=20000)] = "",
 ):
@@ -88,7 +84,6 @@ def update_recipe(
         act.updating(recipe)
         recipe.title = title.strip()[:200]
         recipe.servings = recipe_service.parse_servings(servings)
-        recipe.image_url = safe_https_url(image_url.strip())
         recipe.steps = steps.strip()
         recipe_service.replace_ingredients(act, ctx.db, recipe, parse_lines(ingredients))
     return redirect(f"{ctx.base}/recipes/{recipe.id}")

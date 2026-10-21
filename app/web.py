@@ -15,6 +15,7 @@ from app.config import get_settings, today
 from app.db import get_db
 from app.models import Member, Space
 from app.services import history
+from app.services.images import cached_image_src
 from app.services.ingredients import format_amount, format_quantity
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -41,6 +42,7 @@ templates.env.filters["date_short"] = _date_short
 templates.env.filters["date_long"] = _date_long
 templates.env.filters["amount"] = format_amount
 templates.env.filters["quantity"] = format_quantity
+templates.env.filters["cached_img"] = cached_image_src
 templates.env.globals["weekdays"] = WEEKDAYS
 
 
@@ -126,7 +128,7 @@ async def verify_csrf(request: Request) -> None:
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
-        "default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; "
+        "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
         "worker-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'"
     ),
     "X-Content-Type-Options": "nosniff",

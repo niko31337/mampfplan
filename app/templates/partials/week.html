@@ -9,7 +9,7 @@
     {% for e in entries %}
     <article class="entry {{ 'is-cooked' if e.cooked }}">
       {% if e.kind == 'recipe' and e.recipe %}
-        {% if e.recipe.image_url %}<img class="thumb" src="{{ e.recipe.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        {% set img = e.recipe.image_url|cached_img(base) %}{% if img %}<img class="thumb" src="{{ img }}" alt="" loading="lazy">{% endif %}
         <div class="entry-main">
           {% if e.recipe.deleted_at %}
             <span class="entry-title muted">{{ e.recipe.title }} (gelöscht)</span>

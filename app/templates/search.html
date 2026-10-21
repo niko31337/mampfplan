@@ -33,7 +33,7 @@
     {% for r in results %}
     <li>
       <a class="list-item" href="{{ base }}/search/preview?source={{ r.source }}&amp;id={{ r.external_id|urlencode }}{% if day %}&amp;day={{ day.isoformat() }}{% endif %}">
-        {% if r.image_url %}<img class="thumb" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        {% set img = r.image_url|cached_img(base) %}{% if img %}<img class="thumb" src="{{ img }}" alt="" loading="lazy">{% endif %}
         <div class="grow"><strong>{{ r.title }}</strong></div>
       </a>
     </li>
