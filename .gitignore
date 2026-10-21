@@ -1,7 +1,28 @@
+# Umgebung / IDE
 .venv/
 .idea/
-.env
-data/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Konfiguration und Geheimnisse – gehören NIE ins Repository
+.env
+.env.*
+!.env.example
+*.local.yml
+*.local.yaml
+docker-compose.override.yml
+docker-compose.prod.yml
+Caddyfile
+deploy.local/
+*.pem
+*.key
+*.crt
+
+# Laufzeitdaten
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
