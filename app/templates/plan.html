@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% set nav = 'plan' %}
+{% block title %}Wochenplan – Mampfplan{% endblock %}
+{% block content %}
+<nav class="weeknav" aria-label="Woche wechseln">
+  <a class="btn" href="{{ base }}/plan?week={{ prev_week.isoformat() }}" aria-label="Vorherige Woche">‹</a>
+  <div class="weeknav-title">
+    <strong>KW {{ week_number }}</strong>
+    <span>{{ start|date_short }} – {{ end|date_short }}</span>
+  </div>
+  <a class="btn" href="{{ base }}/plan?week={{ next_week.isoformat() }}" aria-label="Nächste Woche">›</a>
+</nav>
+{% if not (start <= today <= end) %}
+<p class="center"><a class="btn small" href="{{ base }}/plan">Zur aktuellen Woche</a></p>
+{% endif %}
+
+{% include "partials/week.html" %}
+{% endblock %}

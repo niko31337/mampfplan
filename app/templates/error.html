@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Fehler – Mampfplan{% endblock %}
+{% block content %}
+<div class="card center">
+  <h1>😕 {{ status }}</h1>
+  <p>{{ message }}</p>
+  <p><a class="btn" href="{{ base ~ '/plan' if member else '/' }}">Zur Startseite</a></p>
+</div>
+{% endblock %}

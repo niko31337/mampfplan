@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set nav = 'more' %}
+{% block title %}Statistik – Mampfplan{% endblock %}
+{% block content %}
+<h1>Rezeptstatistik</h1>
+<p class="muted small">Als gekocht zählt, was eingeplant ist und nicht in der Zukunft liegt – oder was du mit ✓ markiert hast.</p>
+
+<div class="card row spread center">
+  <div><strong>{{ total }}</strong><br><span class="small muted">Mahlzeiten gekocht</span></div>
+  <div><strong>{{ distinct }}</strong><br><span class="small muted">verschiedene Rezepte</span></div>
+</div>
+
+<section class="card">
+  <h2>Am häufigsten gekocht</h2>
+  <ul class="list">
+    {% for s in top %}
+    <li class="list-item">
+      <div class="grow">
+        <a href="{{ base }}/recipes/{{ s.recipe.id }}">{{ s.recipe.title }}</a>
+        <progress class="bar" max="{{ top[0].count }}" value="{{ s.count }}"></progress>
+        <span class="small muted">zuletzt {{ s.last.strftime('%d.%m.%Y') }}</span>
+      </div>
+      <strong>{{ s.count }}×</strong>
+    </li>
+    {% else %}
+    <li class="empty">Noch nichts gekocht.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Kochverlauf</h2>
+  <ul class="list">
+    {% for e in recent %}
+    <li class="list-item">
+      <span class="muted small">{{ e.day.strftime('%d.%m.%y') }}</span>
+      <div class="grow">{{ e.recipe.title if e.recipe else '–' }}</div>
+    </li>
+    {% else %}
+    <li class="empty">Noch kein Verlauf.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

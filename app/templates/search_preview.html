@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set nav = 'search' %}
+{% block title %}{{ recipe.title }} – Mampfplan{% endblock %}
+{% block content %}
+<div data-wake-lock hidden></div>
+{% if recipe.image_url %}<img class="hero" src="{{ recipe.image_url }}" alt="" referrerpolicy="no-referrer">{% endif %}
+<h1>{{ recipe.title }}</h1>
+<p class="wake-status small" data-wake-status hidden></p>
+<p class="muted small">
+  Quelle: {{ source.label }}{% if recipe.servings %} · {{ recipe.servings }} Portionen{% endif %}
+  {% if recipe.source_url %} · <a href="{{ recipe.source_url }}" rel="noopener noreferrer nofollow" target="_blank">Original</a>{% endif %}
+</p>
+
+<form method="post" action="{{ base }}/search/import" class="card">
+  <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+  <input type="hidden" name="source" value="{{ recipe.source }}">
+  <input type="hidden" name="external_id" value="{{ recipe.external_id }}">
+  {% if day %}<input type="hidden" name="day" value="{{ day.isoformat() }}">{% endif %}
+  <button class="btn primary block">In meine Rezepte übernehmen</button>
+</form>
+
+<section class="card">
+  <h2>Zutaten</h2>
+  <ul class="list">
+    {% for i in recipe.ingredients %}
+    <li class="list-item">{{ i.amount|quantity(i.unit) }} {{ i.name }}</li>
+    {% else %}
+    <li class="empty">Keine Zutaten angegeben.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Zubereitung</h2>
+  <div class="steps">{{ recipe.steps or 'Keine Schritte angegeben.' }}</div>
+</section>
+{% endblock %}

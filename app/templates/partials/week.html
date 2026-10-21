@@ -1,0 +1,54 @@
+<div id="week" hx-target="#week" hx-swap="outerHTML">
+  {% for day, entries in days.items() %}
+  <section class="day {{ 'is-today' if day == today }}">
+    <h2>
+      <span>{{ day|date_long }}</span>
+      {% if day == today %}<span class="badge">Heute</span>{% endif %}
+    </h2>
+
+    {% for e in entries %}
+    <article class="entry {{ 'is-cooked' if e.cooked }}">
+      {% if e.kind == 'recipe' and e.recipe %}
+        {% if e.recipe.image_url %}<img class="thumb" src="{{ e.recipe.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        <div class="entry-main">
+          {% if e.recipe.deleted_at %}
+            <span class="entry-title muted">{{ e.recipe.title }} (gelöscht)</span>
+          {% else %}
+            <a class="entry-title" href="{{ base }}/recipes/{{ e.recipe.id }}">{{ e.recipe.title }}</a>
+          {% endif %}
+          {% if e.cooked %}<span class="small muted">gekocht ✓</span>{% endif %}
+        </div>
+      {% else %}
+        <div class="entry-main"><span class="entry-title">📝 {{ e.note }}</span></div>
+      {% endif %}
+
+      <div class="entry-tools">
+        <button class="icon-btn" aria-label="Nach oben" title="Nach oben" hx-post="{{ base }}/plan/entries/{{ e.id }}/move" hx-vals='{"direction": "up"}' {{ 'disabled' if loop.first }}>▲</button>
+        <button class="icon-btn" aria-label="Nach unten" title="Nach unten" hx-post="{{ base }}/plan/entries/{{ e.id }}/move" hx-vals='{"direction": "down"}' {{ 'disabled' if loop.last }}>▼</button>
+        {% if e.kind == 'recipe' and e.recipe and not e.recipe.deleted_at %}
+        <button class="icon-btn {{ 'is-on' if e.cooked }}" aria-label="Als gekocht markieren" title="Als gekocht markieren" hx-post="{{ base }}/plan/entries/{{ e.id }}/cooked">✓</button>
+        <button class="icon-btn" aria-label="Zutaten auf die Einkaufsliste" title="Alle Zutaten auf die Einkaufsliste" hx-post="{{ base }}/plan/entries/{{ e.id }}/shop">🛒</button>
+        {% endif %}
+        <button class="icon-btn" aria-label="Entfernen" title="Entfernen" hx-post="{{ base }}/plan/entries/{{ e.id }}/delete">✕</button>
+      </div>
+    </article>
+    {% else %}
+    <p class="empty">Nichts geplant</p>
+    {% endfor %}
+
+    <div class="day-actions">
+      <a class="btn small" href="{{ base }}/plan/pick?day={{ day.isoformat() }}">＋ Rezept</a>
+      <details class="note-add">
+        <summary class="btn small">＋ Notiz</summary>
+        <form method="post" action="{{ base }}/plan/note" hx-post="{{ base }}/plan/note">
+          <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+          <input type="hidden" name="day" value="{{ day.isoformat() }}">
+          <input type="text" name="text" maxlength="300" required placeholder="z. B. Auswärts essen" aria-label="Notiz">
+          <button class="btn primary small">Speichern</button>
+        </form>
+      </details>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% if oob %}{% include "partials/_oob.html" %}{% endif %}

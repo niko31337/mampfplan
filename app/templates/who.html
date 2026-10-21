@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Wer bist du? – Mampfplan{% endblock %}
+{% block content %}
+<h1>Wer bist du?</h1>
+<p class="muted">Damit im Verlauf steht, wer was geändert hat. Das ist kein Login – du kannst jederzeit wechseln.</p>
+<div class="big-btn-list">
+  {% for m in members %}
+  <form method="post" action="{{ base }}/who" hx-boost="false">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" name="member_id" value="{{ m.id }}">
+    <button class="btn primary block">{{ m.name }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endblock %}

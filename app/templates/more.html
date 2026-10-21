@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set nav = 'more' %}
+{% block title %}Mehr – Mampfplan{% endblock %}
+{% block content %}
+<h1>Mehr</h1>
+
+<div class="big-btn-list">
+  <a class="btn" href="{{ base }}/stats">📊 Statistik &amp; Kochverlauf</a>
+  <a class="btn" href="{{ base }}/history">🕘 Änderungsverlauf</a>
+  <a class="btn" href="{{ base }}/shopping/catalog">📚 Artikelkatalog</a>
+</div>
+
+<section class="card">
+  <h2>Mit der Familie teilen</h2>
+  <p class="muted small">Wer diesen Link kennt, kann Wochenplan und Einkaufsliste sehen <strong>und ändern</strong>. Gib ihn nur an Personen weiter, denen du vertraust.</p>
+  <div id="share-link" class="sharebox">{{ share_link }}</div>
+  <p><button class="btn small" data-copy="#share-link">Link kopieren</button></p>
+</section>
+
+<section class="card">
+  <h2>Profil</h2>
+  <p>Angemeldet als <strong>{{ member.name }}</strong>.</p>
+  <a class="btn small" href="{{ base }}/who">Profil wechseln</a>
+</section>
+{% endblock %}

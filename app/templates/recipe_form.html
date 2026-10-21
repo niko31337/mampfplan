@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% set nav = 'recipes' %}
+{% block title %}{{ 'Rezept bearbeiten' if recipe else 'Neues Rezept' }} – Mampfplan{% endblock %}
+{% block content %}
+<h1>{{ 'Rezept bearbeiten' if recipe else 'Neues Rezept' }}</h1>
+
+<form method="post" action="{{ base }}/recipes/{{ recipe.id ~ '/edit' if recipe else 'new' }}">
+  <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+
+  <label for="title">Titel</label>
+  <input id="title" type="text" name="title" value="{{ recipe.title if recipe }}" required maxlength="200">
+
+  <label for="servings">Portionen <small>(optional)</small></label>
+  <input id="servings" type="number" name="servings" min="1" max="100" inputmode="numeric" value="{{ recipe.servings if recipe and recipe.servings }}">
+
+  <label for="ingredients">Zutaten <small>(eine pro Zeile, z. B. „200 g Mehl“ oder „2 Eier“)</small></label>
+  <textarea id="ingredients" name="ingredients" rows="8" maxlength="10000">{{ ingredient_text }}</textarea>
+
+  <label for="steps">Zubereitung</label>
+  <textarea id="steps" name="steps" rows="10" maxlength="20000">{{ recipe.steps if recipe }}</textarea>
+
+  <label for="image_url">Bild-URL <small>(optional, https)</small></label>
+  <input id="image_url" type="url" name="image_url" value="{{ recipe.image_url if recipe and recipe.image_url }}" maxlength="500">
+
+  <div class="row spread">
+    <a class="btn" href="{{ base }}/recipes{{ '/' ~ recipe.id if recipe }}">Abbrechen</a>
+    <button class="btn primary">Speichern</button>
+  </div>
+</form>
+{% endblock %}

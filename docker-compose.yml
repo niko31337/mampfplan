@@ -1,0 +1,25 @@
+services:
+  mampfplan:
+    build: .
+    image: mampfplan:latest
+    container_name: mampfplan
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Benanntes Volume: gehört automatisch dem Container-User (keine chown-Probleme).
+      # Für Backups auf dem NAS alternativ ein Verzeichnis einbinden: ./data:/data
+      # (dann vorher `chown 10001 data` ausführen).
+      - mampfplan-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  mampfplan-data:

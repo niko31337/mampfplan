@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set nav = 'shopping' %}
+{% block title %}Einkaufsliste – Mampfplan{% endblock %}
+{% block content %}
+<div class="row spread">
+  <h1>Einkaufsliste</h1>
+  <a class="btn small" href="{{ base }}/shopping/catalog">📚 Katalog</a>
+</div>
+
+<form class="addform" method="post" action="{{ base }}/shopping/add" hx-post="{{ base }}/shopping/add"
+      hx-target="#shopping-list" hx-swap="outerHTML" data-reset-on-success>
+  <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+  <div class="row">
+    <input type="text" name="name" maxlength="120" required autocomplete="off" enterkeyhint="done"
+           placeholder="Artikel hinzufügen, z. B. 2 l Milch" aria-label="Artikel"
+           hx-get="{{ base }}/shopping/suggest" hx-trigger="input changed delay:200ms"
+           hx-target="#suggestions" hx-swap="innerHTML">
+    <button class="btn primary">＋</button>
+  </div>
+  <div id="suggestions"></div>
+</form>
+
+{% include "partials/shopping_list.html" %}
+<p class="muted small center">Tipp: Am Griff ⠿ ziehen, um Artikel und Kategorien zu sortieren.</p>
+{% endblock %}

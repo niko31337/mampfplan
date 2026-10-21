@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#e8590c">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
+  <title>{% block title %}Mampfplan{% endblock %}</title>
+  {% if base is defined and member %}<link rel="manifest" href="{{ base }}/manifest.webmanifest">{% endif %}
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/sortable.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body hx-boost="true" hx-headers='{"X-CSRF-Token": "{{ request.state.csrf_token }}"}'{% if member %} data-base="{{ base }}"{% endif %}>
+  <header class="topbar">
+    <a class="brand" href="{{ base ~ '/plan' if member else '/' }}">🍽 Mampfplan</a>
+    <div id="undo-slot">{% include "partials/undo_button.html" %}</div>
+  </header>
+  <div id="sync-banner" class="sync-banner" role="status" hidden></div>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="toast" class="toast-slot"></div>
+
+  {% if member %}
+  {% set nav = nav|default('') %}
+  <nav class="tabbar" aria-label="Hauptnavigation">
+    <a href="{{ base }}/plan" class="{{ 'is-active' if nav == 'plan' }}"><span>📅</span>Woche</a>
+    <a href="{{ base }}/recipes" class="{{ 'is-active' if nav == 'recipes' }}"><span>📖</span>Rezepte</a>
+    <a href="{{ base }}/search" class="{{ 'is-active' if nav == 'search' }}"><span>🔎</span>Suche</a>
+    <a href="{{ base }}/shopping" class="{{ 'is-active' if nav == 'shopping' }}"><span>🛒</span>Einkauf</a>
+    <a href="{{ base }}/more" class="{{ 'is-active' if nav == 'more' }}"><span>⚙️</span>Mehr</a>
+  </nav>
+  {% endif %}
+</body>
+</html>

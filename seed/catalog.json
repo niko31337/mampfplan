@@ -1,0 +1,62 @@
+{
+  "Obst & Gemüse": [
+    "Äpfel", "Bananen", "Birnen", "Orangen", "Zitronen", "Limetten", "Trauben", "Erdbeeren", "Himbeeren", "Blaubeeren",
+    "Melone", "Kiwi", "Mandarinen", "Ananas", "Avocado", "Tomaten", "Cherrytomaten", "Gurke", "Paprika", "Zucchini",
+    "Aubergine", "Brokkoli", "Blumenkohl", "Karotten", "Kartoffeln", "Süßkartoffeln", "Zwiebeln", "Rote Zwiebeln",
+    "Knoblauch", "Lauch", "Frühlingszwiebeln", "Champignons", "Spinat", "Blattsalat", "Eisbergsalat", "Rucola",
+    "Kohlrabi", "Rotkohl", "Weißkohl", "Spitzkohl", "Fenchel", "Sellerie", "Radieschen", "Mais", "Ingwer",
+    "Petersilie", "Schnittlauch", "Basilikum", "Koriander", "Dill", "Minze", "Rosmarin", "Thymian", "Kürbis", "Rote Bete"
+  ],
+  "Brot & Backwaren": [
+    "Brot", "Vollkornbrot", "Toastbrot", "Brötchen", "Baguette", "Laugenbrezeln", "Tortilla-Wraps", "Fladenbrot",
+    "Knäckebrot", "Croissants", "Hefe", "Backpulver", "Pizzateig", "Blätterteig", "Burgerbrötchen"
+  ],
+  "Milch, Käse & Eier": [
+    "Milch", "Hafermilch", "Sahne", "Schlagsahne", "Saure Sahne", "Crème fraîche", "Butter", "Margarine", "Joghurt",
+    "Naturjoghurt", "Quark", "Skyr", "Frischkäse", "Schmand", "Eier", "Gouda", "Emmentaler", "Mozzarella", "Parmesan",
+    "Feta", "Halloumi", "Reibekäse", "Mascarpone", "Ricotta", "Kräuterbutter", "Pudding", "Buttermilch"
+  ],
+  "Fleisch, Fisch & Wurst": [
+    "Hackfleisch", "Hähnchenbrust", "Hähnchenschenkel", "Putenbrust", "Schweineschnitzel", "Rindergulasch", "Bratwurst",
+    "Würstchen", "Schinken", "Kochschinken", "Salami", "Bacon", "Leberwurst", "Lachs", "Fischstäbchen", "Thunfisch",
+    "Garnelen", "Räuchertofu", "Tofu"
+  ],
+  "Tiefkühl": [
+    "TK-Gemüse", "TK-Spinat", "TK-Pizza", "Pommes", "Eiscreme", "TK-Beeren", "Kroketten", "TK-Erbsen", "Rahmspinat",
+    "Gnocchi (TK)", "Fischfilet (TK)"
+  ],
+  "Vorrat & Konserven": [
+    "Nudeln", "Spaghetti", "Reis", "Basmatireis", "Couscous", "Haferflocken", "Müsli", "Cornflakes", "Mehl", "Zucker",
+    "Puderzucker", "Vanillezucker", "Salz", "Linsen", "Kichererbsen", "Kidneybohnen", "Mais (Dose)", "Gehackte Tomaten",
+    "Tomatenmark", "Passierte Tomaten", "Kokosmilch", "Gemüsebrühe", "Hühnerbrühe", "Kartoffelpüree", "Semmelbrösel",
+    "Speisestärke", "Nüsse", "Mandeln", "Rosinen", "Erdnussbutter", "Marmelade", "Honig", "Nutella", "Sonnenblumenkerne",
+    "Thunfisch (Dose)", "Oliven"
+  ],
+  "Gewürze, Öle & Soßen": [
+    "Olivenöl", "Sonnenblumenöl", "Rapsöl", "Essig", "Balsamico", "Sojasoße", "Ketchup", "Senf", "Mayonnaise",
+    "Pfeffer", "Paprikapulver", "Curry", "Zimt", "Muskat", "Oregano", "Chiliflocken", "Kreuzkümmel", "Currypaste",
+    "Pesto", "Grillsoße", "Salatdressing", "Worcestersauce", "Sambal Oelek"
+  ],
+  "Süßes & Snacks": [
+    "Schokolade", "Kekse", "Chips", "Salzstangen", "Gummibärchen", "Eis am Stiel", "Popcorn", "Müsliriegel", "Kuchen",
+    "Bonbons", "Nussmischung"
+  ],
+  "Getränke": [
+    "Wasser", "Mineralwasser", "Apfelsaft", "Orangensaft", "Limonade", "Cola", "Eistee", "Kaffee", "Kaffeefilter",
+    "Tee", "Kakao", "Bier", "Wein", "Sekt", "Saftschorle"
+  ],
+  "Haushalt & Reinigung": [
+    "Toilettenpapier", "Küchenrolle", "Taschentücher", "Spülmittel", "Spülmaschinentabs", "Waschmittel", "Weichspüler",
+    "Allzweckreiniger", "Glasreiniger", "WC-Reiniger", "Badreiniger", "Müllbeutel", "Gefrierbeutel", "Frischhaltefolie",
+    "Alufolie", "Backpapier", "Schwämme", "Putztücher", "Batterien", "Glühbirnen", "Kerzen", "Streichhölzer",
+    "Entkalker", "Spülmaschinensalz", "Bodenreiniger"
+  ],
+  "Hygiene & Drogerie": [
+    "Zahnpasta", "Zahnbürste", "Zahnseide", "Mundspülung", "Duschgel", "Shampoo", "Spülung", "Seife", "Handcreme",
+    "Bodylotion", "Deo", "Rasierer", "Rasierschaum", "Wattepads", "Wattestäbchen", "Feuchttücher", "Pflaster",
+    "Sonnencreme", "Binden", "Tampons", "Haargel", "Haarspray", "Gesichtscreme", "Lippenpflege", "Nagelschere"
+  ],
+  "Baby & Haustier": [
+    "Windeln", "Babybrei", "Babyfeuchttücher", "Katzenfutter", "Katzenstreu", "Hundefutter", "Leckerlis"
+  ]
+}

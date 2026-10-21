@@ -1,0 +1,161 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query
+from sqlalchemy import select
+
+from app.config import now
+from app.models import CatalogItem, ShoppingItem
+from app.services import history
+from app.services import shopping as service
+from app.services.ingredients import parse_line
+from app.web import Ctx, get_ctx, render
+
+router = APIRouter(prefix="/s/{token}")
+
+MAX_CHECKED_SHOWN = 40
+MAX_IDS = 500
+
+
+def _list_context(ctx: Ctx) -> dict:
+    items = ctx.db.scalars(select(ShoppingItem).where(ShoppingItem.space_id == ctx.space.id)).all()
+    order = {name: rank for rank, name in enumerate(service.category_order(ctx.db, ctx.space.id))}
+    open_items = sorted(
+        (i for i in items if not i.checked),
+        key=lambda i: (order.get(i.category, len(order)), *service.item_sort_key(i)),
+    )
+    groups: dict[str, list[ShoppingItem]] = {}
+    for item in open_items:
+        groups.setdefault(item.category, []).append(item)
+    checked = sorted((i for i in items if i.checked), key=lambda i: i.checked_at or now(), reverse=True)
+    return {"groups": groups, "open_count": len(open_items), "checked": checked[:MAX_CHECKED_SHOWN]}
+
+
+def _respond_list(ctx: Ctx, toast: str | None = None, clear_suggestions: bool = False):
+    return render(
+        ctx, "partials/shopping_list.html", toast=toast, clear_suggestions=clear_suggestions, **_list_context(ctx)
+    )
+
+
+def _get_item(ctx: Ctx, item_id: int) -> ShoppingItem:
+    item = ctx.db.get(ShoppingItem, item_id)
+    if item is None or item.space_id != ctx.space.id:
+        raise HTTPException(404, "Artikel nicht gefunden")
+    return item
+
+
+@router.get("/shopping")
+def shopping_page(ctx: Annotated[Ctx, Depends(get_ctx)]):
+    return render(ctx, "shopping.html", clear_suggestions=False, **_list_context(ctx))
+
+
+@router.get("/shopping/list")
+def shopping_list_fragment(ctx: Annotated[Ctx, Depends(get_ctx)]):
+    """Nur die Liste (für die Synchronisation nach Offline-Phasen)."""
+    return _respond_list(ctx)
+
+
+@router.get("/shopping/suggest")
+def suggest(ctx: Annotated[Ctx, Depends(get_ctx)], q: Annotated[str, Query(alias="name", max_length=100)] = ""):
+    items = service.search_catalog(ctx.db, q) if q.strip() else []
+    return render(ctx, "partials/suggestions.html", items=items, q=q.strip())
+
+
+@router.get("/shopping/catalog")
+def catalog(ctx: Annotated[Ctx, Depends(get_ctx)], q: Annotated[str, Query(max_length=100)] = ""):
+    items = service.search_catalog(ctx.db, q, limit=300) if q.strip() else list(
+        ctx.db.scalars(select(CatalogItem).order_by(CatalogItem.name))
+    )
+    groups: dict[str, list[CatalogItem]] = {}
+    for item in sorted(items, key=lambda i: (service.category_rank(i.category), i.name.casefold())):
+        groups.setdefault(item.category, []).append(item)
+    on_list = {
+        i.name.lower()
+        for i in ctx.db.scalars(
+            select(ShoppingItem).where(ShoppingItem.space_id == ctx.space.id, ShoppingItem.checked.is_(False))
+        )
+    }
+    return render(ctx, "catalog.html", q=q, groups=groups, on_list=on_list)
+
+
+@router.post("/shopping/add")
+def add(
+    ctx: Annotated[Ctx, Depends(get_ctx)],
+    name: Annotated[str, Form(max_length=120)],
+    category: Annotated[str, Form(max_length=40)] = "",
+    target: Annotated[str, Form(pattern="^(list|chip)$")] = "list",
+):
+    amount, unit, clean_name = parse_line(name)
+    clean_name = service.clean_name(clean_name)
+    if not clean_name:
+        return _respond_list(ctx, clear_suggestions=True)
+    category = category if category in service.CATEGORY_ORDER else None
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"„{clean_name[:60]}“ auf die Einkaufsliste gesetzt") as act:
+        item, merged = service.add_item(ctx.db, act, ctx.space.id, clean_name, amount, unit, category)
+    if target == "chip":
+        return render(ctx, "partials/chip_added.html", name=item.name)
+    return _respond_list(ctx, f"„{item.name}“ hinzugefügt", clear_suggestions=True)
+
+
+# Reihenfolge: vor "/shopping/{item_id}/…" deklarieren, damit "reorder"/"categories" nicht als item_id gelesen werden.
+@router.post("/shopping/reorder")
+def reorder(
+    ctx: Annotated[Ctx, Depends(get_ctx)],
+    category: Annotated[str, Form(max_length=40)],
+    ids: Annotated[list[int] | None, Form()] = None,
+):
+    if category not in service.CATEGORY_ORDER:
+        raise HTTPException(400, "Unbekannte Kategorie")
+    ordered = (ids or [])[:MAX_IDS]
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"Artikel in „{category}“ umsortiert") as act:
+        service.reorder_items(ctx.db, act, ctx.space.id, category, ordered)
+    return _respond_list(ctx)
+
+
+@router.post("/shopping/categories/order")
+def order_categories(
+    ctx: Annotated[Ctx, Depends(get_ctx)],
+    categories: Annotated[list[str] | None, Form()] = None,
+):
+    wanted = [c for c in (categories or []) if c in service.CATEGORY_ORDER]
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, "Kategorien umsortiert") as act:
+        service.set_category_order(ctx.db, act, ctx.space.id, wanted)
+    return _respond_list(ctx)
+
+
+@router.post("/shopping/clear-checked")
+def clear_checked(ctx: Annotated[Ctx, Depends(get_ctx)]):
+    checked = ctx.db.scalars(
+        select(ShoppingItem).where(ShoppingItem.space_id == ctx.space.id, ShoppingItem.checked.is_(True))
+    ).all()
+    if checked:
+        with history.record(ctx.db, ctx.space.id, ctx.member.name, f"{len(checked)} erledigte Artikel entfernt") as act:
+            for item in checked:
+                act.deleting(item)
+    return _respond_list(ctx, f"{len(checked)} Artikel entfernt" if checked else None)
+
+
+@router.post("/shopping/{item_id}/toggle")
+def toggle(
+    ctx: Annotated[Ctx, Depends(get_ctx)],
+    item_id: int,
+    state: Annotated[str, Form(pattern="^[01]$")] = "",
+):
+    """Setzt den Haken. Mit `state` (1/0) idempotent – wichtig für das erneute Senden nach Offline-Phasen."""
+    item = _get_item(ctx, item_id)
+    wanted = (not item.checked) if state == "" else state == "1"
+    if wanted != item.checked:
+        label = "abgehakt" if wanted else "wieder auf die Liste gesetzt"
+        with history.record(ctx.db, ctx.space.id, ctx.member.name, f"„{item.name[:60]}“ {label}") as act:
+            act.updating(item)
+            item.checked = wanted
+            item.checked_at = now() if wanted else None
+    return _respond_list(ctx)
+
+
+@router.post("/shopping/{item_id}/delete")
+def delete(ctx: Annotated[Ctx, Depends(get_ctx)], item_id: int):
+    item = _get_item(ctx, item_id)
+    name = item.name
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"„{name[:60]}“ von der Einkaufsliste entfernt") as act:
+        act.deleting(item)
+    return _respond_list(ctx, f"„{name[:40]}“ entfernt")

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% set nav = 'recipes' %}
+{% block title %}Rezepte – Mampfplan{% endblock %}
+{% block content %}
+<div class="row spread">
+  <h1>Rezepte</h1>
+  <a class="btn primary small" href="{{ base }}/recipes/new">＋ Neu</a>
+</div>
+
+{# Ein Suchfeld, zwei Ziele: formaction wählt, wo gesucht wird (normaler Submit, daher ohne HTMX-Boost). #}
+<form method="get" action="{{ base }}/recipes" hx-boost="false" class="stack">
+  <input type="search" name="q" value="{{ q }}" placeholder="Titel, Zutat oder Gericht suchen" maxlength="100" aria-label="Suche">
+  <div class="row">
+    <button class="btn block" formaction="{{ base }}/recipes">📖 Meine Rezepte</button>
+    <button class="btn primary block" formaction="{{ base }}/search">🔎 Online suchen</button>
+  </div>
+</form>
+
+<div class="card">
+  <ul class="list">
+    {% for r in recipes %}
+    <li>
+      <a class="list-item" href="{{ base }}/recipes/{{ r.id }}">
+        {% if r.image_url %}<img class="thumb" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        <div class="grow">
+          <strong>{{ r.title }}</strong>
+          <span class="small muted">{{ r.ingredients|length }} Zutaten{% if r.source != 'manual' %} · {{ r.source }}{% endif %}</span>
+        </div>
+      </a>
+    </li>
+    {% else %}
+    <li class="empty">{{ 'Keine eigenen Rezepte gefunden. Probier „Online suchen“.' if q else 'Noch keine Rezepte. Lege ein eigenes an oder such online.' }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

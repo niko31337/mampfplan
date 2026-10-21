@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set nav = 'plan' %}
+{% block title %}Rezept einplanen – Mampfplan{% endblock %}
+{% block content %}
+<h1>Rezept für {{ day|date_long }}</h1>
+
+<form method="get" action="{{ base }}/plan/pick" class="inline">
+  <input type="hidden" name="day" value="{{ day.isoformat() }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="Eigene Rezepte durchsuchen" maxlength="100" aria-label="Suche">
+  <button class="btn">Suchen</button>
+</form>
+
+<div class="row wrap">
+  <a class="btn small" href="{{ base }}/search?day={{ day.isoformat() }}">🔎 Online suchen</a>
+  <a class="btn small" href="{{ base }}/recipes/new">＋ Neues Rezept</a>
+</div>
+
+<div class="card">
+  <ul class="list">
+    {% for r in recipes %}
+    <li class="list-item">
+      {% if r.image_url %}<img class="thumb" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+      <div class="grow">{{ r.title }}</div>
+      <form method="post" action="{{ base }}/plan/recipe">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <input type="hidden" name="day" value="{{ day.isoformat() }}">
+        <input type="hidden" name="recipe_id" value="{{ r.id }}">
+        <button class="btn primary small">Einplanen</button>
+      </form>
+    </li>
+    {% else %}
+    <li class="empty">Keine Rezepte gefunden. Lege ein eigenes an oder suche online.</li>
+    {% endfor %}
+  </ul>
+</div>
+<p><a href="{{ base }}/plan?week={{ day.isoformat() }}">← Zurück zum Wochenplan</a></p>
+{% endblock %}

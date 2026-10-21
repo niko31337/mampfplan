@@ -1,0 +1,16 @@
+{% if q %}
+<ul class="suggestions">
+  {% for i in items %}
+  <li>
+    <button type="button" class="chip" hx-post="{{ base }}/shopping/add"
+            hx-vals='{{ {"name": i.name, "category": i.category}|tojson }}'
+            hx-target="#shopping-list" hx-swap="outerHTML">{{ i.name }}</button>
+  </li>
+  {% endfor %}
+  <li>
+    <button type="button" class="chip new" hx-post="{{ base }}/shopping/add"
+            hx-vals='{{ {"name": q}|tojson }}'
+            hx-target="#shopping-list" hx-swap="outerHTML">＋ „{{ q }}“ neu</button>
+  </li>
+</ul>
+{% endif %}

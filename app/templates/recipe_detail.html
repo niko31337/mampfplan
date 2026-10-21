@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set nav = 'recipes' %}
+{% block title %}{{ recipe.title }} – Mampfplan{% endblock %}
+{% block content %}
+<div data-wake-lock hidden></div>
+{% if recipe.image_url %}<img class="hero" src="{{ recipe.image_url }}" alt="" referrerpolicy="no-referrer">{% endif %}
+<h1>{{ recipe.title }}</h1>
+<p class="wake-status small" data-wake-status hidden></p>
+<p class="muted small">
+  {% if recipe.servings %}{{ recipe.servings }} Portionen · {% endif %}
+  {% if recipe.source == 'manual' %}von {{ recipe.created_by }}{% else %}Quelle: {{ recipe.source }}{% endif %}
+  {% if recipe.source_url %} · <a href="{{ recipe.source_url }}" rel="noopener noreferrer nofollow" target="_blank">Original</a>{% endif %}
+</p>
+
+<section class="card">
+  <h2>Einplanen</h2>
+  <form method="post" action="{{ base }}/plan/recipe" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+    <input type="date" name="day" value="{{ plan_date.isoformat() }}" required aria-label="Tag">
+    <button class="btn primary">Einplanen</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="row spread">
+    <h2>Zutaten</h2>
+    {% if recipe.ingredients %}<button type="button" class="btn small" data-check-all="#ingredient-list">Alle wählen</button>{% endif %}
+  </div>
+  {% if recipe.ingredients %}
+  <p class="muted small">Tippe an, was du einkaufen musst.</p>
+  <form method="post" action="{{ base }}/recipes/{{ recipe.id }}/shop">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <ul class="ingredients" id="ingredient-list">
+      {% for i in recipe.ingredients %}
+      <li>
+        <label>
+          <input type="checkbox" name="ingredient_ids" value="{{ i.id }}">
+          <span>{{ i.amount|quantity(i.unit) }} {{ i.name }}</span>
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    <button class="btn primary block">🛒 Auswahl auf die Einkaufsliste</button>
+  </form>
+  {% else %}
+  <p class="empty">Keine Zutaten hinterlegt.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Zubereitung</h2>
+  {% if recipe.steps %}<div class="steps">{{ recipe.steps }}</div>{% else %}<p class="empty">Keine Schritte hinterlegt.</p>{% endif %}
+</section>
+
+<div class="row spread">
+  <a class="btn" href="{{ base }}/recipes/{{ recipe.id }}/edit">✏️ Bearbeiten</a>
+  <form method="post" action="{{ base }}/recipes/{{ recipe.id }}/delete" data-confirm="Rezept wirklich löschen?">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <button class="btn danger">🗑 Löschen</button>
+  </form>
+</div>
+{% endblock %}

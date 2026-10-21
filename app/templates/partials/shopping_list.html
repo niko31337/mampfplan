@@ -1,0 +1,48 @@
+<div id="shopping-list" hx-target="#shopping-list" hx-swap="outerHTML" hx-request='{"timeout": 5000}'>
+  <div id="shop-groups" data-order-url="{{ base }}/shopping/categories/order">
+    {% for category, items in groups.items() %}
+    <section class="shop-group" data-category="{{ category }}">
+      <h2>
+        <span>{{ category }}</span>
+        <span class="drag-handle cat-handle" role="img" aria-label="Kategorie verschieben" title="Kategorie verschieben">⠿</span>
+      </h2>
+      <div class="shop-items" data-reorder-url="{{ base }}/shopping/reorder" data-category="{{ category }}">
+        {% for it in items %}
+        <div class="shop-item" data-id="{{ it.id }}" data-category="{{ category }}">
+          <span class="drag-handle item-handle" role="img" aria-label="Artikel verschieben" title="Artikel verschieben">⠿</span>
+          <button class="check" aria-label="„{{ it.name }}“ abhaken" hx-post="{{ base }}/shopping/{{ it.id }}/toggle" hx-vals='{"state": "1"}'></button>
+          <div class="shop-name">
+            {{ it.name }}
+            {% if it.amount or it.unit %}<small>{{ it.amount|quantity(it.unit) }}</small>{% endif %}
+          </div>
+          <button class="icon-btn delete-btn" aria-label="„{{ it.name }}“ entfernen" hx-post="{{ base }}/shopping/{{ it.id }}/delete">✕</button>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+  {% if not groups %}
+    <p class="empty center" id="shop-empty">Alles besorgt 🎉 – die Liste ist leer.</p>
+  {% endif %}
+
+  {% if checked %}
+  <section class="shop-group shop-done">
+    <h2>Gekauft</h2>
+    {% for it in checked %}
+    <div class="shop-item is-done" data-id="{{ it.id }}" data-category="{{ it.category }}">
+      <button class="check is-on" aria-label="„{{ it.name }}“ wieder auf die Liste" hx-post="{{ base }}/shopping/{{ it.id }}/toggle" hx-vals='{"state": "0"}'>✓</button>
+      <div class="shop-name">
+        {{ it.name }}
+        {% if it.amount or it.unit %}<small>{{ it.amount|quantity(it.unit) }}</small>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    <p class="center"><button class="btn small" hx-post="{{ base }}/shopping/clear-checked">Gekaufte entfernen</button></p>
+  </section>
+  {% endif %}
+</div>
+{% if oob %}
+  {% if clear_suggestions %}<div id="suggestions" hx-swap-oob="true"></div>{% endif %}
+  {% include "partials/_oob.html" %}
+{% endif %}

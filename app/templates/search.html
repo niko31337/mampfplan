@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set nav = 'search' %}
+{% block title %}Rezeptsuche – Mampfplan{% endblock %}
+{% block content %}
+<h1>Rezepte online suchen</h1>
+
+<div class="tabs" role="tablist">
+  {% for key, src in sources.items() %}
+  <a class="tab {{ 'is-active' if src.key == active.key }}" role="tab"
+     href="{{ base }}/search?source={{ key }}&amp;q={{ q|urlencode }}{% if day %}&amp;day={{ day.isoformat() }}{% endif %}">{{ src.label }} · {{ src.language|upper }}</a>
+  {% endfor %}
+</div>
+
+<form method="get" action="{{ base }}/search" class="inline">
+  <input type="hidden" name="source" value="{{ active.key }}">
+  {% if day %}<input type="hidden" name="day" value="{{ day.isoformat() }}">{% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ 'z. B. Lasagne' if active.language == 'de' else 'e.g. chicken' }}" maxlength="100" required aria-label="Suchbegriff">
+  <button class="btn primary">Suchen</button>
+</form>
+
+{% if active.key == 'chefkoch' %}
+<p class="muted small">Chefkoch wird über eine inoffizielle Schnittstelle abgefragt und kann gelegentlich ausfallen.</p>
+{% elif active.language == 'en' %}
+<p class="muted small">Diese Quelle liefert englische Rezepte. Zutaten und Schritte kannst du nach dem Übernehmen selbst bearbeiten.</p>
+{% endif %}
+{% if day %}<p class="alert">Das übernommene Rezept wird danach für {{ day|date_long }} vorgeschlagen.</p>{% endif %}
+
+{% if error %}<p class="alert error">{{ error }}</p>{% endif %}
+
+{% if q and not error %}
+<div class="card">
+  <ul class="list">
+    {% for r in results %}
+    <li>
+      <a class="list-item" href="{{ base }}/search/preview?source={{ r.source }}&amp;id={{ r.external_id|urlencode }}{% if day %}&amp;day={{ day.isoformat() }}{% endif %}">
+        {% if r.image_url %}<img class="thumb" src="{{ r.image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        <div class="grow"><strong>{{ r.title }}</strong></div>
+      </a>
+    </li>
+    {% else %}
+    <li class="empty">Keine Treffer.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

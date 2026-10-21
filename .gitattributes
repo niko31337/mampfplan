@@ -1,0 +1,6 @@
+# Einheitliche Zeilenenden (LF), auch wenn unter Windows entwickelt wird – wichtig für Docker/Shell.
+* text=auto eol=lf
+
+# Mitgelieferte Fremdbibliotheken nicht als Projektcode zählen
+app/static/htmx.min.js linguist-vendored
+app/static/sortable.min.js linguist-vendored

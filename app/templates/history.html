@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% set nav = 'more' %}
+{% block title %}Änderungsverlauf – Mampfplan{% endblock %}
+{% block content %}
+<h1>Änderungsverlauf</h1>
+<p class="muted small">Die letzte nicht rückgängig gemachte Änderung kannst du oben mit „Rückgängig“ zurücknehmen.</p>
+<div class="card">
+  <ul class="list">
+    {% for e in entries %}
+    <li class="list-item">
+      <div class="grow {{ 'undone' if e.undone_at }}">
+        {{ e.description }}
+        <span class="small muted">{{ e.member_name }} · {{ e.created_at.strftime('%d.%m. %H:%M') }}{% if e.undone_at %} · rückgängig gemacht{% endif %}</span>
+      </div>
+    </li>
+    {% else %}
+    <li class="empty">Noch keine Änderungen.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
