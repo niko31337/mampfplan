@@ -12,6 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY seed ./seed
 
+# Die App läuft ohne Root-Rechte und muss ihre Dateien lesen können – unabhängig von den Rechten im
+# Build-Verzeichnis (z. B. umask 077 auf dem Server würde sonst "Permission denied" verursachen).
+RUN chmod -R a+rX /srv/app /srv/seed
+
 # Nicht als root laufen; die Datenbank liegt auf dem Volume /data
 RUN useradd --system --uid 10001 --no-create-home mampf \
     && mkdir /data && chown mampf /data
