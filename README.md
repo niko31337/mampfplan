@@ -27,7 +27,7 @@ Die Daten liegen in einer SQLite-Datei im Docker-Volume `mampfplan-data` (Backup
 
 ### Produktivbetrieb mit HTTPS (Caddy + certbot)
 
-`docker-compose.caddy.yml` stellt Caddy als HTTPS-Reverse-Proxy auf Port **8443** vor die App. Die App selbst ist dann nur noch lokal (`127.0.0.1:8000`) erreichbar. Caddy nutzt die Zertifikate des auf dem Server vorhandenen **certbot** (read-only eingebunden) und holt selbst keine.
+`docker-compose.caddy.yml` stellt Caddy als HTTPS-Reverse-Proxy auf Port **8443** vor die App. Die App selbst wird dann nicht mehr auf dem Host veröffentlicht, sondern ist nur über Caddy erreichbar. Caddy nutzt die Zertifikate des auf dem Server vorhandenen **certbot** (read-only eingebunden) und holt selbst keine.
 
 1. DNS-Eintrag für die Domain anlegen und sie in das certbot-Zertifikat aufnehmen (`certbot certificates` zeigt Name und enthaltene Domains).
 2. In der `.env` setzen (Beispielwerte, siehe `.env.example`):
