@@ -29,7 +29,8 @@ Der letzte Befehl zeigt die **Links aller Haushalte** (`http://…/s/<geheimes-t
 
 - Beim **ersten Start** entsteht der Verwaltungs-Haushalt mit den Profilen aus `MEMBERS`. Danach werden Profile nur noch in der App verwaltet (`MEMBERS` wirkt nicht mehr).
 - **Weitere Haushalte** legst du im Verwaltungs-Haushalt unter „Mehr → Haushalte verwalten“ an: Name des Haushalts plus erstes Profil. Den angezeigten Link schickst du an den neuen Haushalt. Dort sieht man nur die eigenen Daten.
-- **Weitere Profile** legt in jedem Haushalt das erste Profil unter „Mehr → Profile“ an.
+- **Weitere Profile** legt in jedem Haushalt das erste Profil unter „Mehr → Profile“ an. Dort kann es Profile auch **umbenennen** (✏️) – Kürzel in der Einkaufsliste, Verlauf und „Rezept von …“ ziehen mit – und **löschen**. Das eigene Profil lässt sich nicht löschen; bereits Eingetragenes behält den alten Namen.
+- **Haushalte löschen** kann nur der Verwaltungs-Haushalt („Haushalt löschen …“ in der Verwaltung, Name zur Bestätigung eintippen). Das entfernt alle Rezepte, den Wochenplan, die Einkaufsliste, den Verlauf und die Profile des Haushalts **endgültig**. Der Verwaltungs-Haushalt selbst kann nicht gelöscht werden.
 - **Link erneuern**: Das erste Profil kann den Link des eigenen Haushalts erneuern, der Verwaltungs-Haushalt den jedes Haushalts. Auf der Kommandozeile: `python -m app.cli rotate <ID>` (IDs zeigt `python -m app.cli link`).
 - Ein Gerät kann mehrere Haushalte nutzen; das gewählte Profil merkt sich die App je Haushalt.
 

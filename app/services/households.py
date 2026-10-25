@@ -11,10 +11,19 @@ Profil des Haushalts wählen. Die eigentliche Grenze zwischen Haushalten ist der
 import secrets
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Member, Space
+from app.models import (
+    ActivityLog,
+    CategoryOrder,
+    Member,
+    PlanEntry,
+    Recipe,
+    RecipeIngredient,
+    ShoppingItem,
+    Space,
+)
 
 MAX_NAME_LENGTH = 50
 MAX_HOUSEHOLD_NAME_LENGTH = 100
@@ -64,6 +73,61 @@ def add_member(db: Session, space: Space, name: str) -> Member:
     db.add(member)
     db.commit()
     return member
+
+
+def rename_member(db: Session, member: Member, new_name: str) -> None:
+    """Profil umbenennen. Gespeicherte Namen (Kürzel, Verlauf, Rezept-Autor) ziehen mit – nur in diesem Haushalt."""
+    new_name = _clean(new_name, MAX_NAME_LENGTH, "Name")
+    if new_name == member.name:
+        return
+    others = [m for m in members_of(db, member.space_id) if m.id != member.id]
+    if any(m.name.casefold() == new_name.casefold() for m in others):
+        raise HouseholdError(f"Ein Profil „{new_name}“ gibt es in diesem Haushalt schon.")
+    old_name, space_id = member.name, member.space_id
+    member.name = new_name
+    for column in (ShoppingItem.added_by, ShoppingItem.checked_by):
+        db.execute(
+            update(ShoppingItem)
+            .where(ShoppingItem.space_id == space_id, column == old_name)
+            .values({column.key: new_name})
+        )
+    db.execute(update(Recipe).where(Recipe.space_id == space_id, Recipe.created_by == old_name).values(created_by=new_name))
+    db.execute(
+        update(ActivityLog)
+        .where(ActivityLog.space_id == space_id, ActivityLog.member_name == old_name)
+        .values(member_name=new_name)
+    )
+    db.commit()
+
+
+def delete_member(db: Session, member: Member, acting: Member) -> None:
+    """Profil löschen. Das eigene Profil nicht – so bleibt immer mindestens eines (und die Verwaltung) übrig.
+
+    Bereits Eingetragenes bleibt erhalten und zeigt weiter den alten Namen.
+    """
+    if member.id == acting.id:
+        raise HouseholdError("Das eigene Profil kannst du nicht löschen.")
+    db.delete(member)
+    db.commit()
+
+
+def delete_household(db: Session, space: Space) -> None:
+    """Haushalt mit allen Daten endgültig löschen (in Fremdschlüssel-Reihenfolge)."""
+    if space.is_admin:
+        raise HouseholdError("Der Verwaltungs-Haushalt kann nicht gelöscht werden.")
+    recipe_ids = select(Recipe.id).where(Recipe.space_id == space.id)
+    for statement in (
+        delete(ActivityLog).where(ActivityLog.space_id == space.id),
+        delete(PlanEntry).where(PlanEntry.space_id == space.id),
+        delete(ShoppingItem).where(ShoppingItem.space_id == space.id),
+        delete(CategoryOrder).where(CategoryOrder.space_id == space.id),
+        delete(RecipeIngredient).where(RecipeIngredient.recipe_id.in_(recipe_ids)),
+        delete(Recipe).where(Recipe.space_id == space.id),
+        delete(Member).where(Member.space_id == space.id),
+        delete(Space).where(Space.id == space.id),
+    ):
+        db.execute(statement.execution_options(synchronize_session=False))
+    db.commit()
 
 
 def create_household(db: Session, name: str, owner_name: str) -> Space:

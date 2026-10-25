@@ -35,6 +35,17 @@
       <button class="btn small danger">Neuen Link erzeugen</button>
     </form>
   </div>
+  {% if not info.space.is_admin %}
+  <details class="danger-zone">
+    <summary>Haushalt löschen …</summary>
+    <p class="small">Löscht <strong>endgültig</strong> alle Rezepte, den Wochenplan, die Einkaufsliste, den Verlauf und alle Profile von „{{ info.space.name }}“. Das lässt sich nicht rückgängig machen. Zur Bestätigung den Namen eintippen:</p>
+    <form method="post" action="{{ base }}/households/{{ info.space.id }}/delete" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+      <input type="text" name="confirm_name" maxlength="100" required autocomplete="off" placeholder="{{ info.space.name }}" aria-label="Name von {{ info.space.name }} zur Bestätigung">
+      <button class="btn small danger">Endgültig löschen</button>
+    </form>
+  </details>
+  {% endif %}
 </section>
 {% endfor %}
 

@@ -32,12 +32,31 @@
   <h2>Profile</h2>
   <ul class="list">
     {% for m in members %}
-    <li class="list-item">
+    <li class="list-item member-row">
       <div class="grow">
         {{ m.name }}
         {% if loop.first %}<span class="small muted">· verwaltet die Profile</span>{% endif %}
         {% if m.id == member.id %}<span class="badge">du</span>{% endif %}
       </div>
+      {% if is_owner %}
+      <details class="member-edit">
+        <summary class="btn small" aria-label="Profil {{ m.name }} bearbeiten" title="Bearbeiten">✏️</summary>
+        <div class="member-edit-body">
+          <form method="post" action="{{ base }}/members/{{ m.id }}/rename" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <input type="text" name="name" value="{{ m.name }}" maxlength="50" required aria-label="Neuer Name für {{ m.name }}">
+            <button class="btn small primary">Umbenennen</button>
+          </form>
+          {% if m.id != member.id %}
+          <form method="post" action="{{ base }}/members/{{ m.id }}/delete"
+                data-confirm="Profil „{{ m.name }}“ löschen? Bereits Eingetragenes bleibt erhalten und zeigt weiter den Namen.">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <button class="btn small danger">Profil löschen</button>
+          </form>
+          {% endif %}
+        </div>
+      </details>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

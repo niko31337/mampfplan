@@ -189,6 +189,13 @@ input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent);
 .sync-banner[hidden], [hidden] { display: none !important; }
 .wake-status { color: var(--ok); margin: -0.4rem 0 0.6rem; }
 .card.is-new { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.member-row { flex-wrap: wrap; }
+.member-edit summary, .danger-zone summary { list-style: none; cursor: pointer; }
+.member-edit summary::-webkit-details-marker, .danger-zone summary::-webkit-details-marker { display: none; }
+.member-edit[open] { flex-basis: 100%; }
+.member-edit-body { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.danger-zone { margin-top: 0.8rem; border-top: 1px dashed var(--line); padding-top: 0.6rem; }
+.danger-zone summary { color: var(--danger); font-weight: 600; font-size: 0.9rem; }
 
 /* Kürzel: wer hat den Artikel eingetragen / in den Wagen gelegt */
 .who {

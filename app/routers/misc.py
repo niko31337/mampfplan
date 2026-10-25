@@ -82,6 +82,35 @@ def add_member(ctx: Annotated[Ctx, Depends(get_ctx)], name: NameField):
     return redirect(f"{ctx.base}/more")
 
 
+def _member_of_household(ctx: Ctx, member_id: int) -> Member:
+    member = ctx.db.get(Member, member_id)
+    if member is None or member.space_id != ctx.space.id:
+        raise HTTPException(404, "Profil nicht gefunden")
+    return member
+
+
+@router.post("/members/{member_id}/rename")
+def rename_member(ctx: Annotated[Ctx, Depends(get_ctx)], member_id: int, name: NameField):
+    _require_owner(ctx)
+    member = _member_of_household(ctx, member_id)
+    try:
+        households.rename_member(ctx.db, member, name)
+    except households.HouseholdError as exc:
+        return _more(ctx, error=str(exc), status_code=400)
+    return redirect(f"{ctx.base}/more")
+
+
+@router.post("/members/{member_id}/delete")
+def delete_member(ctx: Annotated[Ctx, Depends(get_ctx)], member_id: int):
+    _require_owner(ctx)
+    member = _member_of_household(ctx, member_id)
+    try:
+        households.delete_member(ctx.db, member, acting=ctx.member)
+    except households.HouseholdError as exc:
+        return _more(ctx, error=str(exc), status_code=400)
+    return redirect(f"{ctx.base}/more")
+
+
 @router.post("/link/rotate")
 def rotate_own_link(ctx: Annotated[Ctx, Depends(get_ctx)]):
     """Neuer Link für den eigenen Haushalt (z. B. wenn der alte in falsche Hände geraten ist)."""
@@ -128,6 +157,23 @@ def rotate_household_link(ctx: Annotated[Ctx, Depends(get_ctx)], space_id: int):
     households.rotate_token(ctx.db, target)
     # Eigener Haushalt: der bisherige Link (und damit diese Seite) ist jetzt ungültig
     return redirect(f"/s/{ctx.space.token}/households")
+
+
+@router.post("/households/{space_id}/delete")
+def delete_household(ctx: Annotated[Ctx, Depends(get_ctx)], space_id: int, confirm_name: HouseholdNameField = ""):
+    """Löscht einen anderen Haushalt samt allen Daten. Zur Sicherheit muss sein Name eingetippt werden."""
+    _require_admin(ctx)
+    target = ctx.db.get(Space, space_id)
+    if target is None:
+        raise HTTPException(404, "Haushalt nicht gefunden")
+    if target.id == ctx.space.id or target.is_admin:
+        return _households(ctx, error="Der Verwaltungs-Haushalt kann nicht gelöscht werden.", status_code=400)
+    if " ".join(confirm_name.split()) != target.name:
+        return _households(
+            ctx, error=f"Zum Löschen bitte den Namen „{target.name}“ genau eintippen.", status_code=400
+        )
+    households.delete_household(ctx.db, target)
+    return redirect(f"{ctx.base}/households")
 
 
 @router.get("/history")
