@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.config import now
 from app.models import CatalogItem, ShoppingItem
-from app.services import history
+from app.services import households, history
 from app.services import shopping as service
 from app.services.ingredients import parse_line
 from app.web import Ctx, get_ctx, render
@@ -27,7 +27,14 @@ def _list_context(ctx: Ctx) -> dict:
     for item in open_items:
         groups.setdefault(item.category, []).append(item)
     checked = sorted((i for i in items if i.checked), key=lambda i: i.checked_at or now(), reverse=True)
-    return {"groups": groups, "open_count": len(open_items), "checked": checked[:MAX_CHECKED_SHOWN]}
+    known = households.badges([m.name for m in households.members_of(ctx.db, ctx.space.id)])
+    return {
+        "groups": groups,
+        "open_count": len(open_items),
+        "checked": checked[:MAX_CHECKED_SHOWN],
+        "badge": lambda name: households.badge_for(name, known),
+        "my_badge": households.badge_for(ctx.member.name, known),
+    }
 
 
 def _respond_list(ctx: Ctx, toast: str | None = None, clear_suggestions: bool = False):
@@ -90,7 +97,9 @@ def add(
         return _respond_list(ctx, clear_suggestions=True)
     category = category if category in service.CATEGORY_ORDER else None
     with history.record(ctx.db, ctx.space.id, ctx.member.name, f"„{clean_name[:60]}“ auf die Einkaufsliste gesetzt") as act:
-        item, merged = service.add_item(ctx.db, act, ctx.space.id, clean_name, amount, unit, category)
+        item, merged = service.add_item(
+            ctx.db, act, ctx.space.id, clean_name, amount, unit, category, added_by=ctx.member.name
+        )
     if target == "chip":
         return render(ctx, "partials/chip_added.html", name=item.name)
     return _respond_list(ctx, f"„{item.name}“ hinzugefügt", clear_suggestions=True)
@@ -149,6 +158,7 @@ def toggle(
             act.updating(item)
             item.checked = wanted
             item.checked_at = now() if wanted else None
+            item.checked_by = ctx.member.name if wanted else None
     return _respond_list(ctx)
 
 

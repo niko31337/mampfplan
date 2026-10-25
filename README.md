@@ -10,8 +10,10 @@ Kleine Familien-Webapp für **Wochen-Essensplan** und **Einkaufsliste** – mobi
 - **Einkaufsliste**: Zutaten eines (eingeplanten) Rezepts per Klick hinzufügen, Artikel frei eintippen („2 l Milch“) oder aus dem **Artikelkatalog** (~270 Lebensmittel-, Haushalts- und Hygieneartikel) suchen. Abhaken verschiebt Artikel nach „Gekauft“. Gleiche Artikel werden zusammengeführt (500 g + 250 g Mehl = 750 g). Zutatennamen werden bereinigt („Karotte(n)“ → „Karotte“) und per Katalog einer Kategorie zugeordnet. Artikel und Kategorien lassen sich per **Drag & Drop** am Griff ⠿ umordnen – z. B. passend zum Rundgang im Supermarkt.
 - **Rezept → Einkaufsliste**: In der Rezeptansicht ist standardmäßig nichts angehakt – nur ankreuzen, was wirklich fehlt (oder „Alle wählen“)
 - **Verlauf & Statistik**: Änderungsverlauf (wer hat was wann geändert), meistgekochte Rezepte, Kochverlauf
+- **Wer war's?** In der Einkaufsliste steht neben jedem Artikel das Kürzel des Profils, das ihn eingetragen hat – bei „Gekauft“ das Kürzel dessen, der ihn in den Wagen gelegt hat (bei gleichem Anfangsbuchstaben die ersten zwei Buchstaben).
 - **Rückgängig** für jede Aktion (Button oben rechts), mehrfach hintereinander
-- **Teilen**: Wer den Link kennt, kann Plan und Liste sehen und ändern. Kein Passwort, kein Benutzerkonto – beim ersten Öffnen wählt man nur seinen Namen (für den Verlauf).
+- **Teilen**: Wer den Link kennt, kann Plan und Liste sehen und ändern. Kein Passwort, kein Benutzerkonto – beim ersten Öffnen wählt man nur sein Profil (für Verlauf und Kürzel).
+- **Mehrere Haushalte**: Jeder Haushalt hat eigene Rezepte, Wochenplan, Einkaufsliste und einen eigenen geheimen Link. Der beim ersten Start angelegte Haushalt verwaltet die übrigen (unter „Mehr → Haushalte verwalten“); in jedem Haushalt legt das erste Profil weitere Profile an.
 
 ## Starten mit Docker
 
@@ -21,7 +23,17 @@ docker compose up -d --build
 docker compose exec mampfplan python -m app.cli link
 ```
 
-Der letzte Befehl zeigt den **persönlichen Link** (`http://…/s/<geheimes-token>`). Den Link an die Familie schicken und als Lesezeichen / „Zum Startbildschirm hinzufügen“ speichern. Beim ersten Start steht er auch im Log (`docker compose logs mampfplan`).
+Der letzte Befehl zeigt die **Links aller Haushalte** (`http://…/s/<geheimes-token>`). Den Link an die Familie schicken und als Lesezeichen / „Zum Startbildschirm hinzufügen“ speichern. Beim ersten Start steht er auch im Log (`docker compose logs mampfplan`).
+
+### Haushalte und Profile
+
+- Beim **ersten Start** entsteht der Verwaltungs-Haushalt mit den Profilen aus `MEMBERS`. Danach werden Profile nur noch in der App verwaltet (`MEMBERS` wirkt nicht mehr).
+- **Weitere Haushalte** legst du im Verwaltungs-Haushalt unter „Mehr → Haushalte verwalten“ an: Name des Haushalts plus erstes Profil. Den angezeigten Link schickst du an den neuen Haushalt. Dort sieht man nur die eigenen Daten.
+- **Weitere Profile** legt in jedem Haushalt das erste Profil unter „Mehr → Profile“ an.
+- **Link erneuern**: Das erste Profil kann den Link des eigenen Haushalts erneuern, der Verwaltungs-Haushalt den jedes Haushalts. Auf der Kommandozeile: `python -m app.cli rotate <ID>` (IDs zeigt `python -m app.cli link`).
+- Ein Gerät kann mehrere Haushalte nutzen; das gewählte Profil merkt sich die App je Haushalt.
+
+> Ohne Login sind die Profil-Rechte eine **Bedienungs-, keine Sicherheitsgrenze**: Wer den Link eines Haushalts hat, kann jedes Profil dieses Haushalts wählen. Die Grenze zwischen Haushalten ist der jeweilige geheime Link.
 
 Die Daten liegen in einer SQLite-Datei im Docker-Volume `mampfplan-data` (Backup: Volume sichern oder statt des Volumes `./data:/data` einbinden und vorher `chown 10001 data` ausführen).
 
@@ -58,7 +70,8 @@ Zugriffslogs sind in Caddy standardmäßig aus – der geheime Link steht also i
 
 | Variable | Bedeutung |
 | --- | --- |
-| `MEMBERS` | Namen der Benutzer, kommagetrennt |
+| `MEMBERS` | Profile des ersten Haushalts, kommagetrennt – **nur beim allerersten Start**; danach in der App verwalten |
+| `SPACE_NAME` | Name des ersten Haushalts (nur beim allerersten Start) |
 | `SPACE_TOKEN` | Optional eigenes Token (mind. 22 Zeichen). Leer = wird sicher zufällig erzeugt |
 | `PUBLIC_URL` | Adresse, unter der die App erreichbar ist (nur für die Anzeige des Teilen-Links) |
 | `SECURE_COOKIES` | `true`, wenn die App hinter HTTPS läuft |

@@ -80,9 +80,11 @@ def add_item(
     unit: str = "",
     category: str | None = None,
     recipe_id: int | None = None,
+    added_by: str | None = None,
 ) -> tuple[ShoppingItem, bool]:
     """Fügt einen Artikel hinzu oder führt ihn mit einem offenen gleichnamigen zusammen.
 
+    Beim Zusammenführen bleibt vermerkt, wer den Artikel ursprünglich eingetragen hat.
     Rückgabe: (Artikel, zusammengeführt?)
     """
     name = clean_name(name)[:100]
@@ -109,6 +111,7 @@ def add_item(
         category=category or guess_category(db, name),
         position=0 if last_position is None else last_position + 1,
         recipe_id=recipe_id,
+        added_by=added_by,
     )
     db.add(item)
     db.flush()
@@ -117,10 +120,15 @@ def add_item(
 
 
 def add_recipe_ingredients(
-    db: Session, act: Action, space_id: int, recipe_id: int, ingredients: list[RecipeIngredient]
+    db: Session,
+    act: Action,
+    space_id: int,
+    recipe_id: int,
+    ingredients: list[RecipeIngredient],
+    added_by: str | None = None,
 ) -> int:
     for ing in ingredients:
-        add_item(db, act, space_id, ing.name, ing.amount, ing.unit, recipe_id=recipe_id)
+        add_item(db, act, space_id, ing.name, ing.amount, ing.unit, recipe_id=recipe_id, added_by=added_by)
     return len(ingredients)
 
 

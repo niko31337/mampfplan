@@ -171,5 +171,7 @@ def shop_entry(ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int):
     with history.record(
         ctx.db, ctx.space.id, ctx.member.name, f"Zutaten von „{recipe.title[:60]}“ auf die Einkaufsliste gesetzt"
     ) as act:
-        count = shopping_service.add_recipe_ingredients(ctx.db, act, ctx.space.id, recipe.id, recipe.ingredients)
+        count = shopping_service.add_recipe_ingredients(
+            ctx.db, act, ctx.space.id, recipe.id, recipe.ingredients, added_by=ctx.member.name
+        )
     return _respond_week(ctx, entry.day, f"{count} Zutaten auf der Einkaufsliste")

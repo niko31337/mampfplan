@@ -8,11 +8,24 @@ from sqlalchemy.orm import Session
 from app.config import get_settings, today
 from app.db import get_db
 from app.models import Member, Space
-from app.services import history, stats
+from app.services import households, history, stats
 from app.services.seed import share_url
 from app.web import Ctx, get_ctx, get_space, redirect, render, set_member_cookie, templates
 
 router = APIRouter(prefix="/s/{token}")
+
+NameField = Annotated[str, Form(max_length=households.MAX_NAME_LENGTH * 2)]
+HouseholdNameField = Annotated[str, Form(max_length=households.MAX_HOUSEHOLD_NAME_LENGTH * 2)]
+
+
+def _require_owner(ctx: Ctx) -> None:
+    if not households.is_owner(ctx.db, ctx.member):
+        raise HTTPException(403, "Nur das erste Profil des Haushalts darf das.")
+
+
+def _require_admin(ctx: Ctx) -> None:
+    if not ctx.space.is_admin:
+        raise HTTPException(404, "Nicht gefunden")  # Funktion für andere Haushalte unsichtbar
 
 
 @router.get("")
@@ -38,13 +51,83 @@ def choose_member(
     if member is None or member.space_id != space.id:
         raise HTTPException(400, "Unbekanntes Profil")
     response = redirect(f"/s/{space.token}/plan")
-    set_member_cookie(response, member.id)
+    set_member_cookie(response, member)
     return response
+
+
+def _more(ctx: Ctx, error: str | None = None, status_code: int = 200):
+    return render(
+        ctx,
+        "more.html",
+        status_code=status_code,
+        share_link=share_url(get_settings(), ctx.space),
+        members=households.members_of(ctx.db, ctx.space.id),
+        is_owner=households.is_owner(ctx.db, ctx.member),
+        error=error,
+    )
 
 
 @router.get("/more")
 def more_page(ctx: Annotated[Ctx, Depends(get_ctx)]):
-    return render(ctx, "more.html", share_link=share_url(get_settings(), ctx.space))
+    return _more(ctx)
+
+
+@router.post("/members")
+def add_member(ctx: Annotated[Ctx, Depends(get_ctx)], name: NameField):
+    _require_owner(ctx)
+    try:
+        households.add_member(ctx.db, ctx.space, name)
+    except households.HouseholdError as exc:
+        return _more(ctx, error=str(exc), status_code=400)
+    return redirect(f"{ctx.base}/more")
+
+
+@router.post("/link/rotate")
+def rotate_own_link(ctx: Annotated[Ctx, Depends(get_ctx)]):
+    """Neuer Link für den eigenen Haushalt (z. B. wenn der alte in falsche Hände geraten ist)."""
+    _require_owner(ctx)
+    households.rotate_token(ctx.db, ctx.space)
+    return redirect(f"/s/{ctx.space.token}/more")
+
+
+def _households(ctx: Ctx, error: str | None = None, created: int | None = None, status_code: int = 200):
+    settings = get_settings()
+    infos = households.list_households(ctx.db)
+    return render(
+        ctx,
+        "households.html",
+        status_code=status_code,
+        households=[(info, share_url(settings, info.space)) for info in infos],
+        created=created,
+        error=error,
+    )
+
+
+@router.get("/households")
+def households_page(ctx: Annotated[Ctx, Depends(get_ctx)], created: int | None = None):
+    _require_admin(ctx)
+    return _households(ctx, created=created)
+
+
+@router.post("/households")
+def create_household(ctx: Annotated[Ctx, Depends(get_ctx)], name: HouseholdNameField, owner_name: NameField):
+    _require_admin(ctx)
+    try:
+        space = households.create_household(ctx.db, name, owner_name)
+    except households.HouseholdError as exc:
+        return _households(ctx, error=str(exc), status_code=400)
+    return redirect(f"{ctx.base}/households?created={space.id}")
+
+
+@router.post("/households/{space_id}/rotate")
+def rotate_household_link(ctx: Annotated[Ctx, Depends(get_ctx)], space_id: int):
+    _require_admin(ctx)
+    target = ctx.db.get(Space, space_id)
+    if target is None:
+        raise HTTPException(404, "Haushalt nicht gefunden")
+    households.rotate_token(ctx.db, target)
+    # Eigener Haushalt: der bisherige Link (und damit diese Seite) ist jetzt ungültig
+    return redirect(f"/s/{ctx.space.token}/households")
 
 
 @router.get("/history")

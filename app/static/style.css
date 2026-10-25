@@ -188,6 +188,20 @@ input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent);
 .sync-banner { background: var(--ink); color: var(--bg); text-align: center; font-size: 0.85rem; padding: 0.35rem 1rem; }
 .sync-banner[hidden], [hidden] { display: none !important; }
 .wake-status { color: var(--ok); margin: -0.4rem 0 0.6rem; }
+.card.is-new { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+
+/* Kürzel: wer hat den Artikel eingetragen / in den Wagen gelegt */
+.who {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  min-width: 26px; height: 26px; padding: 0 0.3rem; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 700; color: #fff; background: var(--muted);
+}
+.who-0 { background: #e8590c; }
+.who-1 { background: #1c7ed6; }
+.who-2 { background: #2f9e44; }
+.who-3 { background: #ae3ec9; }
+.who-4 { background: #f08c00; }
+.who-5 { background: #868e96; }
 .shop-done h2 { margin-top: 1.4rem; }
 .shop-done .shop-name { color: var(--muted); text-decoration: line-through; }
 details.cat { margin-bottom: 0.6rem; }

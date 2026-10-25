@@ -215,12 +215,35 @@ function updateBanner() {
 /* ------------------------------------------------------------------ Optimistische Anzeige der Einkaufsliste */
 // Beim Abhaken wird der Artikel sofort verschoben – der Server-Antwort (oder dem Offline-Puffer) muss man nicht abwarten.
 
+// Kürzel rechts neben dem Namen: offen = wer eingetragen hat, gekauft = wer in den Wagen gelegt hat.
+function setBadge(row, text, color, title) {
+  let badge = row.querySelector(".who");
+  if (!text) {
+    badge?.remove();
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement("span");
+    row.querySelector(".shop-name").after(badge);
+  }
+  badge.className = `who who-${color}`;
+  badge.textContent = text;
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+}
+
 function setItemState(id, checked) {
   const list = listEl();
   const row = list?.querySelector(`.shop-item[data-id="${CSS.escape(String(id))}"]`);
   if (!row || row.classList.contains("is-done") === checked) return;
   const check = row.querySelector(".check");
   const group = row.closest(".shop-group");
+  if (checked) {
+    const me = list.dataset;
+    setBadge(row, me.myBadge, me.myColor, `in den Wagen gelegt von ${me.myName}`);
+  } else {
+    setBadge(row, row.dataset.addedBadge, row.dataset.addedColor, `eingetragen von ${row.dataset.addedBy}`);
+  }
 
   if (checked) {
     let done = list.querySelector(".shop-done");

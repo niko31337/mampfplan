@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -22,9 +23,13 @@ BASE = f"/s/{TOKEN}"
 class Browser:
     """Dünner Wrapper um den TestClient, der CSRF-Token und Profil wie ein Browser mitschickt."""
 
-    def __init__(self, client: TestClient):
+    def __init__(self, client: TestClient, base: str = BASE):
         self.client = client
-        self.base = BASE
+        self.base = base
+
+    def household(self, token: str) -> "Browser":
+        """Derselbe Browser (gleiche Cookies), aber im Haushalt mit diesem Link."""
+        return Browser(self.client, f"/s/{token}")
 
     def get(self, path: str, **kwargs):
         return self.client.get(self.base + path, follow_redirects=False, **kwargs)
@@ -40,10 +45,11 @@ class Browser:
     def login(self, name: str = "Anna"):
         self.get("/who")  # stellt das CSRF-Cookie aus
         page = self.get("/who").text
-        member_id = {"Anna": 1, "Ben": 2}[name]
-        assert f'value="{member_id}"' in page
-        response = self.post("/who", {"member_id": member_id})
+        match = re.search(rf'name="member_id" value="(\d+)">\s*<button[^>]*>{re.escape(name)}</button>', page)
+        assert match, f"Profil {name} nicht auf der Profilauswahl"
+        response = self.post("/who", {"member_id": int(match[1])})
         assert response.status_code == 303
+        return self
 
 
 @pytest.fixture(autouse=True)

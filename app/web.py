@@ -78,8 +78,13 @@ def get_space(token: str, db: Session = Depends(get_db)) -> Space:
     return space
 
 
+def member_cookie_name(space_id: int) -> str:
+    """Eigenes Profil-Cookie je Haushalt, damit ein Gerät mehrere Haushalte nutzen kann."""
+    return f"{MEMBER_COOKIE}_{space_id}"
+
+
 def get_ctx(request: Request, space: Space = Depends(get_space), db: Session = Depends(get_db)) -> Ctx:
-    raw = request.cookies.get(MEMBER_COOKIE, "")
+    raw = request.cookies.get(member_cookie_name(space.id), "")
     member = db.get(Member, int(raw)) if raw.isdigit() else None
     if member is None or member.space_id != space.id:
         raise NeedsProfile(space.token)
@@ -102,10 +107,10 @@ def redirect(url: str) -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
 
 
-def set_member_cookie(response: Response, member_id: int) -> None:
+def set_member_cookie(response: Response, member: Member) -> None:
     response.set_cookie(
-        MEMBER_COOKIE,
-        str(member_id),
+        member_cookie_name(member.space_id),
+        str(member.id),
         max_age=COOKIE_MAX_AGE,
         httponly=True,
         samesite="lax",

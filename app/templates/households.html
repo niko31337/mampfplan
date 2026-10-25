@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% set nav = 'more' %}
+{% block title %}Haushalte – Mampfplan{% endblock %}
+{% block content %}
+<h1>Haushalte verwalten</h1>
+<p class="muted small">Jeder Haushalt hat eigene Rezepte, einen eigenen Wochenplan und eine eigene Einkaufsliste – und einen eigenen geheimen Link. Das erste Profil eines Haushalts kann dort weitere Profile anlegen.</p>
+
+{% if error %}<p class="alert error">{{ error }}</p>{% endif %}
+
+<section class="card">
+  <h2>Neuen Haushalt anlegen</h2>
+  <form method="post" action="{{ base }}/households" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <label for="hh-name">Name des Haushalts</label>
+    <input id="hh-name" type="text" name="name" maxlength="100" required placeholder="z. B. Familie Müller">
+    <label for="hh-owner">Erstes Profil <small>(verwaltet später die Profile)</small></label>
+    <input id="hh-owner" type="text" name="owner_name" maxlength="50" required placeholder="z. B. Anna">
+    <button class="btn primary block">Haushalt anlegen</button>
+  </form>
+</section>
+
+{% for info, link in households %}
+<section class="card {{ 'is-new' if info.space.id == created }}">
+  <div class="row spread">
+    <h2>{{ info.space.name }}</h2>
+    {% if info.space.is_admin %}<span class="badge">Verwaltung</span>{% elif info.space.id == created %}<span class="badge">neu</span>{% endif %}
+  </div>
+  <p class="muted small">Profile: {{ info.members|join(', ') if info.members else '–' }}</p>
+  {% if info.space.id == created %}<p class="alert">Schick diesen Link an den neuen Haushalt:</p>{% endif %}
+  <div id="hh-link-{{ info.space.id }}" class="sharebox">{{ link }}</div>
+  <div class="row wrap">
+    <button class="btn small" data-copy="#hh-link-{{ info.space.id }}">Link kopieren</button>
+    <form method="post" action="{{ base }}/households/{{ info.space.id }}/rotate" data-confirm="Neuen Link für „{{ info.space.name }}“ erzeugen? Der bisherige funktioniert danach nicht mehr.">
+      <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+      <button class="btn small danger">Neuen Link erzeugen</button>
+    </form>
+  </div>
+</section>
+{% endfor %}
+
+<p><a href="{{ base }}/more">← Zurück</a></p>
+{% endblock %}

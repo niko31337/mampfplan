@@ -1,4 +1,13 @@
-<div id="shopping-list" hx-target="#shopping-list" hx-swap="outerHTML" hx-request='{"timeout": 5000}'>
+{% macro who(name, label) -%}
+  {%- set b = badge(name) -%}
+  {%- if b %}<span class="who who-{{ b.color }}" title="{{ label }} {{ name }}" aria-label="{{ label }} {{ name }}">{{ b.text }}</span>{% endif -%}
+{%- endmacro %}
+{% macro added_data(it) -%}
+  {%- set b = badge(it.added_by) -%}
+  {%- if b %} data-added-by="{{ it.added_by }}" data-added-badge="{{ b.text }}" data-added-color="{{ b.color }}"{% endif -%}
+{%- endmacro %}
+<div id="shopping-list" hx-target="#shopping-list" hx-swap="outerHTML" hx-request='{"timeout": 5000}'
+     data-my-name="{{ member.name }}" data-my-badge="{{ my_badge.text }}" data-my-color="{{ my_badge.color }}">
   <div id="shop-groups" data-order-url="{{ base }}/shopping/categories/order">
     {% for category, items in groups.items() %}
     <section class="shop-group" data-category="{{ category }}">
@@ -8,13 +17,14 @@
       </h2>
       <div class="shop-items" data-reorder-url="{{ base }}/shopping/reorder" data-category="{{ category }}">
         {% for it in items %}
-        <div class="shop-item" data-id="{{ it.id }}" data-category="{{ category }}">
+        <div class="shop-item" data-id="{{ it.id }}" data-category="{{ category }}"{{ added_data(it) }}>
           <span class="drag-handle item-handle" role="img" aria-label="Artikel verschieben" title="Artikel verschieben">⠿</span>
           <button class="check" aria-label="„{{ it.name }}“ abhaken" hx-post="{{ base }}/shopping/{{ it.id }}/toggle" hx-vals='{"state": "1"}'></button>
           <div class="shop-name">
             {{ it.name }}
             {% if it.amount or it.unit %}<small>{{ it.amount|quantity(it.unit) }}</small>{% endif %}
           </div>
+          {{ who(it.added_by, "eingetragen von") }}
           <button class="icon-btn delete-btn" aria-label="„{{ it.name }}“ entfernen" hx-post="{{ base }}/shopping/{{ it.id }}/delete">✕</button>
         </div>
         {% endfor %}
@@ -30,12 +40,13 @@
   <section class="shop-group shop-done">
     <h2>Gekauft</h2>
     {% for it in checked %}
-    <div class="shop-item is-done" data-id="{{ it.id }}" data-category="{{ it.category }}">
+    <div class="shop-item is-done" data-id="{{ it.id }}" data-category="{{ it.category }}"{{ added_data(it) }}>
       <button class="check is-on" aria-label="„{{ it.name }}“ wieder auf die Liste" hx-post="{{ base }}/shopping/{{ it.id }}/toggle" hx-vals='{"state": "0"}'>✓</button>
       <div class="shop-name">
         {{ it.name }}
         {% if it.amount or it.unit %}<small>{{ it.amount|quantity(it.unit) }}</small>{% endif %}
       </div>
+      {{ who(it.checked_by, "in den Wagen gelegt von") }}
     </div>
     {% endfor %}
     <p class="center"><button class="btn small" hx-post="{{ base }}/shopping/clear-checked">Gekaufte entfernen</button></p>

@@ -119,7 +119,7 @@ def test_history_and_attribution(web):
 def test_second_member_can_change_and_see_history(anon):
     anon.login("Anna")
     anon.post("/plan/note", {"day": DAY, "text": "von Anna"})
-    anon.client.cookies.delete("mp_member")
+    anon.client.cookies.delete("mp_member_1")
     anon.login("Ben")
     anon.post("/plan/note", {"day": DAY, "text": "von Ben"})
     page = anon.get("/history").text

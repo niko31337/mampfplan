@@ -24,17 +24,24 @@ def seed_catalog(db: Session) -> None:
 
 
 def ensure_space(db: Session, settings: Settings) -> Space:
-    """Legt beim ersten Start die Familie samt Mitgliedern an und gibt den Teilen-Link aus."""
+    """Legt beim ersten Start den Verwaltungs-Haushalt samt Profilen (MEMBERS) an und gibt den Link aus.
+
+    Danach werden Haushalte und Profile in der App verwaltet; MEMBERS wirkt nur, solange der erste
+    Haushalt noch keine Profile hat.
+    """
     space = db.scalars(select(Space).order_by(Space.id)).first()
     if space is None:
-        space = Space(token=settings.space_token or secrets.token_urlsafe(32), name=settings.space_name)
+        space = Space(
+            token=settings.space_token or secrets.token_urlsafe(32), name=settings.space_name, is_admin=True
+        )
         db.add(space)
         db.flush()
         log.warning("Erster Start: persönlicher Link: %s", share_url(settings, space))
+    elif not db.scalars(select(Space.id).where(Space.is_admin.is_(True))).first():
+        space.is_admin = True  # Bestandsdatenbank vor Einführung der Haushalte: erster Haushalt verwaltet
 
-    known = set(db.scalars(select(Member.name).where(Member.space_id == space.id)))
-    for name in settings.member_names:
-        if name not in known:
+    if not db.scalars(select(Member.id).where(Member.space_id == space.id)).first():
+        for name in settings.member_names:
             db.add(Member(space_id=space.id, name=name))
     db.commit()
     return space

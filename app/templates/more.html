@@ -4,22 +4,52 @@
 {% block content %}
 <h1>Mehr</h1>
 
+{% if error %}<p class="alert error">{{ error }}</p>{% endif %}
+
 <div class="big-btn-list">
   <a class="btn" href="{{ base }}/stats">📊 Statistik &amp; Kochverlauf</a>
   <a class="btn" href="{{ base }}/history">🕘 Änderungsverlauf</a>
   <a class="btn" href="{{ base }}/shopping/catalog">📚 Artikelkatalog</a>
+  {% if space.is_admin %}<a class="btn" href="{{ base }}/households">🏠 Haushalte verwalten</a>{% endif %}
 </div>
 
 <section class="card">
-  <h2>Mit der Familie teilen</h2>
-  <p class="muted small">Wer diesen Link kennt, kann Wochenplan und Einkaufsliste sehen <strong>und ändern</strong>. Gib ihn nur an Personen weiter, denen du vertraust.</p>
+  <h2>Haushalt „{{ space.name }}“ teilen</h2>
+  <p class="muted small">Wer diesen Link kennt, kann Wochenplan und Einkaufsliste dieses Haushalts sehen <strong>und ändern</strong>. Gib ihn nur an Personen weiter, denen du vertraust.</p>
   <div id="share-link" class="sharebox">{{ share_link }}</div>
-  <p><button class="btn small" data-copy="#share-link">Link kopieren</button></p>
+  <div class="row wrap">
+    <button class="btn small" data-copy="#share-link">Link kopieren</button>
+    {% if is_owner %}
+    <form method="post" action="{{ base }}/link/rotate" data-confirm="Neuen Link erzeugen? Der bisherige Link funktioniert danach nicht mehr – alle müssen den neuen bekommen.">
+      <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+      <button class="btn small danger">Neuen Link erzeugen</button>
+    </form>
+    {% endif %}
+  </div>
 </section>
 
 <section class="card">
-  <h2>Profil</h2>
-  <p>Angemeldet als <strong>{{ member.name }}</strong>.</p>
-  <a class="btn small" href="{{ base }}/who">Profil wechseln</a>
+  <h2>Profile</h2>
+  <ul class="list">
+    {% for m in members %}
+    <li class="list-item">
+      <div class="grow">
+        {{ m.name }}
+        {% if loop.first %}<span class="small muted">· verwaltet die Profile</span>{% endif %}
+        {% if m.id == member.id %}<span class="badge">du</span>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if is_owner %}
+  <form method="post" action="{{ base }}/members" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="text" name="name" maxlength="50" required placeholder="Name des neuen Profils" aria-label="Name des neuen Profils">
+    <button class="btn primary">＋ Profil</button>
+  </form>
+  {% else %}
+  <p class="muted small">Neue Profile kann {{ members[0].name if members else 'das erste Profil' }} anlegen.</p>
+  {% endif %}
+  <p>Angemeldet als <strong>{{ member.name }}</strong> · <a href="{{ base }}/who">Profil wechseln</a></p>
 </section>
 {% endblock %}

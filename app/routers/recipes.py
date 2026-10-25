@@ -111,5 +111,5 @@ def add_to_shopping_list(
         with history.record(
             ctx.db, ctx.space.id, ctx.member.name, f"{len(chosen)} Zutaten von „{recipe.title[:60]}“ auf die Einkaufsliste gesetzt"
         ) as act:
-            shopping_service.add_recipe_ingredients(ctx.db, act, ctx.space.id, recipe.id, chosen)
+            shopping_service.add_recipe_ingredients(ctx.db, act, ctx.space.id, recipe.id, chosen, added_by=ctx.member.name)
     return redirect(f"{ctx.base}/shopping")

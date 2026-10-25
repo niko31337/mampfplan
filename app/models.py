@@ -11,13 +11,16 @@ KIND_NOTE = "note"
 
 
 class Space(Base):
-    """Ein geteilter Bereich (Familie). Zugriff nur über das geheime Token."""
+    """Ein Haushalt. Zugriff nur über das geheime Token; alle Daten hängen an genau einem Haushalt."""
 
     __tablename__ = "spaces"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     token: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(100))
+    # Verwaltungs-Haushalt: darf weitere Haushalte anlegen (der beim ersten Start erzeugte)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=now)
 
 
 class Member(Base):
@@ -86,6 +89,8 @@ class ShoppingItem(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     checked: Mapped[bool] = mapped_column(Boolean, default=False)
     checked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    added_by: Mapped[str | None] = mapped_column(String(50))  # Profilname: hat den Artikel eingetragen
+    checked_by: Mapped[str | None] = mapped_column(String(50))  # Profilname: hat ihn in den Wagen gelegt
     recipe_id: Mapped[int | None] = mapped_column(ForeignKey("recipes.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 

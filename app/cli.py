@@ -1,10 +1,10 @@
 """Kleine Verwaltungsbefehle.
 
-    python -m app.cli link      zeigt den persönlichen Link
-    python -m app.cli rotate    erzeugt einen neuen Link (der alte wird sofort ungültig)
+    python -m app.cli link          zeigt die Links aller Haushalte
+    python -m app.cli rotate [ID]   neuer Link für Haushalt ID (Standard: Verwaltungs-Haushalt);
+                                    der alte Link wird sofort ungültig, die Daten bleiben erhalten
 """
 
-import secrets
 import sys
 
 from sqlalchemy import select
@@ -12,24 +12,39 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Space
+from app.services import households
 from app.services.seed import share_url
-
-COMMANDS = {"link", "rotate"}
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2 or argv[1] not in COMMANDS:
+    command = argv[1] if len(argv) > 1 else ""
+    if command not in {"link", "rotate"} or len(argv) > 3 or (command == "link" and len(argv) > 2):
         print(__doc__)
         return 2
+    settings = get_settings()
     with SessionLocal() as db:
-        space = db.scalars(select(Space).order_by(Space.id)).first()
+        if command == "link":
+            infos = households.list_households(db)
+            if not infos:
+                print("Noch kein Haushalt vorhanden – bitte die App einmal starten.")
+                return 1
+            for info in infos:
+                marker = " (Verwaltung)" if info.space.is_admin else ""
+                print(f"[{info.space.id}] {info.space.name}{marker}: {share_url(settings, info.space)}")
+            return 0
+
+        if len(argv) == 3:
+            if not argv[2].isdigit():
+                print("ID muss eine Zahl sein (siehe: python -m app.cli link)")
+                return 2
+            space = db.get(Space, int(argv[2]))
+        else:
+            space = db.scalars(select(Space).where(Space.is_admin.is_(True)).order_by(Space.id)).first()
         if space is None:
-            print("Noch kein Space vorhanden – bitte die App einmal starten.")
+            print("Haushalt nicht gefunden (siehe: python -m app.cli link)")
             return 1
-        if argv[1] == "rotate":
-            space.token = secrets.token_urlsafe(32)
-            db.commit()
-        print(share_url(get_settings(), space))
+        households.rotate_token(db, space)
+        print(share_url(settings, space))
     return 0
 
 

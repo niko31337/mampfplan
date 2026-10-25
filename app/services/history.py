@@ -152,6 +152,8 @@ def _apply(db: Session, space_id: int, op: dict) -> None:
     if kind == "delete":
         obj = db.get(model, op["id"])
         if obj is not None:
+            if getattr(obj, "space_id", space_id) != space_id:
+                raise ValueError("Fremder Space")
             db.delete(obj)
             db.flush()
     elif kind == "insert":
