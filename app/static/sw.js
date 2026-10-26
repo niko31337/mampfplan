@@ -2,8 +2,12 @@
 // - /static/*      : sofort aus dem Cache, im Hintergrund aktualisieren
 // - Seiten (/s/…)  : erst Netz (mit Timeout), bei Ausfall die zuletzt gesehene Fassung
 // POST-Anfragen fasst er nicht an; Offline-Aktionen puffert app.js.
+// Fingerabdruck der statischen Dateien – setzt der Server beim Ausliefern ein. Ändert sich mit jedem
+// Update; dadurch installiert der Browser diesen Worker neu und lädt die passenden CSS/JS-Versionen vor.
+const ASSET_VERSION = "__ASSET_VERSION__";
 const VERSION = "v1";
 const STATIC_CACHE = `mampfplan-static-${VERSION}`;
+const MAX_STATIC_ENTRIES = 60; // ältere Versionen nicht endlos aufheben
 const PAGE_CACHE = `mampfplan-pages-${VERSION}`;
 const IMAGE_CACHE = `mampfplan-images-${VERSION}`;
 const MAX_CACHED_IMAGES = 300;
@@ -17,8 +21,15 @@ const PRECACHE = [
 ];
 const NETWORK_TIMEOUT_MS = 5000;
 
+const versioned = (path) => (path.startsWith("/static/") ? `${path}?v=${ASSET_VERSION}` : path);
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE.map(versioned)).then(() => trimCache(cache, MAX_STATIC_ENTRIES)))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {

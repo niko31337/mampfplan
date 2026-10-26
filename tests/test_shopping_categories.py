@@ -157,6 +157,22 @@ def test_list_renders_all_categories_with_drop_targets(web):
     assert f'data-move-url="{web.base}/shopping/__ID__/move"' in page
 
 
+def test_empty_categories_are_hidden_by_attribute(web):
+    """Leere Kategorien sind per hidden-Attribut unsichtbar – auch wenn ein Gerät noch altes CSS hat."""
+    web.post("/shopping/add", {"name": "Milch"})
+    sections = re.findall(r"<section class=\"shop-group[^\"]*\" data-category=\"[^\"]*\"[^>]*>", listing(web))
+    hidden = [s for s in sections if s.endswith(" hidden>")]
+    shown = [s for s in sections if not s.endswith(" hidden>")]
+    assert len(hidden) == 12 and all("is-empty" in s for s in hidden)
+    assert len(shown) == 1 and "Milch, Käse &amp; Eier" in shown[0] and "is-empty" not in shown[0]
+
+
+def test_drag_script_reveals_and_rehides_empty_categories(anon):
+    js = anon.client.get("/static/app.js").text
+    assert "function showDropTargets" in js and "group.hidden = !show" in js
+    assert "onStart: () => showDropTargets(true)" in js and "showDropTargets(false)" in js
+
+
 def test_deleting_a_household_removes_its_corrections(web):
     other = create_household(web, "Haushalt Schmidt", "Mia").login("Mia")
     other.post("/shopping/add", {"name": "Tintenpatronen"})

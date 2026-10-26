@@ -1,5 +1,6 @@
 """Gemeinsame Web-Helfer: Templates, Zugriffsprüfung (Token + Profil), CSRF."""
 
+import hashlib
 import secrets
 from dataclasses import dataclass
 from datetime import date
@@ -28,6 +29,27 @@ WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"
 MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+
+def _asset_version() -> str:
+    """Fingerabdruck der statischen Dateien. Ändert sich mit jedem Update, damit Browser und Service Worker
+    nie eine neue Seite mit altem CSS/JS kombinieren."""
+    digest = hashlib.sha256()
+    for path in sorted((BASE_DIR / "static").iterdir()):
+        if path.is_file() and path.name != "sw.js":
+            digest.update(path.name.encode())
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
+
+
+ASSET_VERSION = _asset_version()
+
+
+def asset_url(name: str) -> str:
+    return f"/static/{name}?v={ASSET_VERSION}"
+
+
+templates.env.globals["asset"] = asset_url
 
 
 def _date_short(d: date) -> str:

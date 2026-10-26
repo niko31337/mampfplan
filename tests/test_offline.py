@@ -48,3 +48,23 @@ def test_recipe_pages_request_a_screen_wake_lock(web):
     assert "data-wake-lock" in detail and "data-wake-status" in detail
     assert "data-wake-lock" not in web.get("/plan").text  # nur auf Rezeptseiten
     assert "data-wake-lock" not in web.get("/shopping").text
+
+
+def test_static_assets_are_versioned_so_updates_never_mix_old_css_with_new_pages(web):
+    import re as _re
+
+    from app.web import ASSET_VERSION
+
+    assert _re.fullmatch(r"[0-9a-f]{12}", ASSET_VERSION)
+    page = web.get("/plan").text
+    for name in ("style.css", "app.js", "htmx.min.js", "sortable.min.js"):
+        assert f"/static/{name}?v={ASSET_VERSION}" in page
+    assert web.client.get(f"/static/style.css?v={ASSET_VERSION}").status_code == 200
+
+
+def test_service_worker_carries_the_asset_version(anon):
+    from app.web import ASSET_VERSION
+
+    sw = anon.client.get("/sw.js").text
+    assert f'const ASSET_VERSION = "{ASSET_VERSION}"' in sw and "__ASSET_VERSION__" not in sw
+    assert "PRECACHE.map(versioned)" in sw

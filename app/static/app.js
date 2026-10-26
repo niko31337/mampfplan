@@ -217,6 +217,19 @@ function updateBanner() {
 /* ------------------------------------------------------------------ Optimistische Anzeige der Einkaufsliste */
 // Beim Abhaken wird der Artikel sofort verschoben – der Server-Antwort (oder dem Offline-Puffer) muss man nicht abwarten.
 
+// Leere Kategorie: markieren und per hidden-Attribut ausblenden – außer während ein Artikel gezogen wird,
+// dann dient sie als Ablagefläche.
+function markEmpty(section, empty) {
+  if (!section) return;
+  section.classList.toggle("is-empty", empty);
+  section.hidden = empty && !listEl()?.classList.contains("is-dragging-item");
+}
+
+function showDropTargets(show) {
+  listEl()?.classList.toggle("is-dragging-item", show);
+  document.querySelectorAll("#shop-groups .shop-group.is-empty").forEach((group) => (group.hidden = !show));
+}
+
 // Kürzel rechts neben dem Namen: offen = wer eingetragen hat, gekauft = wer in den Wagen gelegt hat.
 function setBadge(row, text, color, title) {
   let badge = row.querySelector(".who");
@@ -266,7 +279,7 @@ function setItemState(id, checked) {
     check.setAttribute("hx-vals", '{"state": "0"}');
     done.querySelector("h2").after(row);
     if (group && !group.classList.contains("shop-done") && !group.querySelector(".shop-item")) {
-      group.classList.add("is-empty"); // bleibt als Ablagefläche fürs Ziehen erhalten
+      markEmpty(group, true); // bleibt als (versteckte) Ablagefläche fürs Ziehen erhalten
     }
   } else {
     const container = ensureGroup(list, row.dataset.category);
@@ -308,7 +321,7 @@ function ensureGroup(list, category) {
     section.append(heading, items);
     groups.appendChild(section);
   }
-  section.classList.remove("is-empty");
+  markEmpty(section, false);
   list.querySelector("#shop-empty")?.remove();
   return section.querySelector(".shop-items");
 }
@@ -335,7 +348,7 @@ function applyPending() {
         const source = row.closest(".shop-group");
         ensureGroup(listEl(), category).appendChild(row);
         row.dataset.category = category;
-        if (source && !source.querySelector(".shop-item")) source.classList.add("is-empty");
+        if (source && !source.querySelector(".shop-item")) markEmpty(source, true);
         applyReorder(category, entry.pairs.filter(([k]) => k === "ids").map(([, v]) => v));
       }
     } else if (toggle) {
@@ -392,9 +405,9 @@ function initSortables() {
       handle: ".item-handle",
       draggable: ".shop-item:not(.is-done)",
       // Beim Ziehen eines Artikels auch leere Kategorien als Ablagefläche zeigen
-      onStart: () => listEl()?.classList.add("is-dragging-item"),
+      onStart: () => showDropTargets(true),
       onEnd: (event) => {
-        listEl()?.classList.remove("is-dragging-item");
+        showDropTargets(false);
         const target = event.to;
         const ids = [...target.querySelectorAll(".shop-item")].map((row) => row.dataset.id);
         if (event.from === target) {
@@ -405,8 +418,8 @@ function initSortables() {
         }
         const row = event.item;
         row.dataset.category = target.dataset.category;
-        target.closest(".shop-group")?.classList.remove("is-empty");
-        if (!event.from.querySelector(".shop-item")) event.from.closest(".shop-group")?.classList.add("is-empty");
+        markEmpty(target.closest(".shop-group"), false);
+        if (!event.from.querySelector(".shop-item")) markEmpty(event.from.closest(".shop-group"), true);
         postOrder(target.dataset.moveUrl.replace("__ID__", row.dataset.id), { category: target.dataset.category, ids });
       },
     });

@@ -8,12 +8,12 @@
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
   <title>{% block title %}Mampfplan{% endblock %}</title>
   {% if base is defined and member %}<link rel="manifest" href="{{ base }}/manifest.webmanifest">{% endif %}
-  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/static/icon.svg">
-  <link rel="stylesheet" href="/static/style.css">
-  <script src="/static/htmx.min.js" defer></script>
-  <script src="/static/sortable.min.js" defer></script>
-  <script src="/static/app.js" defer></script>
+  <link rel="icon" href="{{ asset('icon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ asset('icon.svg') }}">
+  <link rel="stylesheet" href="{{ asset('style.css') }}">
+  <script src="{{ asset('htmx.min.js') }}" defer></script>
+  <script src="{{ asset('sortable.min.js') }}" defer></script>
+  <script src="{{ asset('app.js') }}" defer></script>
 </head>
 <body hx-boost="true" hx-headers='{"X-CSRF-Token": "{{ request.state.csrf_token }}"}'{% if member %} data-base="{{ base }}"{% endif %}>
   <header class="topbar">

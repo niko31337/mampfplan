@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -13,6 +13,7 @@ from app.db import Base, SessionLocal, engine, migrate
 from app.routers import images, misc, plan, recipes, search, shopping
 from app.services.seed import ensure_space, seed_catalog
 from app.web import (
+    ASSET_VERSION,
     BASE_DIR,
     COOKIE_MAX_AGE,
     CSRF_COOKIE,
@@ -108,8 +109,10 @@ def landing(request: Request):
 @app.get("/sw.js", include_in_schema=False)
 def service_worker():
     # Muss unter "/" ausgeliefert werden, damit der Worker alle Seiten (/s/…) abdecken darf.
-    return FileResponse(
-        BASE_DIR / "static" / "sw.js",
+    # Die eingesetzte Versionskennung sorgt dafür, dass sich der Worker bei jedem Update erneuert.
+    script = (BASE_DIR / "static" / "sw.js").read_text(encoding="utf-8").replace("__ASSET_VERSION__", ASSET_VERSION)
+    return Response(
+        script,
         media_type="application/javascript",
         headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
     )

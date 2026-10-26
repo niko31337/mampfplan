@@ -11,7 +11,8 @@
   <div id="shop-groups" data-order-url="{{ base }}/shopping/categories/order">
     {% for category in categories %}
     {% set items = groups.get(category, []) %}
-    <section class="shop-group{{ ' is-empty' if not items }}" data-category="{{ category }}">
+    {# Leere Kategorien: per hidden-Attribut unsichtbar (unabhängig vom CSS), nur beim Ziehen als Ablagefläche sichtbar #}
+    <section class="shop-group{{ ' is-empty' if not items }}" data-category="{{ category }}"{{ ' hidden' if not items }}>
       <h2>
         <span>{{ category }}</span>
         <span class="drag-handle cat-handle" role="img" aria-label="Kategorie verschieben" title="Kategorie verschieben">⠿</span>
