@@ -119,6 +119,7 @@ function onNetworkFailure(event) {
   const path = config?.path || event.detail.pathInfo?.requestPath || "";
   if (config?.verb === "post" && QUEUEABLE.test(path)) {
     enqueue({ path, pairs: requestPairs(config) });
+    connectionTrouble = true;
     updateBanner();
     scheduleRetry();
     showToast("📴 Gemerkt – wird übertragen, sobald du wieder Verbindung hast.");
@@ -135,6 +136,9 @@ document.addEventListener("htmx:responseError", (event) => {
 
 let flushing = false;
 let retryTimer = null;
+// true, solange Übertragungen gescheitert sind – erst dann zeigt das Banner etwas an (sonst würde jede
+// normale Sortier-Aktion kurz „wird übertragen“ aufblitzen lassen).
+let connectionTrouble = false;
 
 async function flushQueue() {
   if (flushing || !loadQueue().length) return;
@@ -158,9 +162,13 @@ async function flushQueue() {
           signal: AbortSignal.timeout(8000),
         });
       } catch {
+        connectionTrouble = true;
         break; // weiterhin offline
       }
-      if (response.status >= 500) break; // später erneut versuchen
+      if (response.status >= 500) {
+        connectionTrouble = true;
+        break; // später erneut versuchen
+      }
       // Erfolg oder dauerhafter Fehler (z. B. Artikel inzwischen gelöscht): Eintrag verwerfen
       saveQueue(loadQueue().filter((e) => queueKey(e) !== queueKey(entry)));
       sent += 1;
@@ -172,8 +180,18 @@ async function flushQueue() {
   if (loadQueue().length) {
     scheduleRetry();
   } else if (sent) {
-    showToast("✓ Änderungen synchronisiert");
-    refreshShoppingList();
+    if (connectionTrouble) showToast("✓ Änderungen synchronisiert");
+    connectionTrouble = false;
+    updateBanner();
+    if (listEl()) refreshShoppingList(); // aktueller Stand vom Server, inkl. Rückgängig-Button
+    else refreshUndoButton();
+  }
+}
+
+// Seiten ohne Einkaufsliste (z. B. Ladenreihenfolge): nur den Rückgängig-Button auf den neuen Stand bringen
+function refreshUndoButton() {
+  if (window.htmx && document.getElementById("undo-slot")) {
+    htmx.ajax("GET", location.pathname + location.search, { target: "#undo-slot", select: "#undo-slot", swap: "outerHTML" });
   }
 }
 
@@ -182,7 +200,31 @@ function scheduleRetry() {
   retryTimer = setTimeout(flushQueue, 10000);
 }
 
+// Während ein Artikel oder eine Kategorie gezogen wird, darf die Liste nicht ausgetauscht werden –
+// sonst verschwindet der laufende Ziehvorgang samt eingeblendeten Ablageflächen. Danach wird nachgeholt.
+let dragActive = false;
+let refreshAfterDrag = false;
+
+function setDragActive(active) {
+  dragActive = active;
+  if (!active && refreshAfterDrag) {
+    refreshAfterDrag = false;
+    refreshShoppingList();
+  }
+}
+
+document.addEventListener("htmx:beforeSwap", (event) => {
+  if (dragActive && event.detail.target?.id === "shopping-list") {
+    event.detail.shouldSwap = false;
+    refreshAfterDrag = true;
+  }
+});
+
 function refreshShoppingList() {
+  if (dragActive) {
+    refreshAfterDrag = true;
+    return;
+  }
   if (listEl() && window.htmx) {
     htmx.ajax("GET", `${base()}/shopping/list`, { target: "#shopping-list", swap: "outerHTML" });
   }
@@ -207,8 +249,9 @@ function updateBanner() {
   let text = "";
   const many = pending > 1;
   const noun = `${pending} Änderung${many ? "en" : ""}`;
-  if (pending && flushing) text = `🔄 ${noun} ${many ? "werden" : "wird"} übertragen …`;
-  else if (pending) text = `📴 Keine Verbindung – ${noun} ${many ? "warten" : "wartet"} auf Übertragung`;
+  const trouble = connectionTrouble || !navigator.onLine;
+  if (pending && trouble && flushing) text = `🔄 ${noun} ${many ? "werden" : "wird"} übertragen …`;
+  else if (pending && trouble) text = `📴 Keine Verbindung – ${noun} ${many ? "warten" : "wartet"} auf Übertragung`;
   else if (!navigator.onLine) text = "📴 Offline – Abhaken und Ansehen funktioniert weiterhin";
   banner.textContent = text;
   banner.hidden = !text;
@@ -359,12 +402,23 @@ function applyPending() {
       applyReorder(category, entry.pairs.filter(([k]) => k === "ids").map(([, v]) => v));
     } else if (entry.path.endsWith("/categories/order")) {
       const groups = document.getElementById("shop-groups");
-      entry.pairs
-        .filter(([k]) => k === "categories")
-        .forEach(([, name]) => {
-          const section = [...groups.children].find((g) => g.dataset.category === name);
-          if (section) groups.appendChild(section);
-        });
+      if (!groups) continue;
+      const value = (key) => entry.pairs.find(([k]) => k === key)?.[1];
+      const section = (name) => [...groups.children].find((g) => g.dataset.category === name);
+      const moved = section(value("category"));
+      if (moved) {
+        const before = section(value("before"));
+        const after = section(value("after"));
+        if (before) groups.insertBefore(moved, before);
+        else if (after) after.after(moved);
+      } else {
+        entry.pairs
+          .filter(([k]) => k === "categories")
+          .forEach(([, name]) => {
+            const s = section(name);
+            if (s) groups.appendChild(s);
+          });
+      }
     }
   }
 }
@@ -380,9 +434,24 @@ document.addEventListener("htmx:beforeRequest", (event) => {
 
 /* ------------------------------------------------------------------ Drag & Drop (SortableJS) */
 
+// Sortieren/Verschieben: Die Seite zeigt nach dem Ablegen schon den neuen Stand. Die Änderung geht über
+// dieselbe Warteschlange wie Offline-Aktionen – der Reihe nach, ohne dass bei schnellem Ziehen über eine
+// langsame Leitung etwas verloren geht. Danach wird die Liste einmal frisch geladen (nie während des Ziehens).
 function postOrder(url, values) {
-  if (!window.htmx || !listEl()) return;
-  htmx.ajax("POST", url, { source: listEl(), target: "#shopping-list", swap: "outerHTML", values });
+  const pairs = [];
+  for (const [key, value] of Object.entries(values)) {
+    (Array.isArray(value) ? value : [value]).forEach((v) => pairs.push([key, String(v)]));
+  }
+  enqueue({ path: url, pairs });
+  flushQueue();
+}
+
+function visibleSibling(element, direction) {
+  let sibling = direction === "next" ? element.nextElementSibling : element.previousElementSibling;
+  while (sibling && (sibling.hidden || sibling.classList.contains("is-empty"))) {
+    sibling = direction === "next" ? sibling.nextElementSibling : sibling.previousElementSibling;
+  }
+  return sibling;
 }
 
 function initSortables() {
@@ -395,6 +464,12 @@ function initSortables() {
     forceFallback: true,
     fallbackTolerance: 3,
     fallbackOnBody: true,
+    // Automatisch scrollen, sobald der Finger in die Nähe des Rands kommt. Der Bereich ist bewusst groß:
+    // Unten liegen die Navigationsleiste der App und die Gestenleiste des Handys.
+    scroll: true,
+    scrollSensitivity: 120,
+    scrollSpeed: 18,
+    bubbleScroll: true,
   };
 
   document.querySelectorAll("#shopping-list .shop-items").forEach((container) => {
@@ -405,9 +480,13 @@ function initSortables() {
       handle: ".item-handle",
       draggable: ".shop-item:not(.is-done)",
       // Beim Ziehen eines Artikels auch leere Kategorien als Ablagefläche zeigen
-      onStart: () => showDropTargets(true),
+      onStart: () => {
+        setDragActive(true);
+        showDropTargets(true);
+      },
       onEnd: (event) => {
         showDropTargets(false);
+        setDragActive(false);
         const target = event.to;
         const ids = [...target.querySelectorAll(".shop-item")].map((row) => row.dataset.id);
         if (event.from === target) {
@@ -425,15 +504,42 @@ function initSortables() {
     });
   });
 
+  // Kategorien in der Liste: vor die nächste (bzw. hinter die vorige) sichtbare Kategorie einfügen.
+  // Der Server merkt sich das dauerhaft – auch relativ zu gerade leeren, ausgeblendeten Kategorien.
   const groups = document.getElementById("shop-groups");
   if (groups && !Sortable.get(groups)) {
     Sortable.create(groups, {
       ...common,
       handle: ".cat-handle",
       draggable: ".shop-group:not(.is-empty)",
-      onEnd: () => {
-        const categories = [...groups.querySelectorAll(".shop-group:not(.is-empty)")].map((g) => g.dataset.category);
-        postOrder(groups.dataset.orderUrl, { categories });
+      onStart: () => setDragActive(true),
+      onEnd: (event) => {
+        setDragActive(false);
+        if (event.oldIndex === event.newIndex) return;
+        const moved = event.item;
+        const values = { category: moved.dataset.category };
+        const next = visibleSibling(moved, "next");
+        const previous = visibleSibling(moved, "previous");
+        if (next) values.before = next.dataset.category;
+        else if (previous) values.after = previous.dataset.category;
+        else return;
+        postOrder(groups.dataset.orderUrl, values);
+      },
+    });
+  }
+
+  // Seite „Ladenreihenfolge“: alle Kategorien, die vollständige Reihenfolge wird übernommen
+  const storeOrder = document.getElementById("category-order");
+  if (storeOrder && !Sortable.get(storeOrder)) {
+    Sortable.create(storeOrder, {
+      ...common,
+      handle: ".cat-handle",
+      onStart: () => setDragActive(true),
+      onEnd: (event) => {
+        setDragActive(false);
+        if (event.oldIndex === event.newIndex) return;
+        const categories = [...storeOrder.children].map((row) => row.dataset.category);
+        postOrder(storeOrder.dataset.orderUrl, { categories });
       },
     });
   }

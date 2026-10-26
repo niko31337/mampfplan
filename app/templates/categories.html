@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% set nav = 'shopping' %}
+{% block title %}Ladenreihenfolge – Mampfplan{% endblock %}
+{% block content %}
+<h1>Ladenreihenfolge</h1>
+<p class="muted small">Zieh die Kategorien am Griff ⠿ in die Reihenfolge, in der du durch deinen Supermarkt gehst – zum Beispiel erst Getränke, dann Obst &amp; Gemüse, dann Snacks. Die Einkaufsliste zeigt die Kategorien dann immer in dieser Reihenfolge, auch wenn gerade nur einige davon Artikel haben.</p>
+
+<ol id="category-order" class="card list category-order" data-order-url="{{ base }}/shopping/categories/order">
+  {% for category in categories %}
+  <li class="list-item" data-category="{{ category }}">
+    <span class="drag-handle cat-handle" role="img" aria-label="{{ category }} verschieben" title="Verschieben">⠿</span>
+    <span class="grow">{{ category }}</span>
+    {% if counts.get(category) %}<span class="badge" title="offene Artikel">{{ counts[category] }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+
+<p><a class="btn" href="{{ base }}/shopping">← Zur Einkaufsliste</a></p>
+{% endblock %}

@@ -123,14 +123,38 @@ def reorder(
     return _respond_list(ctx)
 
 
+@router.get("/shopping/categories")
+def store_order_page(ctx: Annotated[Ctx, Depends(get_ctx)]):
+    """Alle Kategorien in Ladenreihenfolge sortieren – auch die, die gerade leer sind."""
+    counts: dict[str, int] = {}
+    for item in ctx.db.scalars(
+        select(ShoppingItem).where(ShoppingItem.space_id == ctx.space.id, ShoppingItem.checked.is_(False))
+    ):
+        counts[item.category] = counts.get(item.category, 0) + 1
+    return render(ctx, "categories.html", categories=service.category_order(ctx.db, ctx.space.id), counts=counts)
+
+
+CategoryField = Annotated[str, Form(max_length=40)]
+
+
 @router.post("/shopping/categories/order")
 def order_categories(
     ctx: Annotated[Ctx, Depends(get_ctx)],
     categories: Annotated[list[str] | None, Form()] = None,
+    category: CategoryField = "",
+    before: CategoryField = "",
+    after: CategoryField = "",
 ):
-    wanted = [c for c in (categories or []) if c in service.CATEGORY_ORDER]
+    """Entweder eine Kategorie vor/hinter eine andere setzen (Ziehen in der Liste)
+    oder eine vollständige Reihenfolge übernehmen (Seite „Ladenreihenfolge“)."""
     with history.record(ctx.db, ctx.space.id, ctx.member.name, "Kategorien umsortiert") as act:
-        service.set_category_order(ctx.db, act, ctx.space.id, wanted)
+        if category:
+            if category not in service.CATEGORY_ORDER:
+                raise HTTPException(400, "Unbekannte Kategorie")
+            service.move_category(ctx.db, act, ctx.space.id, category, before or None, after or None)
+        else:
+            wanted = [c for c in (categories or []) if c in service.CATEGORY_ORDER]
+            service.set_category_order(ctx.db, act, ctx.space.id, wanted)
     return _respond_list(ctx)
 
 

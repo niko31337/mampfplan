@@ -229,17 +229,43 @@ def move_to_category(
 
 
 def set_category_order(db: Session, act: Action, space_id: int, ordered_visible: list[str]) -> bool:
-    """Ordnet die übergebenen (sichtbaren) Kategorien neu, ohne die Plätze der übrigen zu verändern."""
+    """Ordnet die übergebenen Kategorien neu, ohne die Plätze der übrigen zu verändern.
+
+    Mit allen Kategorien (Seite „Ladenreihenfolge“) ist das genau die gewünschte Gesamtreihenfolge.
+    """
     full = category_order(db, space_id)
     wanted = [c for c in dict.fromkeys(ordered_visible) if c in full]
     slots = [i for i, c in enumerate(full) if c in wanted]
     new_full = list(full)
     for slot, category in zip(slots, wanted, strict=True):
         new_full[slot] = category
-    if new_full == full:
-        return False
-    full = new_full
+    return _save_category_order(db, act, space_id, full, new_full)
 
+
+def move_category(
+    db: Session, act: Action, space_id: int, category: str, before: str | None = None, after: str | None = None
+) -> bool:
+    """Kategorie direkt vor `before` (bzw. hinter `after`) einfügen – die übrigen behalten ihre Reihenfolge.
+
+    So bleibt eine einmal nach vorn gezogene Kategorie dauerhaft vorn, auch wenn später andere
+    Kategorien sichtbar werden (Reihenfolge des Supermarkts).
+    """
+    full = category_order(db, space_id)
+    if category not in full or category in (before, after):
+        return False
+    new_full = [c for c in full if c != category]
+    if before in new_full:
+        new_full.insert(new_full.index(before), category)
+    elif after in new_full:
+        new_full.insert(new_full.index(after) + 1, category)
+    else:
+        return False
+    return _save_category_order(db, act, space_id, full, new_full)
+
+
+def _save_category_order(db: Session, act: Action, space_id: int, old: list[str], full: list[str]) -> bool:
+    if full == old:
+        return False
     rows = {
         row.category: row
         for row in db.scalars(select(CategoryOrder).where(CategoryOrder.space_id == space_id))

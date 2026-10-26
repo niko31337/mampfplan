@@ -193,6 +193,8 @@ input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent);
 #shopping-list.is-dragging-item .shop-group.is-empty .shop-items::after {
   content: "→ " attr(data-category); display: block; color: var(--muted); font-size: 0.85rem; padding: 0.5rem 0.6rem;
 }
+.category-order { padding: 0.2rem 0.6rem; }
+.category-order .list-item { gap: 0.4rem; }
 .sortable-fallback { background: var(--card); border-radius: 10px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); opacity: 0.95 !important; }
 .sync-banner { background: var(--ink); color: var(--bg); text-align: center; font-size: 0.85rem; padding: 0.35rem 1rem; }
 .sync-banner[hidden], [hidden] { display: none !important; }

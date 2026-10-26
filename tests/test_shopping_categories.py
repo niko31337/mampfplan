@@ -170,7 +170,7 @@ def test_empty_categories_are_hidden_by_attribute(web):
 def test_drag_script_reveals_and_rehides_empty_categories(anon):
     js = anon.client.get("/static/app.js").text
     assert "function showDropTargets" in js and "group.hidden = !show" in js
-    assert "onStart: () => showDropTargets(true)" in js and "showDropTargets(false)" in js
+    assert "showDropTargets(true)" in js and "showDropTargets(false)" in js
 
 
 def test_deleting_a_household_removes_its_corrections(web):
