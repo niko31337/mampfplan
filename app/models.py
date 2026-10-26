@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.config import now
@@ -104,6 +104,18 @@ class CategoryOrder(Base):
     space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id"), index=True)
     category: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class CategoryOverride(Base):
+    """Vom Haushalt korrigierte Kategorie eines Artikels – gelernt beim Verschieben in eine andere Kategorie."""
+
+    __tablename__ = "category_overrides"
+    __table_args__ = (UniqueConstraint("space_id", "name_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id"), index=True)
+    name_key: Mapped[str] = mapped_column(String(100))  # bereinigter, kleingeschriebener Artikelname
+    category: Mapped[str] = mapped_column(String(40))
 
 
 class CatalogItem(Base):

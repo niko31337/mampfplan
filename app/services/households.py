@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     ActivityLog,
     CategoryOrder,
+    CategoryOverride,
     Member,
     PlanEntry,
     Recipe,
@@ -121,6 +122,7 @@ def delete_household(db: Session, space: Space) -> None:
         delete(PlanEntry).where(PlanEntry.space_id == space.id),
         delete(ShoppingItem).where(ShoppingItem.space_id == space.id),
         delete(CategoryOrder).where(CategoryOrder.space_id == space.id),
+        delete(CategoryOverride).where(CategoryOverride.space_id == space.id),
         delete(RecipeIngredient).where(RecipeIngredient.recipe_id.in_(recipe_ids)),
         delete(Recipe).where(Recipe.space_id == space.id),
         delete(Member).where(Member.space_id == space.id),

@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.models import CatalogItem, ShoppingItem
 from tests.test_plan import make_recipe
+from tests.test_shopping_categories import item_names
 
 
 def items():
@@ -57,9 +58,10 @@ def test_check_off_removes_from_open_list_and_undo(web):
     response = web.post(f"/shopping/{item_id}/toggle", htmx=True)
     assert response.status_code == 200
     page = response.text
-    open_part, done_part = page.split("Gekauft", 1)
-    assert "Brot" in open_part and "Milch" not in open_part
-    assert "Milch" in done_part
+    open_part, done_part = page.split("<h2>Gekauft</h2>", 1)
+    # Artikelnamen gezielt prüfen: die (leere) Kategorie „Milch, Käse & Eier“ enthält ebenfalls „Milch“
+    assert item_names(open_part) == ["Brot"]
+    assert item_names(done_part) == ["Milch"]
 
     web.post("/undo")
     assert items()[0][3] is False

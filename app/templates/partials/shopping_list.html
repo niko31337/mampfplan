@@ -9,13 +9,15 @@
 <div id="shopping-list" hx-target="#shopping-list" hx-swap="outerHTML" hx-request='{"timeout": 5000}'
      data-my-name="{{ member.name }}" data-my-badge="{{ my_badge.text }}" data-my-color="{{ my_badge.color }}">
   <div id="shop-groups" data-order-url="{{ base }}/shopping/categories/order">
-    {% for category, items in groups.items() %}
-    <section class="shop-group" data-category="{{ category }}">
+    {% for category in categories %}
+    {% set items = groups.get(category, []) %}
+    <section class="shop-group{{ ' is-empty' if not items }}" data-category="{{ category }}">
       <h2>
         <span>{{ category }}</span>
         <span class="drag-handle cat-handle" role="img" aria-label="Kategorie verschieben" title="Kategorie verschieben">⠿</span>
       </h2>
-      <div class="shop-items" data-reorder-url="{{ base }}/shopping/reorder" data-category="{{ category }}">
+      <div class="shop-items" data-reorder-url="{{ base }}/shopping/reorder" data-category="{{ category }}"
+           data-move-url="{{ base }}/shopping/__ID__/move">
         {% for it in items %}
         <div class="shop-item" data-id="{{ it.id }}" data-category="{{ category }}"{{ added_data(it) }}>
           <span class="drag-handle item-handle" role="img" aria-label="Artikel verschieben" title="Artikel verschieben">⠿</span>

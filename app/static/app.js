@@ -74,8 +74,9 @@ document.addEventListener("htmx:afterRequest", (event) => {
 // idempotent (Abhaken setzt einen Zustand, Sortieren setzt eine Reihenfolge) – doppeltes Senden schadet nicht.
 
 const QUEUE_KEY = "mampfplan.queue";
-const QUEUEABLE = /\/shopping\/(?:\d+\/toggle|reorder|categories\/order)$/;
+const QUEUEABLE = /\/shopping\/(?:\d+\/toggle|\d+\/move|reorder|categories\/order)$/;
 const TOGGLE = /\/shopping\/(\d+)\/toggle$/;
+const MOVE = /\/shopping\/(\d+)\/move$/;
 
 function loadQueue() {
   try {
@@ -204,9 +205,10 @@ function updateBanner() {
   if (!banner) return;
   const pending = loadQueue().length;
   let text = "";
-  const noun = `${pending} Änderung${pending > 1 ? "en" : ""}`;
-  if (pending && flushing) text = `🔄 ${noun} werden übertragen …`;
-  else if (pending) text = `📴 Keine Verbindung – ${noun} warten auf Übertragung`;
+  const many = pending > 1;
+  const noun = `${pending} Änderung${many ? "en" : ""}`;
+  if (pending && flushing) text = `🔄 ${noun} ${many ? "werden" : "wird"} übertragen …`;
+  else if (pending) text = `📴 Keine Verbindung – ${noun} ${many ? "warten" : "wartet"} auf Übertragung`;
   else if (!navigator.onLine) text = "📴 Offline – Abhaken und Ansehen funktioniert weiterhin";
   banner.textContent = text;
   banner.hidden = !text;
@@ -263,7 +265,9 @@ function setItemState(id, checked) {
     check.textContent = "✓";
     check.setAttribute("hx-vals", '{"state": "0"}');
     done.querySelector("h2").after(row);
-    if (group && !group.classList.contains("shop-done") && !group.querySelector(".shop-item")) group.remove();
+    if (group && !group.classList.contains("shop-done") && !group.querySelector(".shop-item")) {
+      group.classList.add("is-empty"); // bleibt als Ablagefläche fürs Ziehen erhalten
+    }
   } else {
     const container = ensureGroup(list, row.dataset.category);
     row.classList.remove("is-done");
@@ -300,9 +304,11 @@ function ensureGroup(list, category) {
     items.className = "shop-items";
     items.dataset.category = category;
     items.dataset.reorderUrl = `${base()}/shopping/reorder`;
+    items.dataset.moveUrl = `${base()}/shopping/__ID__/move`;
     section.append(heading, items);
     groups.appendChild(section);
   }
+  section.classList.remove("is-empty");
   list.querySelector("#shop-empty")?.remove();
   return section.querySelector(".shop-items");
 }
@@ -321,7 +327,18 @@ function applyPending() {
   if (!listEl()) return;
   for (const entry of loadQueue()) {
     const toggle = TOGGLE.exec(entry.path);
-    if (toggle) {
+    const move = MOVE.exec(entry.path);
+    if (move) {
+      const category = entry.pairs.find(([k]) => k === "category")?.[1];
+      const row = listEl().querySelector(`.shop-item[data-id="${CSS.escape(move[1])}"]`);
+      if (category && row && !row.classList.contains("is-done")) {
+        const source = row.closest(".shop-group");
+        ensureGroup(listEl(), category).appendChild(row);
+        row.dataset.category = category;
+        if (source && !source.querySelector(".shop-item")) source.classList.add("is-empty");
+        applyReorder(category, entry.pairs.filter(([k]) => k === "ids").map(([, v]) => v));
+      }
+    } else if (toggle) {
       const state = entry.pairs.find(([k]) => k === "state")?.[1];
       if (state === "0" || state === "1") setItemState(toggle[1], state === "1");
     } else if (entry.path.endsWith("/shopping/reorder")) {
@@ -371,11 +388,26 @@ function initSortables() {
     if (Sortable.get(container)) return;
     Sortable.create(container, {
       ...common,
+      group: "shop-items", // gemeinsame Gruppe: Artikel dürfen in andere Kategorien gezogen werden
       handle: ".item-handle",
       draggable: ".shop-item:not(.is-done)",
-      onEnd: () => {
-        const ids = [...container.querySelectorAll(".shop-item")].map((row) => row.dataset.id);
-        postOrder(container.dataset.reorderUrl, { category: container.dataset.category, ids });
+      // Beim Ziehen eines Artikels auch leere Kategorien als Ablagefläche zeigen
+      onStart: () => listEl()?.classList.add("is-dragging-item"),
+      onEnd: (event) => {
+        listEl()?.classList.remove("is-dragging-item");
+        const target = event.to;
+        const ids = [...target.querySelectorAll(".shop-item")].map((row) => row.dataset.id);
+        if (event.from === target) {
+          if (event.oldIndex !== event.newIndex) {
+            postOrder(target.dataset.reorderUrl, { category: target.dataset.category, ids });
+          }
+          return;
+        }
+        const row = event.item;
+        row.dataset.category = target.dataset.category;
+        target.closest(".shop-group")?.classList.remove("is-empty");
+        if (!event.from.querySelector(".shop-item")) event.from.closest(".shop-group")?.classList.add("is-empty");
+        postOrder(target.dataset.moveUrl.replace("__ID__", row.dataset.id), { category: target.dataset.category, ids });
       },
     });
   });
@@ -385,9 +417,9 @@ function initSortables() {
     Sortable.create(groups, {
       ...common,
       handle: ".cat-handle",
-      draggable: ".shop-group",
+      draggable: ".shop-group:not(.is-empty)",
       onEnd: () => {
-        const categories = [...groups.querySelectorAll(".shop-group")].map((g) => g.dataset.category);
+        const categories = [...groups.querySelectorAll(".shop-group:not(.is-empty)")].map((g) => g.dataset.category);
         postOrder(groups.dataset.orderUrl, { categories });
       },
     });

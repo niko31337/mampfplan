@@ -15,13 +15,22 @@ from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
 from app.config import now
-from app.models import ActivityLog, CategoryOrder, PlanEntry, Recipe, RecipeIngredient, ShoppingItem
+from app.models import (
+    ActivityLog,
+    CategoryOrder,
+    CategoryOverride,
+    PlanEntry,
+    Recipe,
+    RecipeIngredient,
+    ShoppingItem,
+)
 
 # Nur diese Tabellen dürfen über Undo-Operationen verändert werden.
 UNDOABLE_MODELS = {
     "plan_entries": PlanEntry,
     "shopping_items": ShoppingItem,
     "category_order": CategoryOrder,
+    "category_overrides": CategoryOverride,
     "recipes": Recipe,
     "recipe_ingredients": RecipeIngredient,
 }

@@ -28,7 +28,10 @@ def _list_context(ctx: Ctx) -> dict:
         groups.setdefault(item.category, []).append(item)
     checked = sorted((i for i in items if i.checked), key=lambda i: i.checked_at or now(), reverse=True)
     known = households.badges([m.name for m in households.members_of(ctx.db, ctx.space.id)])
+    # Alle Kategorien in Haushalts-Reihenfolge: leere dienen beim Ziehen als Ablagefläche
+    categories = list(order) + [c for c in groups if c not in order]
     return {
+        "categories": categories,
         "groups": groups,
         "open_count": len(open_items),
         "checked": checked[:MAX_CHECKED_SHOWN],
@@ -159,6 +162,25 @@ def toggle(
             item.checked = wanted
             item.checked_at = now() if wanted else None
             item.checked_by = ctx.member.name if wanted else None
+    return _respond_list(ctx)
+
+
+@router.post("/shopping/{item_id}/move")
+def move_to_category(
+    ctx: Annotated[Ctx, Depends(get_ctx)],
+    item_id: int,
+    category: Annotated[str, Form(max_length=40)],
+    ids: Annotated[list[int] | None, Form()] = None,
+):
+    """Artikel per Drag & Drop in eine andere Kategorie (und dort an eine Stelle) schieben."""
+    item = _get_item(ctx, item_id)
+    if category not in service.CATEGORY_ORDER:
+        raise HTTPException(400, "Unbekannte Kategorie")
+    if item.checked:
+        raise HTTPException(400, "Gekaufte Artikel lassen sich nicht verschieben")
+    label = f"„{item.name[:60]}“ nach „{category}“ verschoben" if item.category != category else f"„{item.name[:60]}“ verschoben"
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, label) as act:
+        service.move_to_category(ctx.db, act, ctx.space.id, item, category, (ids or [])[:MAX_IDS])
     return _respond_list(ctx)
 
 

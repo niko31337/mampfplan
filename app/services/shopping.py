@@ -3,7 +3,7 @@ import re
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import CatalogItem, CategoryOrder, RecipeIngredient, ShoppingItem
+from app.models import CatalogItem, CategoryOrder, CategoryOverride, RecipeIngredient, ShoppingItem
 from app.services.history import Action
 
 DEFAULT_CATEGORY = "Sonstiges"
@@ -108,7 +108,8 @@ def add_item(
         name=name,
         amount=amount,
         unit=unit,
-        category=category or guess_category(db, name),
+        # Eigene Korrektur des Haushalts schlägt Katalogvorschlag und automatische Erkennung
+        category=learned_category(db, space_id, name) or category or guess_category(db, name),
         position=0 if last_position is None else last_position + 1,
         recipe_id=recipe_id,
         added_by=added_by,
@@ -185,6 +186,46 @@ def reorder_items(db: Session, act: Action, space_id: int, category: str, ordere
             item.position = position
             changed = True
     return changed
+
+
+def _name_key(name: str) -> str:
+    return clean_name(name).casefold()[:100]
+
+
+def learned_category(db: Session, space_id: int, name: str) -> str | None:
+    """Vom Haushalt früher korrigierte Kategorie für diesen Artikelnamen."""
+    return db.scalar(
+        select(CategoryOverride.category).where(
+            CategoryOverride.space_id == space_id, CategoryOverride.name_key == _name_key(name)
+        )
+    )
+
+
+def remember_category(db: Session, act: Action, space_id: int, name: str, category: str) -> None:
+    key = _name_key(name)
+    existing = db.scalars(
+        select(CategoryOverride).where(CategoryOverride.space_id == space_id, CategoryOverride.name_key == key)
+    ).first()
+    if existing is None:
+        override = CategoryOverride(space_id=space_id, name_key=key, category=category)
+        db.add(override)
+        db.flush()
+        act.created(override)
+    elif existing.category != category:
+        act.updating(existing)
+        existing.category = category
+
+
+def move_to_category(
+    db: Session, act: Action, space_id: int, item: ShoppingItem, category: str, ordered_ids: list[int]
+) -> None:
+    """Artikel in eine andere Kategorie schieben, dort an die gewünschte Stelle – und die Korrektur merken."""
+    if item.category != category:
+        act.updating(item)
+        item.category = category
+        remember_category(db, act, space_id, item.name, category)
+        db.flush()
+    reorder_items(db, act, space_id, category, ordered_ids)
 
 
 def set_category_order(db: Session, act: Action, space_id: int, ordered_visible: list[str]) -> bool:

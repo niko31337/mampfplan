@@ -14,11 +14,12 @@
   "Milch, Käse & Eier": [
     "Milch", "Hafermilch", "Sahne", "Schlagsahne", "Saure Sahne", "Crème fraîche", "Butter", "Margarine", "Joghurt",
     "Naturjoghurt", "Quark", "Skyr", "Frischkäse", "Schmand", "Eier", "Gouda", "Emmentaler", "Mozzarella", "Parmesan",
-    "Feta", "Halloumi", "Reibekäse", "Mascarpone", "Ricotta", "Kräuterbutter", "Pudding", "Buttermilch"
+    "Feta", "Halloumi", "Reibekäse", "Mascarpone", "Ricotta", "Kräuterbutter", "Pudding", "Buttermilch",
+    "Käse", "Maasdamer", "Bergkäse", "Butterkäse", "Tilsiter", "Camembert", "Scheibenkäse", "Hüttenkäse"
   ],
   "Fleisch, Fisch & Wurst": [
     "Hackfleisch", "Hähnchenbrust", "Hähnchenschenkel", "Putenbrust", "Schweineschnitzel", "Rindergulasch", "Bratwurst",
-    "Würstchen", "Schinken", "Kochschinken", "Salami", "Bacon", "Leberwurst", "Lachs", "Fischstäbchen", "Thunfisch",
+    "Würstchen", "Schinken", "Kochschinken", "Salami", "Bacon", "Leberwurst", "Wurstaufschnitt", "Aufschnitt", "Lachs", "Fischstäbchen", "Thunfisch",
     "Garnelen", "Räuchertofu", "Tofu"
   ],
   "Tiefkühl": [
