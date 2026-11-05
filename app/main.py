@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine, migrate
-from app.routers import images, misc, plan, recipes, search, shopping
+from app.routers import api, images, misc, plan, recipes, search, shopping
 from app.services.seed import ensure_space, seed_catalog
 from app.web import (
     ASSET_VERSION,
@@ -47,7 +47,7 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
-for module in (images, misc, plan, recipes, search, shopping):
+for module in (api, images, misc, plan, recipes, search, shopping):
     app.include_router(module.router)
 
 

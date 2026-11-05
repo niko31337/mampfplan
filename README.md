@@ -89,6 +89,40 @@ Die Domain muss im certbot-Zertifikat enthalten sein; nach Änderungen `docker c
 - **Voraussetzung: HTTPS.** Beides nutzt Browser-Funktionen (Service Worker, Screen Wake Lock), die nur auf `https://…` oder `localhost` erlaubt sind – **nicht** über `http://192.168.x.x`. Betreibe die App deshalb hinter einem Reverse Proxy mit Zertifikat (Nginx Proxy Manager, Caddy, Traefik, Synology-Reverse-Proxy …) und ruf sie darüber auf.
 - **Einmal vorher öffnen:** Die Liste muss auf dem Handy mindestens einmal online geladen worden sein (die App aktualisiert sie bei jedem Besuch im Hintergrund). Am besten die App zum Startbildschirm hinzufügen.
 
+### Essensplan als JSON (z. B. für Home Assistant)
+
+`GET /s/<token>/api/plan?days=7` liefert den Plan ab heute für `days` Tage (1–14, Standard 7). Die Schnittstelle ist nur lesend und braucht kein Profil; sie zeigt nur den Haushalt, zu dem das Token gehört. Ein falsches Token ergibt 404, ein ungültiges `days` 422.
+
+```json
+{
+  "today": "2026-10-21",
+  "days": [
+    {"date": "2026-10-21", "weekday": "Mittwoch", "entries": [
+      {"kind": "recipe", "title": "Spaghetti Carbonara", "cooked": false},
+      {"kind": "note", "title": "Reste essen", "cooked": false}
+    ]},
+    {"date": "2026-10-22", "weekday": "Donnerstag", "entries": []}
+  ]
+}
+```
+
+Die URL enthält das Token und ist damit der Zugang zum ganzen Haushalt. Leg sie in Home Assistant deshalb in der `secrets.yaml` ab und nicht direkt in der Konfiguration:
+
+```yaml
+# secrets.yaml
+mampfplan_plan_url: https://mampf.example.org/s/<token>/api/plan?days=7
+
+# configuration.yaml
+rest:
+  - resource: !secret mampfplan_plan_url
+    scan_interval: 900
+    sensor:
+      - name: Essen heute
+        value_template: "{{ value_json.days[0].entries | map(attribute='title') | join(', ') or 'nichts geplant' }}"
+        json_attributes:
+          - days
+```
+
 ### Einstellungen (`.env`)
 
 | Variable | Bedeutung |
