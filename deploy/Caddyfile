@@ -15,3 +15,7 @@
 	encode zstd gzip
 	reverse_proxy mampfplan:8000
 }
+
+# Weitere Weiterleitungen dieses Servers (z. B. Home Assistant) stehen nur auf dem Server, nicht im
+# Repository: deploy.local/sites/*.caddy (siehe README, "Weitere Dienste über Caddy").
+import /etc/caddy/sites/*.caddy

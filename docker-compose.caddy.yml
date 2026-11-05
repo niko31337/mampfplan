@@ -23,6 +23,8 @@ services:
       CERT_NAME: ${CERT_NAME:-${DOMAIN}}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Zusätzliche, serverspezifische Weiterleitungen (nicht im Repository, siehe .gitignore)
+      - ./deploy.local/sites:/etc/caddy/sites:ro
       # Ganzer certbot-Ordner (live/ enthält nur Symlinks nach archive/), nur lesend
       - ${CERT_DIR:-/etc/letsencrypt}:/certs:ro
       - caddy-data:/data

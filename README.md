@@ -60,6 +60,28 @@ Die Daten liegen in einer SQLite-Datei im Docker-Volume `mampfplan-data` (Backup
 
 Zugriffslogs sind in Caddy standardmäßig aus – der geheime Link steht also in keiner Logdatei dieser Komponente.
 
+### Weitere Dienste über denselben Caddy
+
+Caddy lädt zusätzlich alle Dateien `deploy.local/sites/*.caddy`. Dieser Ordner ist **nicht im Repository** (`.gitignore`) – serverspezifische Weiterleitungen mit internen Adressen bleiben so auf dem Server. Beispiel `deploy.local/sites/beispiel.caddy`:
+
+```
+dienst.example.org:8123 {
+	tls /certs/live/{$CERT_NAME}/fullchain.pem /certs/live/{$CERT_NAME}/privkey.pem
+	reverse_proxy 192.168.1.10:8123
+}
+```
+
+Weitere Ports veröffentlichst du in einer ebenfalls ignorierten `docker-compose.local.yml` und nimmst sie in `COMPOSE_FILE` auf (`docker-compose.yml:docker-compose.caddy.yml:docker-compose.local.yml`):
+
+```yaml
+services:
+  caddy:
+    ports:
+      - "8123:8123"
+```
+
+Die Domain muss im certbot-Zertifikat enthalten sein; nach Änderungen `docker compose up -d` (neue Ports) bzw. `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`.
+
 ### Offline im Supermarkt & Display an beim Kochen
 
 - **Offline abhaken:** Die Einkaufsliste (und alle Seiten, die du schon einmal geöffnet hast) steht auch ohne Internet zur Verfügung. Abhaken und Umsortieren funktionieren offline weiter: Die Änderungen werden auf dem Handy gemerkt (Banner „📴 …“) und automatisch übertragen, sobald wieder Verbindung besteht. Wurde derselbe Artikel inzwischen von jemand anderem geändert, gilt der zuletzt gesendete Stand. Hinzufügen, Löschen und Rezeptsuche brauchen Verbindung.
