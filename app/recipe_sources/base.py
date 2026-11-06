@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 
 import httpx
 
+from app.services.units import metric_ingredient, metric_text
+
 USER_AGENT = "Mampfplan/1.0 (private family app)"
 TIMEOUT = 8.0
 CACHE_SECONDS = 600
@@ -32,6 +34,14 @@ class ExternalRecipe:
     servings: int | None = None
     steps: str = ""
     ingredients: list[ExternalIngredient] = field(default_factory=list)
+
+
+def to_metric(recipe: ExternalRecipe) -> ExternalRecipe:
+    """Amerikanische Maße (cup, oz, lb, °F …) in metrische umrechnen – deutsche Rezepte bleiben unverändert."""
+    for ing in recipe.ingredients:
+        ing.amount, ing.unit, ing.name = metric_ingredient(ing.amount, ing.unit, ing.name)
+    recipe.steps = metric_text(recipe.steps)
+    return recipe
 
 
 def safe_https_url(url: str | None) -> str | None:
@@ -66,7 +76,7 @@ class RecipeSource(ABC):
     def get(self, external_id: str) -> ExternalRecipe:
         if not ID_PATTERN.match(external_id):
             raise SourceError("Ungültige Rezept-ID")
-        return self._cached(("get", external_id), lambda: self._get(external_id))
+        return self._cached(("get", external_id), lambda: to_metric(self._get(external_id)))
 
     def _json(self, url: str, **kwargs) -> dict:
         try:

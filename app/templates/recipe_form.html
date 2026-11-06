@@ -18,6 +18,17 @@
   {% if not draft.found %}
   <p class="alert">Im Link wurden keine Zutaten oder Schritte erkannt. Trag sie unten selbst ein oder <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">füge den Rezepttext ein</a>.</p>
   {% endif %}
+  {% if draft.conversions or draft.steps_converted %}
+  <details class="alert">
+    <summary>📏 Amerikanische Maße in g/ml umgerechnet{% if draft.conversions %} ({{ draft.conversions|length }} Zutaten){% endif %} – bitte kurz prüfen</summary>
+    {% if draft.conversions %}
+    <ul class="small">
+      {% for c in draft.conversions %}<li>{{ c.before }} → <strong>{{ c.after }}</strong></li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if draft.steps_converted %}<p class="small">Auch in der Zubereitung: Temperaturen in °C, Zoll in cm, Tassen und Unzen in ml bzw. g.</p>{% endif %}
+  </details>
+  {% endif %}
   {% if existing %}
   <p class="alert">Dieses Rezept hast du schon: <a href="{{ base }}/recipes/{{ existing.id }}">{{ existing.title }}</a>. Speichern legt eine zweite Kopie an.</p>
   {% endif %}

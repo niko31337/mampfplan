@@ -8,6 +8,7 @@ from app.converter import fetch as fetching
 from app.converter.fetch import FetchError
 from app.converter.html import clean, meta_tags, page_title, structured_recipe, text_lines
 from app.converter.text import parse_text, strip_symbols
+from app.services.units import Conversion, metric_lines, metric_text
 
 __all__ = ["CONVERTED_SOURCES", "Draft", "FetchError", "convert", "fetch_image", "image_key", "source_kind", "with_source_line"]
 
@@ -26,6 +27,8 @@ class Draft:
     steps: list[str] = field(default_factory=list)
     image_url: str | None = None
     needs_text: bool = False  # Seite liefert keinen Rezepttext (z. B. Instagram ohne Anmeldung)
+    conversions: list[Conversion] = field(default_factory=list)  # umgerechnete US-Maße (Zutaten)
+    steps_converted: bool = False  # Anleitung enthielt °F, inch, cups …
 
     @property
     def found(self) -> bool:
@@ -139,7 +142,22 @@ def _from_text(draft: Draft, text: str) -> Draft:
 
 
 def convert(url: str, pasted_text: str = "") -> Draft:
-    """Vorschlag aus dem Link erstellen. Mit eingefügtem Text wird nur dieser ausgewertet."""
+    """Vorschlag aus dem Link erstellen. Mit eingefügtem Text wird nur dieser ausgewertet.
+
+    Amerikanische Maße (cup, oz, lb, °F …) werden dabei automatisch metrisch umgerechnet.
+    """
+    return _to_metric(_convert(url, pasted_text))
+
+
+def _to_metric(draft: Draft) -> Draft:
+    draft.ingredients, draft.conversions = metric_lines(draft.ingredients)
+    steps = [metric_text(step) for step in draft.steps]
+    draft.steps_converted = steps != draft.steps
+    draft.steps = steps
+    return draft
+
+
+def _convert(url: str, pasted_text: str) -> Draft:
     url = fetching.validate_url(url)
     draft = Draft(source_url=url, source=source_kind(url))
     if pasted_text.strip():
@@ -163,7 +181,7 @@ def convert(url: str, pasted_text: str = "") -> Draft:
             return draft
         return _from_text(draft, caption)
 
-    structured = structured_recipe(document)
+    structured = structured_recipe(document, meta.get("og:title") or page_title(document))
     if structured and (structured.ingredients or structured.steps):
         draft.title = structured.title or _clean_page_title(document, meta)
         draft.servings = structured.servings

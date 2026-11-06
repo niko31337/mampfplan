@@ -276,6 +276,16 @@ def test_json_ld_sections_strings_and_yield_text():
     ]
 
 
+def test_page_with_several_recipes_picks_the_main_one():
+    seasoning = {"@type": "Recipe", "name": "Chili-Gewürzmischung", "recipeIngredient": ["1 EL Paprika", "1 TL Kreuzkümmel"]}
+    chili = {"@type": "Recipe", "name": "Chili con Carne", "recipeIngredient": ["500 g Hack", "1 Dose Bohnen"]}
+    page = ld_page(seasoning) + ld_page(chili)
+    assert structured_recipe(page, "Chili con Carne – Mein Blog").title == "Chili con Carne"
+    assert structured_recipe(page, "Ganz anderer Titel").title == "Chili-Gewürzmischung"  # mehr Zutaten → bei Gleichstand das erste
+    bigger = {**chili, "recipeIngredient": ["500 g Hack", "1 Dose Bohnen", "1 Zwiebel"]}
+    assert structured_recipe(ld_page(seasoning) + ld_page(bigger)).title == "Chili con Carne"
+
+
 def test_broken_json_ld_is_ignored():
     page = '<script type="application/ld+json">{kaputt</script>' + ld_page(HELLO_RECIPE)
     assert structured_recipe(page).title.startswith("Hähnchen")

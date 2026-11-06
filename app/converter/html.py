@@ -203,23 +203,31 @@ def _instructions(value) -> list[str]:
     return steps
 
 
-def structured_recipe(document: str) -> StructuredRecipe | None:
+def _to_structured(node: dict) -> StructuredRecipe:
+    ingredients = node.get("recipeIngredient") or node.get("ingredients") or []
+    if isinstance(ingredients, str):
+        ingredients = [ingredients]
+    return StructuredRecipe(
+        title=clean(node.get("name", "")),
+        servings=_first_int(node.get("recipeYield")),
+        ingredients=[c for c in (clean(i) for i in ingredients if isinstance(i, str)) if c],
+        steps=_instructions(node.get("recipeInstructions", [])),
+        image_url=_image(node.get("image")),
+    )
+
+
+def structured_recipe(document: str, page_title: str = "") -> StructuredRecipe | None:
+    """Rezept aus JSON-LD. Stehen mehrere auf der Seite (z. B. Hauptrezept + Gewürzmischung), gewinnt das,
+    dessen Name im Seitentitel vorkommt, sonst das mit den meisten Zutaten."""
+    recipes: list[StructuredRecipe] = []
     for raw in _LD_JSON.findall(document):
         try:
             data = json.loads(raw.strip())
         except ValueError:
             continue
-        for node in _walk(data):
-            if not _is_recipe(node):
-                continue
-            ingredients = node.get("recipeIngredient") or node.get("ingredients") or []
-            if isinstance(ingredients, str):
-                ingredients = [ingredients]
-            return StructuredRecipe(
-                title=clean(node.get("name", "")),
-                servings=_first_int(node.get("recipeYield")),
-                ingredients=[c for c in (clean(i) for i in ingredients if isinstance(i, str)) if c],
-                steps=_instructions(node.get("recipeInstructions", [])),
-                image_url=_image(node.get("image")),
-            )
-    return None
+        recipes.extend(_to_structured(node) for node in _walk(data) if _is_recipe(node))
+    if len(recipes) <= 1:
+        return recipes[0] if recipes else None
+    wanted = page_title.casefold()
+    titled = [r for r in recipes if r.title and wanted and (r.title.casefold() in wanted or wanted in r.title.casefold())]
+    return max(titled or recipes, key=lambda r: (len(r.ingredients), len(r.steps)))
