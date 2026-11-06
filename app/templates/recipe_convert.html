@@ -3,11 +3,15 @@
 {% block title %}Rezept aus Link – Mampfplan{% endblock %}
 {% block content %}
 <h1>Rezept aus Link</h1>
-<p class="muted small">Link zu einem Rezept einfügen – z. B. ein Instagram-Post, ein Foodblog oder HelloFresh. Daraus entsteht ein Vorschlag, den du vor dem Speichern anpassen kannst.</p>
+<p class="muted small">Link zu einem Rezept einfügen – z. B. ein Instagram-Post, ein TikTok-Video, ein Foodblog oder HelloFresh. Daraus entsteht ein Vorschlag, den du vor dem Speichern anpassen kannst.</p>
 
 {% if error %}<p class="alert error">{{ error }}</p>{% endif %}
 {% if needs_text %}
+{% if source == 'tiktok' %}
+<p class="alert">TikTok hat die Beschreibung dieses Videos nicht herausgegeben. Öffne das Video, kopiere die Beschreibung – oder den Rezepttext aus dem angepinnten Kommentar – und füge sie unten ein.</p>
+{% else %}
 <p class="alert">Instagram zeigt die Beschreibung dieses Posts nur angemeldeten Nutzern. Öffne den Post, kopiere die Beschreibung (den Text unter dem Bild) und füge sie unten ein.</p>
+{% endif %}
 {% endif %}
 
 {# Normaler Formular-Submit: Das Abrufen dauert ein paar Sekunden, danach folgt die Vorschlagsseite. #}
@@ -17,7 +21,7 @@
   <input id="url" type="url" name="url" value="{{ url }}" required maxlength="2000" inputmode="url" placeholder="https://…" {% if not needs_text %}autofocus{% endif %}>
 
   <details {% if needs_text or text %}open{% endif %}>
-    <summary class="small">Rezepttext selbst einfügen <span class="muted">(z. B. Instagram-Beschreibung)</span></summary>
+    <summary class="small">Rezepttext selbst einfügen <span class="muted">(z. B. Beschreibung eines Instagram-Posts oder TikTok-Videos)</span></summary>
     <textarea id="text" name="text" aria-label="Rezepttext" rows="10" maxlength="20000" placeholder="Zutaten&#10;200 g Mehl&#10;2 Eier&#10;&#10;Zubereitung&#10;…" {% if needs_text %}autofocus{% endif %}>{{ text }}</textarea>
     <p class="muted small">Ist hier Text eingetragen, wird nur dieser ausgewertet; der Link wird als Quelle gespeichert.</p>
   </details>

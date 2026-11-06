@@ -154,3 +154,12 @@ def test_preview_lists_the_conversions(web, monkeypatch):
     assert "Amerikanische Maße in g/ml umgerechnet (1 Zutaten)" in page
     assert "2 cups flour → <strong>240 g flour</strong>" in page
     assert "Bake at 175 °C." in page
+
+
+def test_metric_first_lines_drop_the_us_parenthesis():
+    assert metric_line("545g bread flour (4 1/2 cups)") == "545g bread flour"
+    assert metric_line("345 ml warm water (1 1/2 cups)") == "345 ml warm water"
+
+
+def test_inch_ranges():
+    assert metric_text("Shape into a log about 6–8 inches long.") == "Shape into a log about 15–20 cm long."

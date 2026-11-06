@@ -39,6 +39,7 @@ _METRIC_AMOUNT = re.compile(r"(?<![\w.,])(?P<amount>\d+(?:[.,]\d+)?)\s*(?P<unit>
 def _given_metric(parenthetical: str | None) -> str | None:
     found = _METRIC_AMOUNT.search(parenthetical or "")
     return f"{found['amount']} {found['unit'].lower()}" if found else None
+_METRIC_START = re.compile(r"^\s*\d+(?:[.,]\d+)?\s*(?:g|kg|ml|l)(?![\w])", re.I)
 _PARENS_US = re.compile(rf"\(\s*{_RANGE}\s*-?\s*(?:{_UNIT_RE})(?![\w])\s*\)", re.I)
 
 ML = {"cup": 240.0, "floz": 29.57, "pint": 473.0, "quart": 946.0, "gallon": 3785.0, "oz": 29.57}
@@ -51,7 +52,7 @@ CUP_GRAMS: list[tuple[str, float]] = [
     ("almond flour", 100), ("bread flour", 130), ("cake flour", 115), ("whole wheat flour", 120), ("coconut flour", 115),
     ("peanut butter", 250), ("sour cream", 230), ("cream cheese", 225), ("cottage cheese", 225), ("greek yogurt", 250),
     ("chocolate chips", 170), ("cocoa", 85), ("cornstarch", 128), ("corn starch", 128), ("cornmeal", 150),
-    ("flour", 120), ("mehl", 120), ("sugar", 200), ("zucker", 200), ("butter", 227),
+    ("flour", 120), ("mehl", 120), ("sugar", 200), ("zucker", 200), ("butter", 227), ("margarine", 227),
     ("rolled oats", 90), ("oats", 90), ("haferflocken", 90), ("rice", 185), ("reis", 185), ("quinoa", 170),
     ("lentils", 200), ("linsen", 200), ("couscous", 175), ("panko", 50), ("breadcrumbs", 110), ("bread crumbs", 110),
     ("parmesan", 100), ("cheese", 110), ("käse", 110), ("yogurt", 245), ("joghurt", 245), ("mayonnaise", 220), ("mayo", 220),
@@ -179,6 +180,8 @@ def metric_line(line: str) -> str:
     """Zutatenzeile umrechnen; unverändert, wenn sie keine US-Einheit enthält."""
     match = _LINE.match(line)
     if not match:
+        if _METRIC_START.match(line):  # „545 g flour (4 1/2 cups)“: die US-Angabe ist nur Beiwerk
+            return re.sub(r"\s{2,}", " ", _PARENS_US.sub("", line)).strip()
         # „1 (14 oz) can tomatoes“: nur die Klammer umrechnen; „optional: 1 cup nuts“: Mengen im Text
         line = _PARENS_US.sub(lambda m: f"({_convert_match(m, line) or m.group(0)[1:-1]})", line)
         return metric_text(line)
@@ -197,7 +200,7 @@ _FAHRENHEIT = re.compile(
     r"(?<![\w.,])(?P<f>[2-5]\d\d)\s*(?:°|º|degrees?\s*)?\s*F\b(?:\s*(?:/|\(|or)\s*(?P<c>\d{2,3})\s*(?:°|º|degrees?\s*)?\s*C\b\)?)?",
 )
 _INCH = re.compile(
-    rf"(?<![\w/])(?P<a>{_NUM})(?:\s*(?:x|×|by)\s*(?P<b>{_NUM}))?\s*(?:-|\s)?(?:inch(?:es)?|in\.)(?![\w])", re.I
+    rf"(?<![\w/])(?:(?P<r>{_NUM})\s*[-–]\s*)?(?P<a>{_NUM})(?:\s*(?:x|×|by)\s*(?P<b>{_NUM}))?\s*(?:-|\s)?(?:inch(?:es)?|in\.)(?![\w])", re.I
 )
 
 
@@ -215,6 +218,8 @@ def _inches(match: re.Match) -> str:
     try:
         if match["b"]:
             return f"{_cm(match['a'])} x {_cm(match['b'])} cm"
+        if match["r"]:  # „6–8 inches“
+            return f"{_cm(match['r'])}–{_cm(match['a'])} cm"
         return f"{_cm(match['a'])} cm"
     except (ValueError, ZeroDivisionError):
         return match.group(0)

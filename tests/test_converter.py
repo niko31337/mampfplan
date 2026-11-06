@@ -300,6 +300,11 @@ def test_broken_json_ld_is_ignored():
         ("https://www.hellofresh.de/recipes/x", "hellofresh"),
         ("https://www.hellofresh.co.uk/recipes/x", "hellofresh"),
         ("https://instagram.com.evil.example/p/abc", "link"),
+        ("https://www.tiktok.com/@koch/video/123", "tiktok"),
+        ("https://vm.tiktok.com/ZMabc/", "tiktok"),
+        ("https://vt.tiktok.com/ZSabc/", "tiktok"),
+        ("https://m.tiktok.com/v/123.html", "tiktok"),
+        ("https://tiktok.com.evil.example/@koch/video/1", "link"),
         ("https://blog.example/rezept", "link"),
     ],
 )
@@ -338,6 +343,8 @@ def pages(monkeypatch):
             raise FetchError("Die Seite antwortet mit Fehler 404.")
         if isinstance(page, Exception):
             raise page
+        if isinstance(page, tuple):  # (Ziel der Weiterleitung, HTML)
+            return Fetched(page[0], page[1].encode(), "text/html", "utf-8")
         return Fetched(url, page.encode(), "text/html", "utf-8")
 
     monkeypatch.setattr(fetching, "fetch", fake_fetch)
@@ -565,3 +572,218 @@ def test_preview_without_recipe_content_hints_at_pasting(web, pages):
     page = convert_page(web, url).text
     assert "keine Zutaten oder Schritte erkannt" in page
     assert 'value="Neuigkeiten"' in page
+
+
+# --- TikTok ------------------------------------------------------------------------------------
+
+from app.converter.html import tiktok_post  # noqa: E402
+
+TIKTOK_CAPTION_DE = """Cremige One-Pot-Pasta 🍝 in 15 Minuten!
+
+Zutaten (2 Portionen):
+🍝 250 g Spaghetti
+🧄 2 Knoblauchzehen
+🍅 200 g Kirschtomaten
+🧀 50 g Parmesan
+
+So geht's:
+👉 Alles in einen Topf geben
+👉 Mit Wasser bedecken und 10 Minuten köcheln
+
+Folge mir für mehr Rezepte! #pasta #onepot #rezept #fyp"""
+
+TIKTOK_CAPTION_EN = """#easyrecipe #dinner
+Garlic Butter Rice
+Ingredients:
+- 1 cup rice
+- 2 tbsp butter
+- 1 1/2 cups chicken broth
+Instructions:
+1. Melt the butter.
+2. Add rice and broth, simmer 15 minutes."""
+
+
+def tiktok_page(caption: str, *, author="kochkanal", cover="https://p16.tiktokcdn.example/cover.jpeg?x-signature=abc", status=0) -> str:
+    data = {
+        "__DEFAULT_SCOPE__": {
+            "webapp.video-detail": {
+                "statusCode": status,
+                "itemInfo": {"itemStruct": {"id": "7400000000000000000", "desc": caption, "author": {"uniqueId": author}, "video": {"cover": cover}}},
+                "shareMeta": {"title": f"{author} bei TikTok", "desc": caption},
+            }
+        }
+    }
+    return (
+        '<html><head><title>TikTok</title></head><body>'
+        f'<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">{json.dumps(data, ensure_ascii=False)}</script>'
+        "</body></html>"
+    )
+
+
+def test_tiktok_post_reads_caption_cover_and_author():
+    post = tiktok_post(tiktok_page("Hallo Welt"))
+    assert (post.caption, post.author) == ("Hallo Welt", "kochkanal")
+    assert post.image_url == "https://p16.tiktokcdn.example/cover.jpeg?x-signature=abc"
+
+
+def test_tiktok_post_falls_back_to_share_meta_and_meta_tags():
+    page = tiktok_page("").replace('"shareMeta": {"title": "kochkanal bei TikTok", "desc": ""}', '"shareMeta": {"desc": "Aus shareMeta"}')
+    assert tiktok_post(page).caption == "Aus shareMeta"
+    meta_only = '<html><head><meta property="og:description" content="Aus Meta"><meta property="og:image" content="https://img.example/a.jpg"></head></html>'
+    post = tiktok_post(meta_only)
+    assert (post.caption, post.image_url) == ("Aus Meta", "https://img.example/a.jpg")
+
+
+@pytest.mark.parametrize(
+    "page",
+    [
+        '<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">{kaputt</script>',
+        tiktok_page("Gelöschtes Video", status=10204),
+        '<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">["liste"]</script>',
+        tiktok_page("x", cover="javascript:alert(1)").replace('"desc": "x"', '"desc": 5'),
+    ],
+)
+def test_tiktok_post_tolerates_broken_or_missing_data(page):
+    post = tiktok_post(page)
+    assert post.caption == "" and post.image_url is None
+
+
+def test_convert_tiktok_german_caption(pages):
+    url = "https://www.tiktok.com/@kochkanal/video/7400000000000000000"
+    pages[url] = tiktok_page(TIKTOK_CAPTION_DE)
+    draft = convert(url)
+    assert draft.source == "tiktok" and not draft.needs_text
+    assert draft.title == "Cremige One-Pot-Pasta in 15 Minuten!"
+    assert draft.servings == 2
+    assert draft.ingredient_text == "250 g Spaghetti\n2 Knoblauchzehen\n200 g Kirschtomaten\n50 g Parmesan"
+    assert draft.steps == ["Alles in einen Topf geben", "Mit Wasser bedecken und 10 Minuten köcheln"]
+    assert draft.image_url == "https://p16.tiktokcdn.example/cover.jpeg?x-signature=abc"
+
+
+def test_convert_tiktok_english_caption_is_converted_to_metric(pages):
+    url = "https://www.tiktok.com/@cook/video/1"
+    pages[url] = tiktok_page(TIKTOK_CAPTION_EN, author="cook")
+    draft = convert(url)
+    assert draft.title == "Garlic Butter Rice"
+    assert draft.ingredient_text == "180 g rice\n2 EL butter\n360 ml chicken broth"
+    assert draft.conversions
+
+
+def test_convert_tiktok_short_link_uses_the_video_address(pages):
+    pages["https://vm.tiktok.com/ZMabc/"] = (
+        "https://www.tiktok.com/@kochkanal/video/7400000000000000000?_r=1&_t=tracking",
+        tiktok_page(TIKTOK_CAPTION_DE),
+    )
+    draft = convert("https://vm.tiktok.com/ZMabc/")
+    assert draft.source_url == "https://www.tiktok.com/@kochkanal/video/7400000000000000000"
+    assert draft.steps_text.endswith("Quelle: https://www.tiktok.com/@kochkanal/video/7400000000000000000")
+
+
+def test_tiktok_without_recipe_keeps_a_title(pages):
+    url = "https://www.tiktok.com/@kochkanal/video/2"
+    pages[url] = tiktok_page("#foodtok #fyp")
+    draft = convert(url)
+    assert not draft.found and not draft.needs_text
+    assert draft.title == "Rezept von @kochkanal"
+    pages[url] = tiktok_page("Bestes Brot ever 🍞\nRezept im angepinnten Kommentar! #brot")
+    assert convert(url).title == "Bestes Brot ever"
+
+
+@pytest.mark.parametrize("page", [tiktok_page("x", status=10204), FetchError("Fehler 403"), ("https://www.tiktok.com/?_r=1", "<html></html>")])
+def test_tiktok_without_caption_asks_for_the_text(pages, page):
+    pages["https://www.tiktok.com/@a/video/3"] = page
+    draft = convert("https://www.tiktok.com/@a/video/3")
+    assert draft.needs_text
+
+
+def test_tiktok_flow_in_the_app(web, pages, image_cache):
+    url = "https://www.tiktok.com/@kochkanal/video/7400000000000000000"
+    pages[url] = tiktok_page(TIKTOK_CAPTION_DE)
+    page = convert_page(web, url).text
+    assert 'value="Cremige One-Pot-Pasta in 15 Minuten!"' in page
+    key = "https://p16.tiktokcdn.example/cover.jpeg?x-signature=abc"
+    assert hidden(page, "image_url") == key
+    recipe = save_draft(web, page, steps="1. Kochen.")
+    assert recipe.source == "tiktok" and recipe.source_url == url
+    assert recipe.steps == f"1. Kochen.\n\nQuelle: {url}"
+    assert "Quelle: tiktok.com" in web.get(f"/recipes/{recipe.id}").text
+
+
+def test_tiktok_paste_box_has_a_tiktok_hint(web, pages):
+    pages["https://www.tiktok.com/@a/video/4"] = FetchError("Fehler 403")
+    page = convert_page(web, "https://www.tiktok.com/@a/video/4").text
+    assert "TikTok hat die Beschreibung dieses Videos nicht herausgegeben" in page
+    assert "angepinnten Kommentar" in page
+
+
+# --- Beschreibungen ohne Zeilenumbrüche (so liefert TikTok sie aus) -----------------------------
+
+from app.converter.text import restore_lines  # noqa: E402
+
+FLAT_DE = (
+    "Omas Apfelkuchen 🍎 der beste der Welt!  Zutaten (für 12 Stücke):  • 300 g Mehl • 200 g Butter • 150 g Zucker + 1 Prise Salz "
+    "• 1 kg Äpfel  👩‍🍳ZUBEREITUNG 1. Teig kneten und kühlen. 2. Äpfel schälen und auf dem Teig verteilen. "
+    "3. Bei 180 °C 45 Minuten backen. #apfelkuchen #backen #oma"
+)
+FLAT_RUN_ON = (
+    "Chili sin Carne Zutaten für 4 Portionen 1 Zwiebel 2 Knoblauchzehen 1 Dose Kidneybohnen 400 g Tomaten (gehackt, 2 Dosen) "
+    "1 TL Kreuzkümmel Salz Pfeffer #chili #vegan"
+)
+FLAT_EN = (
+    "#easyrecipe #baking Peanut Butter Cookies  Ingredients  - 1 cup peanut butter - 1/2 cup sugar - 1 egg  "
+    "Instructions  - Mix everything in a bowl. - Bake at 350°F for 10 minutes. #cookies"
+)
+
+
+def test_restore_lines_with_bullets_and_numbered_steps():
+    result = parse_text(restore_lines(FLAT_DE).splitlines())
+    assert result.title == "Omas Apfelkuchen der beste der Welt!"
+    assert result.servings == 12
+    assert result.ingredients == ["300 g Mehl", "200 g Butter", "150 g Zucker + 1 Prise Salz", "1 kg Äpfel"]
+    assert result.steps == ["Teig kneten und kühlen.", "Äpfel schälen und auf dem Teig verteilen.", "Bei 180 °C 45 Minuten backen."]
+
+
+def test_restore_lines_splits_run_on_ingredients_before_each_quantity():
+    result = parse_text(restore_lines(FLAT_RUN_ON).splitlines())
+    assert result.title == "Chili sin Carne"
+    assert result.servings == 4
+    assert result.ingredients == [
+        "1 Zwiebel",
+        "2 Knoblauchzehen",
+        "1 Dose Kidneybohnen",
+        "400 g Tomaten (gehackt, 2 Dosen)",  # in Klammern wird nicht getrennt
+        "1 TL Kreuzkümmel Salz Pfeffer",
+    ]
+
+
+def test_restore_lines_with_dashes_and_leading_hashtags(pages):
+    url = "https://www.tiktok.com/@cookies/video/9"
+    pages[url] = tiktok_page(FLAT_EN, author="cookies")
+    draft = convert(url)
+    assert draft.title == "Peanut Butter Cookies"
+    assert draft.ingredient_text == "250 g peanut butter\n100 g sugar\n1 egg"
+    assert draft.steps == ["Mix everything in a bowl.", "Bake at 175 °C for 10 minutes."]
+
+
+def test_text_with_line_breaks_is_left_alone():
+    assert restore_lines(CAPTION_DE) == CAPTION_DE
+    assert restore_lines("Kurz") == "Kurz"
+
+
+def test_long_first_line_is_shortened_at_the_emoji():
+    flat = "Leche frita aus Spanien 🇪🇸 ist nicht nur lecker, sondern auch super einfach gemacht und perfekt  Zutaten:  1 l Milch"
+    assert parse_text(restore_lines(flat).splitlines()).title == "Leche frita aus Spanien"
+
+
+def test_brand_mentions_in_ingredients_do_not_end_the_list():
+    result = parse_text(["Kuchen", "Zutaten:", "2 cups @Mühle Mehl", "1 Ei", "Folge @kuchenliebe für mehr!"])
+    assert result.ingredients == ["2 cups @Mühle Mehl", "1 Ei"]
+
+
+def test_tiktok_title_ignores_leading_hashtags_and_headings(pages):
+    url = "https://www.tiktok.com/@fisch/video/5"
+    caption = "#fisch #einfachkochen Rezept: Zutaten für ca. 1 kg Sardellen: \t•\t1 kg Sardellen \t•\t8 EL Maismehl \t•\t2 TL Salz"
+    pages[url] = tiktok_page(caption, author="fisch")
+    draft = convert(url)
+    assert draft.title == "Rezept von @fisch"
+    assert draft.ingredient_text == "1 kg Sardellen\n8 EL Maismehl\n2 TL Salz"

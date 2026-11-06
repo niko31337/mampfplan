@@ -74,7 +74,7 @@ def create_recipe(
 
 @router.get("/recipes/convert")
 def convert_form(ctx: Annotated[Ctx, Depends(get_ctx)], url: Annotated[str, Query(max_length=2000)] = ""):
-    return render(ctx, "recipe_convert.html", url=url, text="", error=None, needs_text=False)
+    return render(ctx, "recipe_convert.html", url=url, text="", error=None, needs_text=False, source="")
 
 
 @router.post("/recipes/convert")
@@ -87,9 +87,11 @@ def convert_link(
     try:
         draft = converter.convert(url, text)
     except converter.FetchError as exc:
-        return render(ctx, "recipe_convert.html", url=url, text=text, error=str(exc), needs_text=False, status_code=422)
+        return render(ctx, "recipe_convert.html", url=url, text=text, error=str(exc), needs_text=False, source="", status_code=422)
     if draft.needs_text:
-        return render(ctx, "recipe_convert.html", url=draft.source_url, text=text, error=None, needs_text=True)
+        return render(
+            ctx, "recipe_convert.html", url=draft.source_url, text=text, error=None, needs_text=True, source=draft.source
+        )
 
     image_key = _store_image(draft.image_url)
     existing = ctx.db.scalars(

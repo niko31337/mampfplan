@@ -231,3 +231,60 @@ def structured_recipe(document: str, page_title: str = "") -> StructuredRecipe |
     wanted = page_title.casefold()
     titled = [r for r in recipes if r.title and wanted and (r.title.casefold() in wanted or wanted in r.title.casefold())]
     return max(titled or recipes, key=lambda r: (len(r.ingredients), len(r.steps)))
+
+
+# --- TikTok ----------------------------------------------------------------------------------
+
+_TIKTOK_DATA = re.compile(r"""<script[^>]+id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>(.*?)</script>""", re.I | re.S)
+
+
+@dataclass
+class TikTokPost:
+    caption: str = ""
+    image_url: str | None = None
+    author: str = ""
+
+
+def _text(value) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _https(value) -> str | None:
+    return value if isinstance(value, str) and value.startswith("https://") else None
+
+
+def tiktok_post(document: str) -> TikTokPost:
+    """Beschreibung, Vorschaubild und Autor eines TikTok-Videos (bzw. einer Foto-Serie).
+
+    TikTok liefert die Daten der Videoseite als JSON im Skript __UNIVERSAL_DATA_FOR_REHYDRATION__.
+    Fehlt es, bleiben nur die Meta-Angaben.
+    """
+    post = TikTokPost()
+    match = _TIKTOK_DATA.search(document)
+    if match:
+        try:
+            data = json.loads(match[1])
+        except ValueError:
+            data = None
+        detail = data.get("__DEFAULT_SCOPE__", {}).get("webapp.video-detail", {}) if isinstance(data, dict) else {}
+        if isinstance(detail, dict) and detail.get("statusCode", 0) == 0:
+            item = detail.get("itemInfo", {}).get("itemStruct", {}) if isinstance(detail.get("itemInfo"), dict) else {}
+            item = item if isinstance(item, dict) else {}
+            share = detail.get("shareMeta") if isinstance(detail.get("shareMeta"), dict) else {}
+            video = item.get("video") if isinstance(item.get("video"), dict) else {}
+            images = item.get("imagePost") if isinstance(item.get("imagePost"), dict) else {}
+            cover = images.get("cover") if isinstance(images.get("cover"), dict) else {}
+            cover_urls = (cover.get("imageURL") or {}).get("urlList") if isinstance(cover.get("imageURL"), dict) else None
+            author = item.get("author") if isinstance(item.get("author"), dict) else {}
+            post.caption = _text(item.get("desc")) or _text(share.get("desc"))
+            post.image_url = (
+                _https(video.get("cover"))
+                or _https(video.get("originCover"))
+                or (_https(cover_urls[0]) if isinstance(cover_urls, list) and cover_urls else None)
+            )
+            post.author = _text(author.get("uniqueId"))
+    if not post.caption:
+        meta = meta_tags(document)
+        post.caption = meta.get("og:description", "").strip() or meta.get("description", "").strip()
+        post.image_url = post.image_url or _https(meta.get("og:image"))
+    return post

@@ -16,7 +16,7 @@
     Prüfe den Vorschlag und passe ihn an – gespeichert wird erst mit „Speichern“. Der Link zur Quelle bleibt am Ende der Zubereitung stehen.
   </p>
   {% if not draft.found %}
-  <p class="alert">Im Link wurden keine Zutaten oder Schritte erkannt. Trag sie unten selbst ein oder <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">füge den Rezepttext ein</a>.</p>
+  <p class="alert">Im Link wurden keine Zutaten oder Schritte erkannt. {% if draft.source == 'tiktok' %}Steht das Rezept nur im Video oder im angepinnten Kommentar, kopiere den Text und <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">füge ihn ein</a>; oder trag es unten selbst ein.{% else %}Trag sie unten selbst ein oder <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">füge den Rezepttext ein</a>.{% endif %}</p>
   {% endif %}
   {% if draft.conversions or draft.steps_converted %}
   <details class="alert">

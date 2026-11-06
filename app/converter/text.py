@@ -26,6 +26,8 @@ _SERVINGS = re.compile(
     r"(portionen|portion|personen|person|pers\.?|servings?|portions?|people|schüsseln|bowls?|teller)\b",
     re.I,
 )
+# In Überschriften („Zutaten für 12 Stück“) zählen auch Stück – im übrigen Text wäre „1 Stück Zwiebel“ falsch
+_SERVINGS_IN_HEADING = re.compile(_SERVINGS.pattern.replace("|teller)", "|teller|stücke?|stk\\.?)"), re.I)
 _NUMBERED = re.compile(r"^\s*\d{1,2}\s*[.)]\s+")
 _KEYCAP = re.compile("([0-9])️?⃣")  # 1️⃣ → 1.
 _LEADING_SYMBOLS = re.compile(r"^[^\w(„“\"'’]+")
@@ -93,13 +95,26 @@ def _is_hashtags(text: str) -> bool:
     return bool(tags) and len(" ".join(tags)) >= 0.5 * len(text.strip())
 
 
+def _starts_with_quantity(text: str) -> bool:
+    return bool(re.match(r"^\s*[\d½¼¾⅓⅔]", text))
+
+
 def _is_stop(raw: str) -> bool:
     text = strip_symbols(raw)
-    return _is_hashtags(text) or bool(_PROMO.search(text)) or "@" in text
+    if _is_hashtags(text):
+        return True
+    if _starts_with_quantity(_content(raw)):  # „2 cups @Marke Mehl“ ist eine Zutat, keine Werbung
+        return False
+    return bool(_PROMO.search(text)) or "@" in text
 
 
-def find_servings(text: str) -> int | None:
-    match = _SERVINGS.search(text)
+def _is_sentence(text: str) -> bool:
+    """Lange Zeile ohne Mengenangabe vorne – eher ein Arbeitsschritt als eine Zutat."""
+    return not _starts_with_quantity(text) and len(text.split()) >= 7
+
+
+def find_servings(text: str, heading: bool = False) -> int | None:
+    match = (_SERVINGS_IN_HEADING if heading else _SERVINGS).search(text)
     if not match:
         return None
     word = match[1].lower()
@@ -154,13 +169,17 @@ def _ingredient(raw: str) -> list[str]:
     return [text] if text else []
 
 
-def _title_from(lines: list[str]) -> str:
+def title_from(lines: list[str]) -> str:
     for raw in lines:
         text = strip_symbols(_HASHTAG.sub("", raw)).strip(" -–:")
         if not text:
             continue
         if _heading(raw):
             return ""
+        if len(text) > 60:  # „Leche frita 🇪🇸 ist nicht nur …“: Emojis trennen oft Titel und Text
+            before_emoji = strip_symbols(re.split(r"[^\w\s,.!?&'’()\-–:/]+", _HASHTAG.sub("", raw).strip(), maxsplit=1)[0])
+            if len(before_emoji) >= 8:
+                text = before_emoji.strip(" -–:")
         for separator in (". ", "! ", "? ", " – ", " - ", " | "):
             if len(text) > 60 and separator in text:
                 text = text.split(separator, 1)[0]
@@ -182,7 +201,7 @@ def parse_text(lines: list[Line] | list[str], title_hint: str = "") -> TextRecip
     if start is not None and steps_at is not None and steps_at < start:
         start = None  # Anleitung vor den Zutaten: dann nur die Anleitung übernehmen
 
-    result.title = title_hint or _title_from([r.text for r in rows[: start if start is not None else steps_at]])
+    result.title = title_hint or title_from([r.text for r in rows[: start if start is not None else steps_at]])
     if not title_hint:
         # Blog: die letzte Überschrift vor den Zutaten ist meist der Rezeptname
         before = rows[: start if start is not None else steps_at]
@@ -192,7 +211,7 @@ def parse_text(lines: list[Line] | list[str], title_hint: str = "") -> TextRecip
 
     if start is not None:
         _, head, inline = _heading(rows[start].text)
-        result.servings = find_servings(head)
+        result.servings = find_servings(head, heading=True)
         result.ingredients.extend(_split_inline(inline))
         end = steps_at if steps_at is not None else len(rows)
         if steps_at is not None:
@@ -218,7 +237,7 @@ def _collect_ingredients(rows: list[Line], result: TextRecipe) -> None:
         if _is_stop(row.text):
             break
         if _is_group_label(row.text):
-            servings = find_servings(row.text)
+            servings = find_servings(row.text, heading=True)
             if servings and result.servings is None:
                 result.servings = servings
             # „Für die Soße: -Sojasoße -Zucker“: Zutaten stehen in derselben Zeile
@@ -258,7 +277,11 @@ def _collect_without_steps_heading(rows: list[Line], result: TextRecipe) -> None
             if result.ingredients:
                 break
             continue
-        if not _is_group_label(row.text):
+        if _is_group_label(row.text):
+            continue
+        if _is_sentence(_content(row.text)):
+            result.steps.append(_content(row.text))
+        else:
             result.ingredients.extend(_ingredient(row.text))
     following = [r for r in block[rest + 1 :] if r.text]
     if following and _NUMBERED.match(_normalise(following[0].text)):
@@ -303,6 +326,8 @@ def _collect_steps(rows: list[Line]) -> list[str]:
         heading = _heading(row.text)
         if heading and heading[0] == "ingredients":
             break
+        if heading and not heading[2]:  # doppelte Überschrift („Instructions  Instructions“)
+            continue
         if _is_stop(row.text):
             break
         marker = _marker(row.text) if _has_marker(row.text) else ""
@@ -315,3 +340,100 @@ def _collect_steps(rows: list[Line]) -> list[str]:
         if text:
             steps.append(text)
     return steps
+
+
+
+# --- Beschreibungen ohne Zeilenumbrüche (TikTok) ------------------------------------------------
+
+_FLAT_KEYWORD = re.compile(
+    r"(?<![\w'-])(zutaten(?:liste)?|zubereitung|anleitung|und so geht'?s|so geht'?s|du brauchst|ingredients?|instructions?"
+    r"|directions?|method|rezept|recipe)(?![\w-])",
+    re.I,
+)
+_FLAT_HEAD_END = [
+    re.compile(r"^[^:\n!?]{0,45}?:"),  # „Zutaten für 4 Portionen:“
+    re.compile(r"^\s*\([^()]{0,30}\)"),  # „ZUTATEN (Für 2 Pers.)“
+    re.compile(r"^\s+(?:für|for)\s+(?:ca\.?\s*)?\d+(?:\s*[-–]\s*\d+)?\s+\S+", re.I),  # „Zutaten für 6 Stück“
+]
+_FLAT_FOLLOWS_LIST = re.compile(r"^(\s{2,}|\s*[•▪▫👉✅➡🔸]|\s+[-–]\s|\s+1[.)]\s|\s*$)")
+_FLAT_BULLETS = re.compile(r"\s*(?=[•▪▫👉✅➡🔸])")
+_FLAT_DASHES = re.compile(r"\s+(?=[-–]\s*\S)")
+_FLAT_NUMBERED = re.compile(r"\s+(?=\d{1,2}[.)]\s+[A-Za-zÄÖÜäöü])")
+_QUANTITY_START = re.compile(r"^(\d+(?:[.,/]\d+)?|[½¼¾⅓⅔])")
+_NOT_BEFORE_QUANTITY = {"ca", "ca.", "für", "for", "x", "bis", "to", "oder", "or", "und", "and", "-", "–", "von", "of", "à", "je"}
+
+
+def _flat_headings(text: str) -> str:
+    """Zeilenumbruch vor und nach Überschriften wie „Zutaten (für 2):“ oder „ZUBEREITUNG“."""
+    pieces, last = [], 0
+    for match in _FLAT_KEYWORD.finditer(text):
+        if match.start() < last:
+            continue
+        after = text[match.end() :]
+        end = None
+        for pattern in _FLAT_HEAD_END:
+            found = pattern.match(after)
+            if found:
+                end = match.end() + found.end()
+                break
+        if end is None and not (_FLAT_FOLLOWS_LIST.match(after) or match[1].isupper()):
+            continue
+        end = end or match.end()
+        pieces.append(text[last : match.start()])
+        pieces.append("\n" + text[match.start() : end].strip() + "\n")
+        last = end
+    pieces.append(text[last:])
+    return "".join(pieces)
+
+
+def _split_quantities(line: str) -> list[str]:
+    """„6 Tortillas 200g Cheddar 1 Zwiebel“ → einzelne Zutaten (nicht innerhalb von Klammern)."""
+    parts, current, depth = [], [], 0
+    for word in line.split():
+        previous = current[-1] if current else ""
+        if (
+            _QUANTITY_START.match(word)
+            and depth == 0
+            and current
+            and not _QUANTITY_START.match(previous)
+            and previous.lower() not in _NOT_BEFORE_QUANTITY
+            and re.search(r"\w", previous)  # nicht hinter „•“ oder „+“
+        ):
+            parts.append(" ".join(current))
+            current = []
+        current.append(word)
+        depth = max(0, depth + word.count("(") - word.count(")"))
+    if current:
+        parts.append(" ".join(current))
+    return parts
+
+
+def restore_lines(text: str) -> str:
+    """Struktur einer Beschreibung ohne Zeilenumbrüche wiederherstellen (TikTok liefert sie so).
+
+    Doppelte Leerzeichen waren meist Zeilenumbrüche; außerdem wird vor Überschriften, Aufzählungs-
+    zeichen und nummerierten Schritten umbrochen und in der Zutatenliste vor jeder neuen Mengenangabe.
+    Texte, die schon Zeilenumbrüche haben, bleiben unverändert.
+    """
+    if text.count("\n") >= 3 or len(text) < 60:
+        return text
+    text = re.sub(r"[\t\u202f\u00a0]", " ", text)
+    text = re.sub(r"^((?:#[\w-]+\s*)+)", "\\1\n", text)  # Hashtags am Anfang
+    text = re.sub(r"\s+((?:#[\w-]+[^\w#]*)+)$", "\n\\1", text)  # Hashtags am Ende
+    text = _flat_headings(text)
+    text = re.sub(r" {2,}", "\n", text)
+    text = _FLAT_BULLETS.sub("\n", text)
+    if len(re.findall(r"\s[-–]\s*\S", text)) >= 3:  # „- Mehl - Zucker - Eier“
+        text = _FLAT_DASHES.sub("\n", text)
+    text = _FLAT_NUMBERED.sub("\n", text)
+
+    result, in_ingredients = [], False
+    for line in (part.strip() for part in text.split("\n")):
+        heading = _heading(line) if line else None
+        if heading:
+            in_ingredients = heading[0] == "ingredients"
+        elif in_ingredients and line and not _is_hashtags(line):
+            result.extend(_split_quantities(line))
+            continue
+        result.append(line)
+    return "\n".join(line for line in result if line)

@@ -1,4 +1,4 @@
-"""Rezept-Konverter: macht aus einem Link (Instagram, Blog, HelloFresh …) einen Rezept-Vorschlag."""
+"""Rezept-Konverter: macht aus einem Link (Instagram, TikTok, Blog, HelloFresh …) einen Rezept-Vorschlag."""
 
 import re
 from dataclasses import dataclass, field
@@ -6,13 +6,14 @@ from urllib.parse import urlsplit
 
 from app.converter import fetch as fetching
 from app.converter.fetch import FetchError
-from app.converter.html import clean, meta_tags, page_title, structured_recipe, text_lines
-from app.converter.text import parse_text, strip_symbols
+from app.converter.html import clean, meta_tags, page_title, structured_recipe, text_lines, tiktok_post
+from app.converter.text import parse_text, restore_lines, strip_symbols, title_from
 from app.services.units import Conversion, metric_lines, metric_text
 
 __all__ = ["CONVERTED_SOURCES", "Draft", "FetchError", "convert", "fetch_image", "image_key", "source_kind", "with_source_line"]
 
-CONVERTED_SOURCES = ("instagram", "hellofresh", "link")
+CONVERTED_SOURCES = ("instagram", "tiktok", "hellofresh", "link")
+SOCIAL_SOURCES = ("instagram", "tiktok")  # Rezept steht in der Beschreibung des Posts
 MAX_INGREDIENTS = 100
 MAX_STEPS_CHARS = 18000
 
@@ -26,7 +27,7 @@ class Draft:
     ingredients: list[str] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
     image_url: str | None = None
-    needs_text: bool = False  # Seite liefert keinen Rezepttext (z. B. Instagram ohne Anmeldung)
+    needs_text: bool = False  # Seite liefert keinen Rezepttext (z. B. Instagram/TikTok gesperrt)
     conversions: list[Conversion] = field(default_factory=list)  # umgerechnete US-Maße (Zutaten)
     steps_converted: bool = False  # Anleitung enthielt °F, inch, cups …
 
@@ -47,6 +48,8 @@ def source_kind(url: str) -> str:
     host = (urlsplit(url).hostname or "").lower()
     if host == "instagram.com" or host.endswith(".instagram.com"):
         return "instagram"
+    if host == "tiktok.com" or host.endswith(".tiktok.com"):
+        return "tiktok"
     if re.search(r"(^|\.)hellofresh\.[a-z.]+$", host):
         return "hellofresh"
     return "link"
@@ -132,8 +135,29 @@ def _clean_page_title(document: str, meta: dict[str, str]) -> str:
     return strip_symbols(clean(title))[:200]
 
 
+def _canonical_tiktok(url: str) -> str:
+    """Kurzlinks führen per Weiterleitung zum Video; dessen Adresse (ohne Tracking-Parameter) ist die Quelle."""
+    parts = urlsplit(url)
+    if re.match(r"^/@[^/]+/(video|photo)/\d+/?$", parts.path):
+        return parts._replace(query="", fragment="").geturl()
+    return ""
+
+
+def _from_tiktok(draft: Draft, final_url: str, document: str) -> Draft:
+    draft.source_url = _canonical_tiktok(final_url) or draft.source_url
+    post = tiktok_post(document)
+    if not post.caption:
+        draft.needs_text = True
+        return draft
+    draft.image_url = post.image_url
+    _from_text(draft, post.caption)
+    if not draft.title:
+        draft.title = title_from(restore_lines(post.caption).splitlines()) or (f"Rezept von @{post.author}" if post.author else "Rezept von TikTok")
+    return draft
+
+
 def _from_text(draft: Draft, text: str) -> Draft:
-    parsed = parse_text(text.splitlines())
+    parsed = parse_text(restore_lines(text).splitlines())
     draft.title = parsed.title or draft.title
     draft.servings = parsed.servings
     draft.ingredients = parsed.ingredients
@@ -166,11 +190,14 @@ def _convert(url: str, pasted_text: str) -> Draft:
     try:
         page = fetching.fetch(url)
     except FetchError:
-        if draft.source == "instagram":
+        if draft.source in SOCIAL_SOURCES:
             draft.needs_text = True
             return draft
         raise
     document = page.text()
+
+    if draft.source == "tiktok":
+        return _from_tiktok(draft, page.url, document)
     meta = meta_tags(document)
     draft.image_url = meta.get("og:image") if (meta.get("og:image") or "").startswith("https://") else None
 
