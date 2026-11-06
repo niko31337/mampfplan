@@ -1,14 +1,17 @@
 """Gemeinsame Web-Helfer: Templates, Zugriffsprüfung (Token + Profil), CSRF."""
 
 import hashlib
+import re
 import secrets
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup, escape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -52,6 +55,38 @@ def asset_url(name: str) -> str:
 templates.env.globals["asset"] = asset_url
 
 
+_LINK = re.compile(r"https://[^\s<>\"']+")
+
+
+def url_host(url: str | None) -> str:
+    host = (urlsplit(url or "").hostname or "").lower()
+    return host.removeprefix("www.")
+
+
+def linkify(text: str | None) -> Markup:
+    """Text sicher ausgeben und https-Links darin anklickbar machen (z. B. „Quelle: https://…“)."""
+    text = text or ""
+    parts, last = [], 0
+    for match in _LINK.finditer(text):
+        url = match[0].rstrip(".,;:!?)")
+        end = match.start() + len(url)
+        parts.append(escape(text[last : match.start()]))
+        parts.append(Markup('<a href="{0}" rel="noopener noreferrer nofollow" target="_blank">{0}</a>').format(url))
+        last = end
+    parts.append(escape(text[last:]))
+    return Markup("").join(parts)
+
+
+SOURCE_LABELS = {"manual": "", "chefkoch": "Chefkoch", "mealdb": "TheMealDB", "spoonacular": "Spoonacular"}
+
+
+def source_label(recipe) -> str:
+    """Anzeigename der Herkunft: bekannte Quellen mit Namen, Links mit ihrer Domain."""
+    if recipe.source in SOURCE_LABELS:
+        return SOURCE_LABELS[recipe.source]
+    return url_host(recipe.source_url) or recipe.source
+
+
 def _date_short(d: date) -> str:
     return d.strftime("%d.%m.")
 
@@ -65,6 +100,9 @@ templates.env.filters["date_long"] = _date_long
 templates.env.filters["amount"] = format_amount
 templates.env.filters["quantity"] = format_quantity
 templates.env.filters["cached_img"] = cached_image_src
+templates.env.filters["host"] = url_host
+templates.env.filters["linkify"] = linkify
+templates.env.filters["source_label"] = source_label
 templates.env.globals["weekdays"] = WEEKDAYS
 
 

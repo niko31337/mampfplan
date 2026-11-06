@@ -1,23 +1,47 @@
 {% extends "base.html" %}
 {% set nav = 'recipes' %}
-{% block title %}{{ 'Rezept bearbeiten' if recipe else 'Neues Rezept' }} – Mampfplan{% endblock %}
+{% set draft = draft|default(none) %}
+{% set heading = 'Rezept bearbeiten' if recipe else ('Vorschlag aus Link' if draft else 'Neues Rezept') %}
+{% set f_title = title|default(recipe.title if recipe else '') %}
+{% set f_servings = servings|default(recipe.servings if recipe else none) %}
+{% set f_steps = steps|default(recipe.steps if recipe else '') %}
+{% block title %}{{ heading }} – Mampfplan{% endblock %}
 {% block content %}
-<h1>{{ 'Rezept bearbeiten' if recipe else 'Neues Rezept' }}</h1>
+<h1>{{ heading }}</h1>
+
+{% if draft %}
+  {% set img = image_key|cached_img(base) if image_key else '' %}{% if img %}<img class="hero" src="{{ img }}" alt="">{% endif %}
+  <p class="muted small">
+    Quelle: <a href="{{ draft.source_url }}" rel="noopener noreferrer nofollow" target="_blank">{{ draft.source_url|host }}</a>.
+    Prüfe den Vorschlag und passe ihn an – gespeichert wird erst mit „Speichern“. Der Link zur Quelle bleibt am Ende der Zubereitung stehen.
+  </p>
+  {% if not draft.found %}
+  <p class="alert">Im Link wurden keine Zutaten oder Schritte erkannt. Trag sie unten selbst ein oder <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">füge den Rezepttext ein</a>.</p>
+  {% endif %}
+  {% if existing %}
+  <p class="alert">Dieses Rezept hast du schon: <a href="{{ base }}/recipes/{{ existing.id }}">{{ existing.title }}</a>. Speichern legt eine zweite Kopie an.</p>
+  {% endif %}
+{% endif %}
 
 <form method="post" action="{{ base }}/recipes/{{ recipe.id ~ '/edit' if recipe else 'new' }}">
   <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+  {% if draft %}
+  <input type="hidden" name="source" value="{{ draft.source }}">
+  <input type="hidden" name="source_url" value="{{ draft.source_url }}">
+  {% if image_key %}<input type="hidden" name="image_url" value="{{ image_key }}">{% endif %}
+  {% endif %}
 
   <label for="title">Titel</label>
-  <input id="title" type="text" name="title" value="{{ recipe.title if recipe }}" required maxlength="200">
+  <input id="title" type="text" name="title" value="{{ f_title }}" required maxlength="200">
 
   <label for="servings">Portionen <small>(optional)</small></label>
-  <input id="servings" type="number" name="servings" min="1" max="100" inputmode="numeric" value="{{ recipe.servings if recipe and recipe.servings }}">
+  <input id="servings" type="number" name="servings" min="1" max="100" inputmode="numeric" value="{{ f_servings if f_servings }}">
 
   <label for="ingredients">Zutaten <small>(eine pro Zeile, z. B. „200 g Mehl“ oder „2 Eier“)</small></label>
-  <textarea id="ingredients" name="ingredients" rows="8" maxlength="10000">{{ ingredient_text }}</textarea>
+  <textarea id="ingredients" name="ingredients" rows="{{ 12 if draft else 8 }}" maxlength="10000">{{ ingredient_text }}</textarea>
 
   <label for="steps">Zubereitung</label>
-  <textarea id="steps" name="steps" rows="10" maxlength="20000">{{ recipe.steps if recipe }}</textarea>
+  <textarea id="steps" name="steps" rows="{{ 14 if draft else 10 }}" maxlength="20000">{{ f_steps }}</textarea>
 
   <div class="row spread">
     <a class="btn" href="{{ base }}/recipes{{ '/' ~ recipe.id if recipe }}">Abbrechen</a>

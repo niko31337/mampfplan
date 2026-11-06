@@ -74,11 +74,26 @@ def sniff_extension(data: bytes) -> str | None:
     return None
 
 
+def is_cacheable_url(url: str | None) -> bool:
+    """Form einer Bildadresse, die im Cache liegen darf (https, ohne Zugangsdaten, nicht zu lang)."""
+    if not url or len(url) > MAX_URL_LENGTH:
+        return False
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return parts.scheme == "https" and bool(parts.hostname) and parts.username is None and parts.password is None
+
+
 def cached_image_src(url: str | None, base: str) -> str:
-    """Adresse, unter der die eigene App das (zwischengespeicherte) Bild ausliefert; leer, wenn nicht erlaubt."""
-    if not is_allowed_url(url):
-        return ""
-    return f"{base}/img?u={quote(url, safe='')}"
+    """Adresse, unter der die eigene App das (zwischengespeicherte) Bild ausliefert; leer, wenn nicht verfügbar.
+
+    Bilder der erlaubten Bildserver lädt der Cache bei Bedarf selbst. Bilder anderer Seiten (Rezept-
+    Konverter) gibt es nur, wenn der Konverter sie beim Umwandeln abgesichert geladen und abgelegt hat.
+    """
+    if is_allowed_url(url) or (is_cacheable_url(url) and get_image_cache().lookup(url)):
+        return f"{base}/img?u={quote(url, safe='')}"
+    return ""
 
 
 class ImageCache:
@@ -112,11 +127,15 @@ class ImageCache:
         return None
 
     def get(self, url: str) -> tuple[Path, str] | None:
-        """Pfad und MIME-Typ des Bildes – aus dem Cache oder frisch geladen; None, wenn nicht möglich."""
-        if not is_allowed_url(url):
+        """Pfad und MIME-Typ des Bildes – aus dem Cache oder frisch geladen; None, wenn nicht möglich.
+
+        Geladen wird nur von den erlaubten Bildservern; andere Bilder gibt es nur, wenn sie über
+        store() abgelegt wurden.
+        """
+        if not is_cacheable_url(url):
             return None
         hit = self.lookup(url)
-        if hit:
+        if hit or not is_allowed_url(url):
             return hit
         key = self.key(url)
         if time.monotonic() - self._failures.get(key, -FAILURE_TTL_SECONDS) < FAILURE_TTL_SECONDS:
@@ -127,11 +146,21 @@ class ImageCache:
             log.info("Bild nicht geladen (%s): %s", exc, urlsplit(url).path[-60:])
             self._failures[key] = time.monotonic()
             return None
+        self._failures.pop(key, None)
+        return self._write(key, data, ext)
+
+    def store(self, url: str, data: bytes) -> tuple[Path, str] | None:
+        """Anderweitig (abgesichert) geladenes Bild unter dieser Adresse ablegen; None bei ungültigem Inhalt."""
+        ext = sniff_extension(data)
+        if not is_cacheable_url(url) or ext is None or len(data) > MAX_IMAGE_BYTES:
+            return None
+        return self.lookup(url) or self._write(self.key(url), data, ext)
+
+    def _write(self, key: str, data: bytes, ext: str) -> tuple[Path, str]:
         final = self.directory / f"{key}.{ext}"
         temp = self.directory / f".{key}.{os.getpid()}.{threading.get_ident()}.tmp"
         temp.write_bytes(data)
         os.replace(temp, final)  # atomar: nie halb geschriebene Dateien ausliefern
-        self._failures.pop(key, None)
         self._after_write()
         return final, MIME_BY_EXT[ext]
 

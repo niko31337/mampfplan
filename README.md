@@ -7,6 +7,7 @@ Kleine Familien-Webapp für **Wochen-Essensplan** und **Einkaufsliste** – mobi
 - **Wochenplan** mit mehreren Rezepten *oder* Notizen pro Tag (z. B. „Wir gehen essen“), Reihenfolge per ▲▼ änderbar
 - **Rezepte**: selbst anlegen (Zutaten + Schritte), bearbeiten, löschen
 - **Rezeptsuche** in öffentlichen Datenbanken: **Chefkoch** (deutsch, inoffizielle API), **TheMealDB** (englisch), optional **Spoonacular** (englisch, API-Key nötig). Treffer werden als eigene, editierbare Kopie übernommen. **Rezeptbilder lädt nur der Server** (einmalig, danach aus dem Cache): Die Browser der Familie fragen nie direkt bei Chefkoch & Co. an.
+- **Rezept aus Link** (Rezepte → „🔗 Aus Link“): Link zu einem Instagram-Post, einem Foodblog oder einer HelloFresh-Rezeptseite einfügen – daraus entsteht ein Vorschlag mit Titel, Portionen, Zutaten, Anleitung und Bild, den du vor dem Speichern beliebig anpasst. Der Link zur Quelle steht immer als letzte Zeile der Zubereitung (anklickbar) und wird beim Speichern und Bearbeiten wieder ergänzt, falls er gelöscht wurde. Erkannt werden Seiten mit Rezept-Markup (schema.org, z. B. HelloFresh, WordPress-Rezeptplugins) und Fließtext mit Abschnitten wie „Zutaten“ / „Zubereitung“ (auch englisch, mit Emojis, Aufzählungszeichen oder Zutaten in einer Zeile). Bei Instagram wird die Beschreibung des Posts ausgewertet. Liefert Instagram sie nicht aus (das entscheidet Instagram, z. B. für Server in Rechenzentren), fragt die App nach dem Text: Beschreibung kopieren, einfügen, fertig.
 - **Einkaufsliste**: Zutaten eines (eingeplanten) Rezepts per Klick hinzufügen, Artikel frei eintippen („2 l Milch“) oder aus dem **Artikelkatalog** (~270 Lebensmittel-, Haushalts- und Hygieneartikel) suchen. Abhaken verschiebt Artikel nach „Gekauft“. Gleiche Artikel werden zusammengeführt (500 g + 250 g Mehl = 750 g). Zutatennamen werden bereinigt („Karotte(n)“ → „Karotte“) und per Katalog einer Kategorie zugeordnet. Artikel und Kategorien lassen sich per **Drag & Drop** am Griff ⠿ umordnen – z. B. passend zum Rundgang im Supermarkt. Unter **„↕ Laden“** bringst du alle Kategorien – auch gerade leere – einmal in die Reihenfolge deines Supermarkts (z. B. Getränke, Obst & Gemüse, Snacks …); eine in der Liste verschobene Kategorie wird vor ihrem neuen Nachbarn eingefügt und bleibt dauerhaft dort. Falsch einsortierte Artikel zieht man einfach **in eine andere Kategorie** (beim Ziehen erscheinen auch leere Kategorien als Ablagefläche); der Haushalt merkt sich die Korrektur für das nächste Mal.
 - **Rezept → Einkaufsliste**: In der Rezeptansicht ist standardmäßig nichts angehakt – nur ankreuzen, was wirklich fehlt (oder „Alle wählen“)
 - **Verlauf & Statistik**: Änderungsverlauf (wer hat was wann geändert), meistgekochte Rezepte, Kochverlauf
@@ -163,6 +164,8 @@ app/
     shopping.py      Artikel hinzufügen/zusammenführen, Kategorie raten
     stats.py         Statistik-Abfragen
   recipe_sources/    Chefkoch, TheMealDB, Spoonacular (gemeinsames Interface)
+  converter/         Rezept aus Link: fetch.py (abgesicherter Abruf), html.py (Meta, JSON-LD, Text),
+                     text.py (Zutaten/Anleitung aus Fließtext erkennen)
   templates/, static/   Jinja2 + HTMX (lokal eingebunden, kein CDN)
 seed/catalog.json    Artikelkatalog – einfach erweiterbar
 tests/               pytest
@@ -185,7 +188,7 @@ Lokal eingebunden (kein CDN, wegen der Content-Security-Policy), unverändert vo
 - **Injection:** ausschließlich SQLAlchemy mit gebundenen Parametern; LIKE-Wildcards werden escaped
 - **XSS:** Jinja2-Autoescaping, kein Inline-JavaScript/-CSS, strenge Content-Security-Policy; externe URLs nur `https`
 - **CSRF:** Double-Submit-Token (Header für HTMX, Feld für Formulare) plus `SameSite=Lax`
-- **SSRF:** keine nutzergesteuerten URLs – nur fest hinterlegte API-Hosts, IDs werden per Regex validiert, Timeouts gesetzt. Der Bild-Cache lädt ausschließlich per `https` von fest hinterlegten Bildservern (Chefkoch, TheMealDB, Spoonacular), folgt keinen Weiterleitungen, begrenzt die Größe und prüft den Dateiinhalt (nur JPEG/PNG/GIF/WebP, nie SVG)
+- **SSRF:** Rezeptsuche und Bild-Cache nutzen nur fest hinterlegte Hosts, IDs werden per Regex validiert, Timeouts gesetzt. Der Rezept-Konverter ruft vom Nutzer eingegebene Links ab und ist deshalb eigens abgesichert: nur `https` auf Port 443, keine Zugangsdaten in der URL; der Hostname muss ausschließlich auf öffentliche IP-Adressen zeigen (kein Heimnetz, VPN, Docker-Netz, localhost, Cloud-Metadaten); nach dem Verbindungsaufbau wird die tatsächlich verbundene Adresse erneut geprüft (DNS-Rebinding); jede Weiterleitung wird einzeln geprüft (max. 5); Größenlimit 6 MB (Bilder 3 MB), kein Proxy aus Umgebungsvariablen, nur HTML bzw. echte Bilddateien. Der Bild-Cache lädt ausschließlich per `https` von fest hinterlegten Bildservern (Chefkoch, TheMealDB, Spoonacular), folgt keinen Weiterleitungen, begrenzt die Größe und prüft den Dateiinhalt (nur JPEG/PNG/GIF/WebP, nie SVG)
 - **Bilder:** Die Content-Security-Policy erlaubt Bilder nur von der App selbst (`img-src 'self' data:`) – ein Bild von einem fremden Server würde der Browser gar nicht laden
 - **Security-Header:** CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag`
 - **Hardening:** Container läuft als Nicht-Root, `read_only`, ohne Capabilities; keine API-Docs; Zugriffslog aus (Token steht im Pfad)
@@ -193,7 +196,8 @@ Lokal eingebunden (kein CDN, wegen der Content-Security-Policy), unverändert vo
 
 ## Bekannte Grenzen
 
-- Eigene Rezepte haben (noch) kein Bild: Ein frei eintragbares Bild von beliebigen Webseiten wäre nur mit direktem Abruf durch den Browser möglich. Ein Foto-Upload ließe sich nachrüsten.
+- Selbst angelegte Rezepte haben (noch) kein Bild; ein Foto-Upload ließe sich nachrüsten. Rezepte aus dem Konverter übernehmen das Bild der Quelle (einmalig vom Server geladen und im Bild-Cache abgelegt).
+- Der **Rezept-Konverter** erkennt Fließtext mit einfachen Regeln – das Ergebnis ist immer ein Vorschlag. Ob Instagram die Beschreibung eines Posts ohne Anmeldung herausgibt, entscheidet Instagram; sonst hilft das Einfügen des Textes.
 - Die **Chefkoch-Schnittstelle ist inoffiziell** und kann sich jederzeit ändern oder wegfallen. Dann ist nur dieser Tab betroffen; eigene Rezepte und TheMealDB laufen weiter.
 - Offline gemerkte Änderungen liegen nur auf dem jeweiligen Handy (Browser-Speicher). Löscht man die Website-Daten, bevor sie übertragen wurden, gehen sie verloren.
 - „Rückgängig“ nimmt immer die **letzte** Änderung zurück – auch wenn sie vom anderen Familienmitglied stammt (der Button zeigt, was es ist).

@@ -8,7 +8,7 @@
 <p class="wake-status small" data-wake-status hidden></p>
 <p class="muted small">
   {% if recipe.servings %}{{ recipe.servings }} Portionen · {% endif %}
-  {% if recipe.source == 'manual' %}von {{ recipe.created_by }}{% else %}Quelle: {{ recipe.source }}{% endif %}
+  {% if recipe.source == 'manual' %}von {{ recipe.created_by }}{% else %}Quelle: {{ recipe|source_label }}{% endif %}
   {% if recipe.source_url %} · <a href="{{ recipe.source_url }}" rel="noopener noreferrer nofollow" target="_blank">Original</a>{% endif %}
 </p>
 
@@ -50,7 +50,7 @@
 
 <section class="card">
   <h2>Zubereitung</h2>
-  {% if recipe.steps %}<div class="steps">{{ recipe.steps }}</div>{% else %}<p class="empty">Keine Schritte hinterlegt.</p>{% endif %}
+  {% if recipe.steps %}<div class="steps">{{ recipe.steps|linkify }}</div>{% else %}<p class="empty">Keine Schritte hinterlegt.</p>{% endif %}
 </section>
 
 <div class="row spread">

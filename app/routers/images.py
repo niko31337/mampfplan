@@ -16,7 +16,7 @@ IMAGE_HEADERS = {"Cache-Control": "private, max-age=31536000, immutable", "X-Con
 @router.get("/img")
 def cached_image(_space: Annotated[Space, Depends(get_space)], u: Annotated[str, Query(max_length=images.MAX_URL_LENGTH)]):
     """Liefert ein Rezeptbild aus dem Server-Cache (lädt es beim ersten Mal von der erlaubten Quelle)."""
-    if not images.is_allowed_url(u):
+    if not images.is_cacheable_url(u):
         raise HTTPException(404, "Bild nicht verfügbar")
     found = images.get_image_cache().get(u)
     if found is None:
