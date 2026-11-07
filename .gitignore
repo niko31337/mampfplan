@@ -26,3 +26,6 @@ data/
 *.db-shm
 *.sqlite
 *.sqlite3
+
+# Launch-Videos von /brag (enthalten Demo-Datenbank und Render-Zwischenstände)
+brag-output*/
