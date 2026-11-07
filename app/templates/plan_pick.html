@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% set nav = 'plan' %}
-{% block title %}Rezept einplanen – Mampfplan{% endblock %}
+{% block title %}{{ _('Rezept einplanen') }} – Mampfplan{% endblock %}
 {% block content %}
-<h1>Rezept für {{ day|date_long }}</h1>
+<h1>{{ _('Rezept für %(day)s', day=day|date_long) }}</h1>
 
 <form method="get" action="{{ base }}/plan/pick" class="inline">
   <input type="hidden" name="day" value="{{ day.isoformat() }}">
-  <input type="search" name="q" value="{{ q }}" placeholder="Eigene Rezepte durchsuchen" maxlength="100" aria-label="Suche">
-  <button class="btn">Suchen</button>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Eigene Rezepte durchsuchen') }}" maxlength="100" aria-label="{{ _('Suche') }}">
+  <button class="btn">{{ _("Suchen") }}</button>
 </form>
 
 <div class="row wrap">
-  <a class="btn small" href="{{ base }}/search?day={{ day.isoformat() }}">🔎 Online suchen</a>
-  <a class="btn small" href="{{ base }}/recipes/new">＋ Neues Rezept</a>
+  <a class="btn small" href="{{ base }}/search?day={{ day.isoformat() }}">🔎 {{ _('Online suchen') }}</a>
+  <a class="btn small" href="{{ base }}/recipes/new">＋ {{ _('Neues Rezept') }}</a>
 </div>
 
 <div class="card">
@@ -25,13 +25,13 @@
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <input type="hidden" name="day" value="{{ day.isoformat() }}">
         <input type="hidden" name="recipe_id" value="{{ r.id }}">
-        <button class="btn primary small">Einplanen</button>
+        <button class="btn primary small">{{ _("Einplanen") }}</button>
       </form>
     </li>
     {% else %}
-    <li class="empty">Keine Rezepte gefunden. Lege ein eigenes an oder suche online.</li>
+    <li class="empty">{{ _("Keine Rezepte gefunden. Lege ein eigenes an oder suche online.") }}</li>
     {% endfor %}
   </ul>
 </div>
-<p><a href="{{ base }}/plan?week={{ day.isoformat() }}">← Zurück zum Wochenplan</a></p>
+<p><a href="{{ base }}/plan?week={{ day.isoformat() }}">← {{ _('Zurück zum Wochenplan') }}</a></p>
 {% endblock %}

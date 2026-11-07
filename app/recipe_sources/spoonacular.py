@@ -2,6 +2,7 @@ import re
 
 import httpx
 
+from app.i18n import _
 from app.recipe_sources.base import ExternalIngredient, ExternalRecipe, RecipeSource, SourceError, safe_https_url
 
 BASE = "https://api.spoonacular.com"
@@ -41,7 +42,7 @@ class SpoonacularSource(RecipeSource):
     def _get(self, external_id: str) -> ExternalRecipe:
         data = self._json(f"{BASE}/recipes/{external_id}/information", headers=self._headers())
         if not data.get("title"):
-            raise SourceError("Rezept nicht gefunden")
+            raise SourceError(_("Rezept nicht gefunden"))
         ingredients = [
             ExternalIngredient(
                 name=(ing.get("name") or "").strip()[:100],

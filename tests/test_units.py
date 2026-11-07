@@ -151,7 +151,7 @@ def test_preview_lists_the_conversions(web, monkeypatch):
         {"url": "https://www.instagram.com/p/bread/", "text": "Bread\n\nIngredients:\n- 2 cups flour\n\nInstructions:\n1. Bake at 350°F."},
     )
     page = response.text
-    assert "Amerikanische Maße in g/ml umgerechnet (1 Zutaten)" in page
+    assert "Amerikanische Maße in g/ml umgerechnet (1 Zutat)" in page
     assert "2 cups flour → <strong>240 g flour</strong>" in page
     assert "Bake at 175 °C." in page
 

@@ -128,6 +128,18 @@ class CatalogItem(Base):
     category: Mapped[str] = mapped_column(String(40), index=True)
 
 
+class CatalogName(Base):
+    """Übersetzter Name eines Katalogartikels (en/fr/es); der deutsche Name steht in CatalogItem."""
+
+    __tablename__ = "catalog_names"
+    __table_args__ = (UniqueConstraint("catalog_item_id", "lang"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    catalog_item_id: Mapped[int] = mapped_column(ForeignKey("catalog_items.id"), index=True)
+    lang: Mapped[str] = mapped_column(String(5), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+
+
 class ActivityLog(Base):
     """Änderungsverlauf; `undo_ops` enthält die Umkehr-Operationen (siehe services/history.py)."""
 

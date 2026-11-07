@@ -7,28 +7,28 @@
 <h1>{{ recipe.title }}</h1>
 <p class="wake-status small" data-wake-status hidden></p>
 <p class="muted small">
-  {% if recipe.servings %}{{ recipe.servings }} Portionen · {% endif %}
-  {% if recipe.source == 'manual' %}von {{ recipe.created_by }}{% else %}Quelle: {{ recipe|source_label }}{% endif %}
-  {% if recipe.source_url %} · <a href="{{ recipe.source_url }}" rel="noopener noreferrer nofollow" target="_blank">Original</a>{% endif %}
+  {% if recipe.servings %}{{ ngettext('%(num)s Portion', '%(num)s Portionen', recipe.servings) }} · {% endif %}
+  {% if recipe.source == 'manual' %}{{ _('von %(name)s', name=recipe.created_by) }}{% else %}{{ _('Quelle: %(source)s', source=recipe|source_label) }}{% endif %}
+  {% if recipe.source_url %} · <a href="{{ recipe.source_url }}" rel="noopener noreferrer nofollow" target="_blank">{{ _("Original") }}</a>{% endif %}
 </p>
 
 <section class="card">
-  <h2>Einplanen</h2>
+  <h2>{{ _('Einplanen') }}</h2>
   <form method="post" action="{{ base }}/plan/recipe" class="inline">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
     <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
-    <input type="date" name="day" value="{{ plan_date.isoformat() }}" required aria-label="Tag">
-    <button class="btn primary">Einplanen</button>
+    <input type="date" name="day" value="{{ plan_date.isoformat() }}" required aria-label="{{ _('Tag') }}">
+    <button class="btn primary">{{ _("Einplanen") }}</button>
   </form>
 </section>
 
 <section class="card">
   <div class="row spread">
-    <h2>Zutaten</h2>
-    {% if recipe.ingredients %}<button type="button" class="btn small" data-check-all="#ingredient-list">Alle wählen</button>{% endif %}
+    <h2>{{ _('Zutaten') }}</h2>
+    {% if recipe.ingredients %}<button type="button" class="btn small" data-check-all="#ingredient-list">{{ _("Alle wählen") }}</button>{% endif %}
   </div>
   {% if recipe.ingredients %}
-  <p class="muted small">Tippe an, was du einkaufen musst.</p>
+  <p class="muted small">{{ _("Tippe an, was du einkaufen musst.") }}</p>
   <form method="post" action="{{ base }}/recipes/{{ recipe.id }}/shop">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
     <ul class="ingredients" id="ingredient-list">
@@ -41,23 +41,23 @@
       </li>
       {% endfor %}
     </ul>
-    <button class="btn primary block">🛒 Auswahl auf die Einkaufsliste</button>
+    <button class="btn primary block">🛒 {{ _('Auswahl auf die Einkaufsliste') }}</button>
   </form>
   {% else %}
-  <p class="empty">Keine Zutaten hinterlegt.</p>
+  <p class="empty">{{ _("Keine Zutaten hinterlegt.") }}</p>
   {% endif %}
 </section>
 
 <section class="card">
-  <h2>Zubereitung</h2>
-  {% if recipe.steps %}<div class="steps">{{ recipe.steps|linkify }}</div>{% else %}<p class="empty">Keine Schritte hinterlegt.</p>{% endif %}
+  <h2>{{ _('Zubereitung') }}</h2>
+  {% if recipe.steps %}<div class="steps">{{ recipe.steps|linkify }}</div>{% else %}<p class="empty">{{ _("Keine Schritte hinterlegt.") }}</p>{% endif %}
 </section>
 
 <div class="row spread">
-  <a class="btn" href="{{ base }}/recipes/{{ recipe.id }}/edit">✏️ Bearbeiten</a>
-  <form method="post" action="{{ base }}/recipes/{{ recipe.id }}/delete" data-confirm="Rezept wirklich löschen?">
+  <a class="btn" href="{{ base }}/recipes/{{ recipe.id }}/edit">✏️ {{ _('Bearbeiten') }}</a>
+  <form method="post" action="{{ base }}/recipes/{{ recipe.id }}/delete" data-confirm="{{ _('Rezept wirklich löschen?') }}">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-    <button class="btn danger">🗑 Löschen</button>
+    <button class="btn danger">🗑 {{ _('Löschen') }}</button>
   </form>
 </div>
 {% endblock %}

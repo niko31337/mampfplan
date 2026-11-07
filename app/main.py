@@ -2,13 +2,15 @@ import logging
 import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Form, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
+from app import i18n
+from app.i18n import _, translate
 from app.db import Base, SessionLocal, engine, migrate
 from app.routers import api, images, misc, plan, recipes, search, shopping
 from app.services.seed import ensure_space, seed_catalog
@@ -53,14 +55,18 @@ for module in (api, images, misc, plan, recipes, search, shopping):
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    """CSRF-Cookie ausstellen und Security-Header setzen."""
+    """Sprache wählen, CSRF-Cookie ausstellen und Security-Header setzen."""
+    lang_token = i18n.set_language(i18n.pick_language(request.cookies, request.headers))
     csrf = request.cookies.get(CSRF_COOKIE)
     new_cookie = csrf is None
     if new_cookie:
         csrf = secrets.token_urlsafe(32)
     request.state.csrf_token = csrf
 
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    finally:
+        i18n.reset_language(lang_token)
 
     if new_cookie and not request.url.path.startswith("/static"):
         response.set_cookie(
@@ -75,6 +81,27 @@ async def security_middleware(request: Request, call_next):
         response.headers.setdefault(name, value)
     if not request.url.path.startswith("/static"):
         response.headers.setdefault("Cache-Control", "no-store")
+        response.headers.setdefault("Content-Language", i18n.pick_language(request.cookies, request.headers))
+    return response
+
+
+def _safe_next(target: str) -> str:
+    """Nur eigene relative Pfade als Rücksprung (kein Open Redirect über //host oder Schema)."""
+    if not target.startswith("/") or target.startswith(("//", "/\\")) or len(target) > 500:
+        return "/"
+    if any(c in target for c in "\r\n\\"):
+        return "/"
+    return target
+
+
+@app.post("/lang")
+def switch_language(lang: str = Form(max_length=5), next: str = Form("/", max_length=500)):  # noqa: A002
+    """Sprache für dieses Gerät umstellen (Cookie, ein Jahr gültig)."""
+    response = RedirectResponse(_safe_next(next), status_code=303)
+    if lang in i18n.LANGUAGES:
+        response.set_cookie(
+            i18n.LANG_COOKIE, lang, max_age=COOKIE_MAX_AGE, httponly=True, samesite="lax", secure=get_settings().secure_cookies
+        )
     return response
 
 
@@ -92,13 +119,13 @@ def _error_page(request: Request, status: int, message: str):
 
 @app.exception_handler(StarletteHTTPException)
 async def http_error_handler(request: Request, exc: StarletteHTTPException):
-    message = "Das haben wir nicht gefunden." if exc.status_code == 404 else str(exc.detail)
+    message = _("Das haben wir nicht gefunden.") if exc.status_code == 404 else translate(str(exc.detail))
     return _error_page(request, exc.status_code, message)
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, _exc: RequestValidationError):
-    return _error_page(request, 422, "Eingabe ungültig oder zu lang.")
+    return _error_page(request, 422, _("Eingabe ungültig oder zu lang."))
 
 
 @app.get("/", response_class=HTMLResponse)

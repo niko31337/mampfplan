@@ -13,6 +13,18 @@ const csrfToken = () => {
   }
 };
 
+// Übersetzungen: base.html legt sie als JSON-Datenblock ab (kein Inline-Skript wegen der CSP).
+const TEXTS = (() => {
+  try {
+    return JSON.parse(document.getElementById("i18n")?.textContent || "{}");
+  } catch {
+    return {};
+  }
+})();
+function t(msgid, vars = {}) {
+  return (TEXTS[msgid] || msgid).replace(/%\((\w+)\)s/g, (_, key) => String(vars[key] ?? ""));
+}
+
 function showToast(text) {
   const slot = document.getElementById("toast");
   if (!slot) return;
@@ -33,7 +45,7 @@ document.addEventListener("click", (event) => {
     const boxes = document.querySelectorAll(`${allBtn.dataset.checkAll} input[type=checkbox]`);
     const everythingChecked = [...boxes].every((box) => box.checked);
     boxes.forEach((box) => (box.checked = !everythingChecked));
-    allBtn.textContent = everythingChecked ? "Alle wählen" : "Keine wählen";
+    allBtn.textContent = everythingChecked ? t("Alle wählen") : t("Keine wählen");
   }
   const copyBtn = event.target.closest("[data-copy]");
   if (copyBtn) {
@@ -41,7 +53,7 @@ document.addEventListener("click", (event) => {
     if (text && navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {
         const old = copyBtn.textContent;
-        copyBtn.textContent = "Kopiert ✓";
+        copyBtn.textContent = t("Kopiert ✓");
         setTimeout(() => (copyBtn.textContent = old), 1500);
       });
     }
@@ -122,16 +134,16 @@ function onNetworkFailure(event) {
     connectionTrouble = true;
     updateBanner();
     scheduleRetry();
-    showToast("📴 Gemerkt – wird übertragen, sobald du wieder Verbindung hast.");
+    showToast(t("📴 Gemerkt – wird übertragen, sobald du wieder Verbindung hast."));
   } else {
-    showToast("Keine Verbindung zum Server.");
+    showToast(t("Keine Verbindung zum Server."));
   }
 }
 document.addEventListener("htmx:sendError", onNetworkFailure);
 document.addEventListener("htmx:timeout", onNetworkFailure);
 
 document.addEventListener("htmx:responseError", (event) => {
-  showToast(event.detail.xhr.status === 403 ? "Sitzung abgelaufen – bitte Seite neu laden." : "Das hat leider nicht geklappt.");
+  showToast(event.detail.xhr.status === 403 ? t("Sitzung abgelaufen – bitte Seite neu laden.") : t("Das hat leider nicht geklappt."));
 });
 
 let flushing = false;
@@ -180,7 +192,7 @@ async function flushQueue() {
   if (loadQueue().length) {
     scheduleRetry();
   } else if (sent) {
-    if (connectionTrouble) showToast("✓ Änderungen synchronisiert");
+    if (connectionTrouble) showToast(t("✓ Änderungen synchronisiert"));
     connectionTrouble = false;
     updateBanner();
     if (listEl()) refreshShoppingList(); // aktueller Stand vom Server, inkl. Rückgängig-Button
@@ -248,11 +260,12 @@ function updateBanner() {
   const pending = loadQueue().length;
   let text = "";
   const many = pending > 1;
-  const noun = `${pending} Änderung${many ? "en" : ""}`;
   const trouble = connectionTrouble || !navigator.onLine;
-  if (pending && trouble && flushing) text = `🔄 ${noun} ${many ? "werden" : "wird"} übertragen …`;
-  else if (pending && trouble) text = `📴 Keine Verbindung – ${noun} ${many ? "warten" : "wartet"} auf Übertragung`;
-  else if (!navigator.onLine) text = "📴 Offline – Abhaken und Ansehen funktioniert weiterhin";
+  if (pending && trouble && flushing) {
+    text = t(many ? "🔄 %(num)s Änderungen werden übertragen …" : "🔄 %(num)s Änderung wird übertragen …", { num: pending });
+  } else if (pending && trouble) {
+    text = t(many ? "📴 Keine Verbindung – %(num)s Änderungen warten auf Übertragung" : "📴 Keine Verbindung – %(num)s Änderung wartet auf Übertragung", { num: pending });
+  } else if (!navigator.onLine) text = t("📴 Offline – Abhaken und Ansehen funktioniert weiterhin");
   banner.textContent = text;
   banner.hidden = !text;
 }
@@ -298,9 +311,9 @@ function setItemState(id, checked) {
   const group = row.closest(".shop-group");
   if (checked) {
     const me = list.dataset;
-    setBadge(row, me.myBadge, me.myColor, `in den Wagen gelegt von ${me.myName}`);
+    setBadge(row, me.myBadge, me.myColor, t("in den Wagen gelegt von %(name)s", { name: me.myName }));
   } else {
-    setBadge(row, row.dataset.addedBadge, row.dataset.addedColor, `eingetragen von ${row.dataset.addedBy}`);
+    setBadge(row, row.dataset.addedBadge, row.dataset.addedColor, t("eingetragen von %(name)s", { name: row.dataset.addedBy }));
   }
 
   if (checked) {
@@ -309,7 +322,7 @@ function setItemState(id, checked) {
       done = document.createElement("section");
       done.className = "shop-group shop-done";
       const heading = document.createElement("h2");
-      heading.textContent = "Gekauft";
+      heading.textContent = t("Gekauft");
       done.appendChild(heading);
       list.appendChild(done);
       list.querySelector("#shop-empty")?.remove();
@@ -351,7 +364,7 @@ function ensureGroup(list, category) {
     section.dataset.category = category;
     const heading = document.createElement("h2");
     const name = document.createElement("span");
-    name.textContent = category;
+    name.textContent = t(category);
     const handle = document.createElement("span");
     handle.className = "drag-handle cat-handle";
     handle.textContent = "⠿";
@@ -569,7 +582,7 @@ async function syncWakeLock() {
   updateWakeStatus();
   if (status && wanted && !("wakeLock" in navigator)) {
     status.hidden = false;
-    status.textContent = "Display-Sperre nicht verfügbar (benötigt HTTPS)";
+    status.textContent = t("Display-Sperre nicht verfügbar (benötigt HTTPS)");
   }
 }
 
@@ -577,7 +590,7 @@ function updateWakeStatus() {
   const status = document.querySelector("[data-wake-status]");
   if (!status || !("wakeLock" in navigator)) return;
   status.hidden = !wakeLock;
-  status.textContent = wakeLock ? "🔆 Display bleibt an, solange diese Seite offen ist" : "";
+  status.textContent = wakeLock ? t("🔆 Display bleibt an, solange diese Seite offen ist") : "";
 }
 
 /* ------------------------------------------------------------------ Service Worker & Vorladen */

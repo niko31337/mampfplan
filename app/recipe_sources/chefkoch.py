@@ -4,6 +4,7 @@ Es gibt keine offizielle API: Die Quelle kann sich jederzeit ändern oder wegfal
 Fehler bleiben deshalb auf diese Quelle beschränkt (SourceError).
 """
 
+from app.i18n import _
 from app.recipe_sources.base import ExternalIngredient, ExternalRecipe, RecipeSource, SourceError, safe_https_url
 
 BASE = "https://api.chefkoch.de/v2"
@@ -40,7 +41,7 @@ class ChefkochSource(RecipeSource):
     def _get(self, external_id: str) -> ExternalRecipe:
         data = self._json(f"{BASE}/recipes/{external_id}")
         if not data.get("title"):
-            raise SourceError("Rezept nicht gefunden")
+            raise SourceError(_("Rezept nicht gefunden"))
         ingredients = []
         for group in data.get("ingredientGroups") or []:
             for ing in group.get("ingredients") or []:

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="{{ current_lang() }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -14,6 +14,8 @@
   <script src="{{ asset('htmx.min.js') }}" defer></script>
   <script src="{{ asset('sortable.min.js') }}" defer></script>
   <script src="{{ asset('app.js') }}" defer></script>
+  {# Texte für app.js – nur Daten (type=application/json), kein ausführbares Inline-Skript #}
+  <script type="application/json" id="i18n">{{ js_texts()|tojson }}</script>
 </head>
 <body hx-boost="true" hx-headers='{"X-CSRF-Token": "{{ request.state.csrf_token }}"}'{% if member %} data-base="{{ base }}"{% endif %}>
   <header class="topbar">
@@ -30,12 +32,12 @@
 
   {% if member %}
   {% set nav = nav|default('') %}
-  <nav class="tabbar" aria-label="Hauptnavigation">
-    <a href="{{ base }}/plan" class="{{ 'is-active' if nav == 'plan' }}"><span>📅</span>Woche</a>
-    <a href="{{ base }}/recipes" class="{{ 'is-active' if nav == 'recipes' }}"><span>📖</span>Rezepte</a>
-    <a href="{{ base }}/search" class="{{ 'is-active' if nav == 'search' }}"><span>🔎</span>Suche</a>
-    <a href="{{ base }}/shopping" class="{{ 'is-active' if nav == 'shopping' }}"><span>🛒</span>Einkauf</a>
-    <a href="{{ base }}/more" class="{{ 'is-active' if nav == 'more' }}"><span>⚙️</span>Mehr</a>
+  <nav class="tabbar" aria-label="{{ _('Hauptnavigation') }}">
+    <a href="{{ base }}/plan" class="{{ 'is-active' if nav == 'plan' }}"><span>📅</span>{{ _("Woche") }}</a>
+    <a href="{{ base }}/recipes" class="{{ 'is-active' if nav == 'recipes' }}"><span>📖</span>{{ _("Rezepte") }}</a>
+    <a href="{{ base }}/search" class="{{ 'is-active' if nav == 'search' }}"><span>🔎</span>{{ _("Suche") }}</a>
+    <a href="{{ base }}/shopping" class="{{ 'is-active' if nav == 'shopping' }}"><span>🛒</span>{{ _("Einkauf") }}</a>
+    <a href="{{ base }}/more" class="{{ 'is-active' if nav == 'more' }}"><span>⚙️</span>{{ _("Mehr") }}</a>
   </nav>
   {% endif %}
 </body>

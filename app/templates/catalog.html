@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% set nav = 'shopping' %}
-{% block title %}Artikelkatalog – Mampfplan{% endblock %}
+{% block title %}{{ _('Artikelkatalog') }} – Mampfplan{% endblock %}
 {% block content %}
-<h1>Artikelkatalog</h1>
-<p class="muted">Tippe einen Artikel an, um ihn auf die Einkaufsliste zu setzen.</p>
+<h1>{{ _('Artikelkatalog') }}</h1>
+<p class="muted">{{ _("Tippe einen Artikel an, um ihn auf die Einkaufsliste zu setzen.") }}</p>
 
 <form method="get" action="{{ base }}/shopping/catalog" class="inline">
-  <input type="search" name="q" value="{{ q }}" placeholder="Katalog durchsuchen" maxlength="100" aria-label="Suche">
-  <button class="btn">Suchen</button>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Katalog durchsuchen') }}" maxlength="100" aria-label="{{ _('Suche') }}">
+  <button class="btn">{{ _("Suchen") }}</button>
 </form>
 
 <div id="catalog">
   {% for category, items in groups.items() %}
   <details class="cat" {{ 'open' if q }}>
-    <summary>{{ category }} <span class="muted small">({{ items|length }})</span></summary>
+    <summary>{{ category|category }} <span class="muted small">({{ items|length }})</span></summary>
     <div class="chips">
       {% for i in items %}
         {% if i.name.lower() in on_list %}
@@ -27,8 +27,8 @@
     </div>
   </details>
   {% else %}
-  <p class="empty">Nichts gefunden. Du kannst Artikel auch direkt auf der <a href="{{ base }}/shopping">Einkaufsliste</a> frei eintippen.</p>
+  <p class="empty">{{ _("Nichts gefunden. Du kannst Artikel auch direkt auf der Einkaufsliste frei eintippen.") }}</p>
   {% endfor %}
 </div>
-<p><a href="{{ base }}/shopping">← Zur Einkaufsliste</a></p>
+<p><a href="{{ base }}/shopping">← {{ _('Zur Einkaufsliste') }}</a></p>
 {% endblock %}

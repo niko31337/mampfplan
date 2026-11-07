@@ -108,6 +108,43 @@ def record(db: Session, space_id: int, member_name: str, description: str) -> It
         raise
 
 
+def msg(msgid: str, **args: Any) -> str:
+    """Verlaufstext übersetzbar speichern: deutscher Ausgangstext + Platzhalter, übersetzt wird erst beim Anzeigen.
+
+    Ein Datum (`date`) wird als ISO-Text abgelegt und in der Sprache des Lesers formatiert.
+    """
+    stored = {k: (v.isoformat() if isinstance(v, date) else v) for k, v in args.items()}
+    dates = [k for k, v in args.items() if isinstance(v, date)]
+    payload = {"m": msgid, "a": stored}
+    if dates:
+        payload["d"] = dates
+    text = json.dumps(payload, ensure_ascii=False)
+    if len(text) > 300:  # Spalte fasst 300 Zeichen: lange Titel kürzen
+        for key, value in stored.items():
+            if isinstance(value, str) and key not in dates:
+                stored[key] = value[:40]
+        text = json.dumps(payload, ensure_ascii=False)[:300]
+    return text
+
+
+def describe(description: str) -> str:
+    """Gespeicherten Verlaufstext in der aktuellen Sprache anzeigen (alte Einträge: deutscher Klartext)."""
+    if not description.startswith('{"m"'):
+        return description
+    from app import i18n
+
+    try:
+        data = json.loads(description)
+        args = dict(data.get("a") or {})
+        for key in data.get("d") or []:
+            args[key] = i18n.date_short(date.fromisoformat(args[key]))
+        if isinstance(args.get("category"), str):  # Kategorien sind intern deutsch
+            args["category"] = i18n.translate(args["category"])
+        return i18n.gettext(data["m"], **args)
+    except (ValueError, KeyError, TypeError):
+        return description
+
+
 def _prune(db: Session, space_id: int) -> None:
     ids = db.scalars(
         select(ActivityLog.id).where(ActivityLog.space_id == space_id).order_by(ActivityLog.id.desc()).offset(MAX_LOG_ROWS)

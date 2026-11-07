@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from sqlalchemy import select
 
 from app.models import Recipe
+from app.i18n import get_language
 from app.recipe_sources import SourceError, get_source, get_sources
 from app.services import history, images
 from app.services import recipes as recipe_service
@@ -15,6 +16,11 @@ log = logging.getLogger("mampfplan")
 router = APIRouter(prefix="/s/{token}")
 
 DEFAULT_SOURCE = "chefkoch"
+
+
+def default_source() -> str:
+    """Chefkoch ist deutsch – in den anderen Sprachen startet die Suche bei TheMealDB."""
+    return DEFAULT_SOURCE if get_language() == "de" else "mealdb"
 
 
 def _source_or_404(key: str):
@@ -28,11 +34,11 @@ def _source_or_404(key: str):
 def search_page(
     ctx: Annotated[Ctx, Depends(get_ctx)],
     q: Annotated[str, Query(max_length=100)] = "",
-    source: Annotated[str, Query(max_length=20)] = DEFAULT_SOURCE,
+    source: Annotated[str, Query(max_length=20)] = "",
     day: date | None = None,
 ):
     sources = get_sources()
-    active = sources.get(source) or sources.get(DEFAULT_SOURCE) or next(iter(sources.values()))
+    active = sources.get(source) or sources.get(default_source()) or sources.get(DEFAULT_SOURCE) or next(iter(sources.values()))
     results, error = [], None
     if q.strip():
         try:
@@ -83,7 +89,7 @@ def import_recipe(
         if existing:
             return redirect(f"{ctx.base}/recipes/{existing.id}{suffix}")
 
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"Rezept „{external.title[:60]}“ importiert") as act:
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Rezept „%(title)s“ importiert", title=external.title[:60])) as act:
         recipe = recipe_service.create_recipe(
             act,
             ctx.db,

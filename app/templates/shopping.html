@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% set nav = 'shopping' %}
-{% block title %}Einkaufsliste – Mampfplan{% endblock %}
+{% block title %}{{ _('Einkaufsliste') }} – Mampfplan{% endblock %}
 {% block content %}
 <div class="row spread">
-  <h1>Einkaufsliste</h1>
+  <h1>{{ _('Einkaufsliste') }}</h1>
   <div class="row">
-    <a class="btn small" href="{{ base }}/shopping/categories" title="Kategorien in Ladenreihenfolge bringen">↕ Laden</a>
-    <a class="btn small" href="{{ base }}/shopping/catalog">📚 Katalog</a>
+    <a class="btn small" href="{{ base }}/shopping/categories" title="{{ _('Kategorien in Ladenreihenfolge bringen') }}">↕ {{ _("Laden") }}</a>
+    <a class="btn small" href="{{ base }}/shopping/catalog">📚 {{ _('Katalog') }}</a>
   </div>
 </div>
 
@@ -15,7 +15,7 @@
   <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
   <div class="row">
     <input type="text" name="name" maxlength="120" required autocomplete="off" enterkeyhint="done"
-           placeholder="Artikel hinzufügen, z. B. 2 l Milch" aria-label="Artikel"
+           placeholder="{{ _('Artikel hinzufügen, z. B. 2 l Milch') }}" aria-label="{{ _('Artikel') }}"
            hx-get="{{ base }}/shopping/suggest" hx-trigger="input changed delay:200ms"
            hx-target="#suggestions" hx-swap="innerHTML">
     <button class="btn primary">＋</button>
@@ -24,5 +24,5 @@
 </form>
 
 {% include "partials/shopping_list.html" %}
-<p class="muted small center">Tipp: Am Griff ⠿ ziehen, um Artikel und Kategorien zu sortieren.</p>
+<p class="muted small center">{{ _("Tipp: Am Griff ⠿ ziehen, um Artikel und Kategorien zu sortieren.") }}</p>
 {% endblock %}

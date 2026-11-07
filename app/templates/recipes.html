@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% set nav = 'recipes' %}
-{% block title %}Rezepte – Mampfplan{% endblock %}
+{% block title %}{{ _('Rezepte') }} – Mampfplan{% endblock %}
 {% block content %}
 <div class="row spread">
-  <h1>Rezepte</h1>
+  <h1>{{ _('Rezepte') }}</h1>
   <div class="row">
-    <a class="btn small" href="{{ base }}/recipes/convert">🔗 Aus Link</a>
-    <a class="btn primary small" href="{{ base }}/recipes/new">＋ Neu</a>
+    <a class="btn small" href="{{ base }}/recipes/convert">🔗 {{ _('Aus Link') }}</a>
+    <a class="btn primary small" href="{{ base }}/recipes/new">＋ {{ _('Neu') }}</a>
   </div>
 </div>
 
 {# Ein Suchfeld, zwei Ziele: formaction wählt, wo gesucht wird (normaler Submit, daher ohne HTMX-Boost). #}
 <form method="get" action="{{ base }}/recipes" hx-boost="false" class="stack">
-  <input type="search" name="q" value="{{ q }}" placeholder="Titel, Zutat oder Gericht suchen" maxlength="100" aria-label="Suche">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Titel, Zutat oder Gericht suchen') }}" maxlength="100" aria-label="{{ _('Suche') }}">
   <div class="row">
-    <button class="btn block" formaction="{{ base }}/recipes">📖 Meine Rezepte</button>
-    <button class="btn primary block" formaction="{{ base }}/search">🔎 Online suchen</button>
+    <button class="btn block" formaction="{{ base }}/recipes">📖 {{ _('Meine Rezepte') }}</button>
+    <button class="btn primary block" formaction="{{ base }}/search">🔎 {{ _('Online suchen') }}</button>
   </div>
 </form>
 
@@ -27,12 +27,12 @@
         {% set img = r.image_url|cached_img(base) %}{% if img %}<img class="thumb" src="{{ img }}" alt="" loading="lazy">{% endif %}
         <div class="grow">
           <strong>{{ r.title }}</strong>
-          <span class="small muted">{{ r.ingredients|length }} Zutaten{% if r.source != 'manual' %} · {{ r|source_label }}{% endif %}</span>
+          <span class="small muted">{{ ngettext('%(num)s Zutat', '%(num)s Zutaten', r.ingredients|length) }}{% if r.source != 'manual' %} · {{ r|source_label }}{% endif %}</span>
         </div>
       </a>
     </li>
     {% else %}
-    <li class="empty">{{ 'Keine eigenen Rezepte gefunden. Probier „Online suchen“.' if q else 'Noch keine Rezepte. Lege ein eigenes an oder such online.' }}</li>
+    <li class="empty">{{ _('Keine eigenen Rezepte gefunden. Probier „Online suchen“.') if q else _('Noch keine Rezepte. Lege ein eigenes an oder such online.') }}</li>
     {% endfor %}
   </ul>
 </div>

@@ -13,8 +13,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import today
 from app.db import get_db
+from app.i18n import WEEKDAYS
 from app.models import KIND_RECIPE, PlanEntry, Space
-from app.web import WEEKDAYS, get_space
+from app.web import get_space
 
 router = APIRouter(prefix="/s/{token}/api")
 
@@ -30,6 +31,7 @@ def plan(
     space: Annotated[Space, Depends(get_space)],
     db: Annotated[Session, Depends(get_db)],
     days: Annotated[int, Query(ge=1, le=14)] = 7,
+    lang: Annotated[str, Query(pattern="^(de|en|fr|es)$")] = "de",
 ):
     start = today()
     end = start + timedelta(days=days - 1)
@@ -47,7 +49,7 @@ def plan(
     return {
         "today": start.isoformat(),
         "days": [
-            {"date": day.isoformat(), "weekday": WEEKDAYS[day.weekday()], "entries": items}
+            {"date": day.isoformat(), "weekday": WEEKDAYS[lang][day.weekday()], "entries": items}
             for day, items in by_day.items()
         ],
     }

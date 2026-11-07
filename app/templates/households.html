@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% set nav = 'more' %}
-{% block title %}Haushalte – Mampfplan{% endblock %}
+{% block title %}{{ _('Haushalte') }} – Mampfplan{% endblock %}
 {% block content %}
-<h1>Haushalte verwalten</h1>
-<p class="muted small">Jeder Haushalt hat eigene Rezepte, einen eigenen Wochenplan und eine eigene Einkaufsliste – und einen eigenen geheimen Link. Das erste Profil eines Haushalts kann dort weitere Profile anlegen.</p>
+<h1>{{ _('Haushalte verwalten') }}</h1>
+<p class="muted small">{{ _("Jeder Haushalt hat eigene Rezepte, einen eigenen Wochenplan und eine eigene Einkaufsliste – und einen eigenen geheimen Link. Das erste Profil eines Haushalts kann dort weitere Profile anlegen.") }}</p>
 
 {% if error %}<p class="alert error">{{ error }}</p>{% endif %}
 
 <section class="card">
-  <h2>Neuen Haushalt anlegen</h2>
+  <h2>{{ _('Neuen Haushalt anlegen') }}</h2>
   <form method="post" action="{{ base }}/households" class="stack">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-    <label for="hh-name">Name des Haushalts</label>
-    <input id="hh-name" type="text" name="name" maxlength="100" required placeholder="z. B. Familie Müller">
-    <label for="hh-owner">Erstes Profil <small>(verwaltet später die Profile)</small></label>
-    <input id="hh-owner" type="text" name="owner_name" maxlength="50" required placeholder="z. B. Anna">
-    <button class="btn primary block">Haushalt anlegen</button>
+    <label for="hh-name">{{ _("Name des Haushalts") }}</label>
+    <input id="hh-name" type="text" name="name" maxlength="100" required placeholder="{{ _('z. B. Familie Müller') }}">
+    <label for="hh-owner">{{ _("Erstes Profil") }} <small>({{ _("verwaltet später die Profile") }})</small></label>
+    <input id="hh-owner" type="text" name="owner_name" maxlength="50" required placeholder="{{ _('z. B. Anna') }}">
+    <button class="btn primary block">{{ _('Haushalt anlegen') }}</button>
   </form>
 </section>
 
@@ -23,31 +23,31 @@
 <section class="card {{ 'is-new' if info.space.id == created }}">
   <div class="row spread">
     <h2>{{ info.space.name }}</h2>
-    {% if info.space.is_admin %}<span class="badge">Verwaltung</span>{% elif info.space.id == created %}<span class="badge">neu</span>{% endif %}
+    {% if info.space.is_admin %}<span class="badge">{{ _("Verwaltung") }}</span>{% elif info.space.id == created %}<span class="badge">{{ _("neu") }}</span>{% endif %}
   </div>
-  <p class="muted small">Profile: {{ info.members|join(', ') if info.members else '–' }}</p>
-  {% if info.space.id == created %}<p class="alert">Schick diesen Link an den neuen Haushalt:</p>{% endif %}
+  <p class="muted small">{{ _('Profile') }}: {{ info.members|join(', ') if info.members else '–' }}</p>
+  {% if info.space.id == created %}<p class="alert">{{ _("Schick diesen Link an den neuen Haushalt:") }}</p>{% endif %}
   <div id="hh-link-{{ info.space.id }}" class="sharebox">{{ link }}</div>
   <div class="row wrap">
-    <button class="btn small" data-copy="#hh-link-{{ info.space.id }}">Link kopieren</button>
-    <form method="post" action="{{ base }}/households/{{ info.space.id }}/rotate" data-confirm="Neuen Link für „{{ info.space.name }}“ erzeugen? Der bisherige funktioniert danach nicht mehr.">
+    <button class="btn small" data-copy="#hh-link-{{ info.space.id }}">{{ _("Link kopieren") }}</button>
+    <form method="post" action="{{ base }}/households/{{ info.space.id }}/rotate" data-confirm="{{ _('Neuen Link für „%(name)s“ erzeugen? Der bisherige funktioniert danach nicht mehr.', name=info.space.name) }}">
       <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-      <button class="btn small danger">Neuen Link erzeugen</button>
+      <button class="btn small danger">{{ _('Neuen Link erzeugen') }}</button>
     </form>
   </div>
   {% if not info.space.is_admin %}
   <details class="danger-zone">
-    <summary>Haushalt löschen …</summary>
-    <p class="small">Löscht <strong>endgültig</strong> alle Rezepte, den Wochenplan, die Einkaufsliste, den Verlauf und alle Profile von „{{ info.space.name }}“. Das lässt sich nicht rückgängig machen. Zur Bestätigung den Namen eintippen:</p>
+    <summary>{{ _('Haushalt löschen …') }}</summary>
+    <p class="small">{{ _("Löscht endgültig alle Rezepte, den Wochenplan, die Einkaufsliste, den Verlauf und alle Profile von „%(name)s“. Das lässt sich nicht rückgängig machen. Zur Bestätigung den Namen eintippen:", name=info.space.name) }}</p>
     <form method="post" action="{{ base }}/households/{{ info.space.id }}/delete" class="inline">
       <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-      <input type="text" name="confirm_name" maxlength="100" required autocomplete="off" placeholder="{{ info.space.name }}" aria-label="Name von {{ info.space.name }} zur Bestätigung">
-      <button class="btn small danger">Endgültig löschen</button>
+      <input type="text" name="confirm_name" maxlength="100" required autocomplete="off" placeholder="{{ info.space.name }}" aria-label="{{ _('Name von %(name)s zur Bestätigung', name=info.space.name) }}">
+      <button class="btn small danger">{{ _('Endgültig löschen') }}</button>
     </form>
   </details>
   {% endif %}
 </section>
 {% endfor %}
 
-<p><a href="{{ base }}/more">← Zurück</a></p>
+<p><a href="{{ base }}/more">← {{ _('Zurück') }}</a></p>
 {% endblock %}

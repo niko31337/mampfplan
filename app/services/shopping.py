@@ -1,9 +1,11 @@
 import re
+from dataclasses import dataclass
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import CatalogItem, CategoryOrder, CategoryOverride, RecipeIngredient, ShoppingItem
+from app.i18n import DEFAULT_LANGUAGE, get_language
+from app.models import CatalogItem, CatalogName, CategoryOrder, CategoryOverride, RecipeIngredient, ShoppingItem
 from app.services.history import Action
 
 DEFAULT_CATEGORY = "Sonstiges"
@@ -59,15 +61,20 @@ def guess_category(db: Session, name: str) -> str:
     if not needle:
         return DEFAULT_CATEGORY
     best: tuple[int, str] | None = None
-    for item in db.scalars(select(CatalogItem).order_by(CatalogItem.id)):
-        known = _stem_key(item.name)
+    # Namen in allen Sprachen: „Milk“, „Lait“ und „Leche“ landen wie „Milch“ bei den Milchprodukten
+    names = db.execute(select(CatalogItem.name, CatalogItem.category).order_by(CatalogItem.id)).all()
+    names += db.execute(
+        select(CatalogName.name, CatalogItem.category).join(CatalogItem, CatalogItem.id == CatalogName.catalog_item_id)
+    ).all()
+    for name, category in names:
+        known = _stem_key(name)
         if not known:
             continue
         if known == needle:
-            return item.category
+            return category
         if len(known) >= 4 and len(needle) >= 4 and (known in needle or needle in known):
             if best is None or len(known) > best[0]:
-                best = (len(known), item.category)
+                best = (len(known), category)
     return best[1] if best else DEFAULT_CATEGORY
 
 
@@ -133,13 +140,36 @@ def add_recipe_ingredients(
     return len(ingredients)
 
 
-def search_catalog(db: Session, query: str, limit: int = 12) -> list[CatalogItem]:
-    pattern = "%" + query.strip().replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_") + "%"
-    return list(
-        db.scalars(
-            select(CatalogItem).where(CatalogItem.name.ilike(pattern, escape="\\")).order_by(CatalogItem.name).limit(limit)
-        )
+@dataclass(frozen=True)
+class CatalogEntry:
+    """Katalogartikel in der Anzeigesprache; `category` bleibt der interne (deutsche) Schlüssel."""
+
+    name: str
+    category: str
+
+
+def _localized(db: Session, lang: str):
+    if lang == DEFAULT_LANGUAGE:
+        return select(CatalogItem.name, CatalogItem.category)
+    return select(CatalogName.name, CatalogItem.category).join(CatalogItem, CatalogItem.id == CatalogName.catalog_item_id).where(
+        CatalogName.lang == lang
     )
+
+
+def catalog_entries(db: Session, lang: str | None = None) -> list[CatalogEntry]:
+    """Der ganze Katalog in der Anzeigesprache (fehlen Übersetzungen, dann deutsch)."""
+    lang = lang or get_language()
+    rows = db.execute(_localized(db, lang)).all() or db.execute(_localized(db, DEFAULT_LANGUAGE)).all()
+    return [CatalogEntry(name, category) for name, category in rows]
+
+
+def search_catalog(db: Session, query: str, limit: int = 12, lang: str | None = None) -> list[CatalogEntry]:
+    lang = lang or get_language()
+    pattern = "%" + query.strip().replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_") + "%"
+    stmt = _localized(db, lang)
+    column = CatalogItem.name if lang == DEFAULT_LANGUAGE else CatalogName.name
+    rows = db.execute(stmt.where(column.ilike(pattern, escape="\\")).order_by(column).limit(limit)).all()
+    return [CatalogEntry(name, category) for name, category in rows]
 
 
 # --- Reihenfolge -----------------------------------------------------------------------------

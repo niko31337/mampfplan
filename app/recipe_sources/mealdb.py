@@ -1,3 +1,4 @@
+from app.i18n import _
 from app.recipe_sources.base import ExternalIngredient, ExternalRecipe, RecipeSource, SourceError, safe_https_url
 from app.services.ingredients import parse_measure
 
@@ -17,7 +18,7 @@ class MealDBSource(RecipeSource):
         data = self._json(f"{BASE}/lookup.php", params={"i": external_id})
         meals = data.get("meals") or []
         if not meals:
-            raise SourceError("Rezept nicht gefunden")
+            raise SourceError(_("Rezept nicht gefunden"))
         return self._to_recipe(meals[0])
 
     @staticmethod

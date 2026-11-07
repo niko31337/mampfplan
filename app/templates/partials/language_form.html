@@ -1,0 +1,10 @@
+{# Sprache für dieses Gerät – normaler Submit (kein HTMX), damit auch <head> und JS-Texte neu geladen werden #}
+<form method="post" action="/lang" hx-boost="false" class="lang-form">
+  <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+  <input type="hidden" name="next" value="{{ request.url.path }}">
+  <div class="chips" role="group" aria-label="{{ _('Sprache') }}">
+    {% for code, label in languages.items() %}
+    <button class="chip{{ ' is-on' if code == current_lang() }}" name="lang" value="{{ code }}"{% if code == current_lang() %} aria-pressed="true"{% endif %} lang="{{ code }}">{{ label }}</button>
+    {% endfor %}
+  </div>
+</form>

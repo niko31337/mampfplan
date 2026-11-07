@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.i18n import N_, _
+
 from app.models import (
     ActivityLog,
     CategoryOrder,
@@ -57,19 +59,19 @@ def is_owner(db: Session, member: Member) -> bool:
 def _clean(value: str, max_length: int, label: str) -> str:
     value = " ".join(value.split())
     if not value:
-        raise HouseholdError(f"{label} fehlt.")
+        raise HouseholdError(_("%(label)s fehlt.", label=_(label)))
     if len(value) > max_length:
-        raise HouseholdError(f"{label} ist zu lang (höchstens {max_length} Zeichen).")
+        raise HouseholdError(_("%(label)s ist zu lang (höchstens %(max)s Zeichen).", label=_(label), max=max_length))
     return value
 
 
 def add_member(db: Session, space: Space, name: str) -> Member:
-    name = _clean(name, MAX_NAME_LENGTH, "Name")
+    name = _clean(name, MAX_NAME_LENGTH, N_("Name"))
     existing = members_of(db, space.id)
     if any(m.name.casefold() == name.casefold() for m in existing):
-        raise HouseholdError(f"Ein Profil „{name}“ gibt es in diesem Haushalt schon.")
+        raise HouseholdError(_("Ein Profil „%(name)s“ gibt es in diesem Haushalt schon.", name=name))
     if len(existing) >= MAX_MEMBERS_PER_HOUSEHOLD:
-        raise HouseholdError(f"Höchstens {MAX_MEMBERS_PER_HOUSEHOLD} Profile pro Haushalt.")
+        raise HouseholdError(_("Höchstens %(max)s Profile pro Haushalt.", max=MAX_MEMBERS_PER_HOUSEHOLD))
     member = Member(space_id=space.id, name=name)
     db.add(member)
     db.commit()
@@ -78,12 +80,12 @@ def add_member(db: Session, space: Space, name: str) -> Member:
 
 def rename_member(db: Session, member: Member, new_name: str) -> None:
     """Profil umbenennen. Gespeicherte Namen (Kürzel, Verlauf, Rezept-Autor) ziehen mit – nur in diesem Haushalt."""
-    new_name = _clean(new_name, MAX_NAME_LENGTH, "Name")
+    new_name = _clean(new_name, MAX_NAME_LENGTH, N_("Name"))
     if new_name == member.name:
         return
     others = [m for m in members_of(db, member.space_id) if m.id != member.id]
     if any(m.name.casefold() == new_name.casefold() for m in others):
-        raise HouseholdError(f"Ein Profil „{new_name}“ gibt es in diesem Haushalt schon.")
+        raise HouseholdError(_("Ein Profil „%(name)s“ gibt es in diesem Haushalt schon.", name=new_name))
     old_name, space_id = member.name, member.space_id
     member.name = new_name
     for column in (ShoppingItem.added_by, ShoppingItem.checked_by):
@@ -107,7 +109,7 @@ def delete_member(db: Session, member: Member, acting: Member) -> None:
     Bereits Eingetragenes bleibt erhalten und zeigt weiter den alten Namen.
     """
     if member.id == acting.id:
-        raise HouseholdError("Das eigene Profil kannst du nicht löschen.")
+        raise HouseholdError(_("Das eigene Profil kannst du nicht löschen."))
     db.delete(member)
     db.commit()
 
@@ -115,7 +117,7 @@ def delete_member(db: Session, member: Member, acting: Member) -> None:
 def delete_household(db: Session, space: Space) -> None:
     """Haushalt mit allen Daten endgültig löschen (in Fremdschlüssel-Reihenfolge)."""
     if space.is_admin:
-        raise HouseholdError("Der Verwaltungs-Haushalt kann nicht gelöscht werden.")
+        raise HouseholdError(_("Der Verwaltungs-Haushalt kann nicht gelöscht werden."))
     recipe_ids = select(Recipe.id).where(Recipe.space_id == space.id)
     for statement in (
         delete(ActivityLog).where(ActivityLog.space_id == space.id),
@@ -134,10 +136,10 @@ def delete_household(db: Session, space: Space) -> None:
 
 def create_household(db: Session, name: str, owner_name: str) -> Space:
     """Neuer Haushalt mit eigenem Link und dem ersten Profil (das weitere Profile anlegen darf)."""
-    name = _clean(name, MAX_HOUSEHOLD_NAME_LENGTH, "Name des Haushalts")
-    owner_name = _clean(owner_name, MAX_NAME_LENGTH, "Name des ersten Profils")
+    name = _clean(name, MAX_HOUSEHOLD_NAME_LENGTH, N_("Name des Haushalts"))
+    owner_name = _clean(owner_name, MAX_NAME_LENGTH, N_("Name des ersten Profils"))
     if (db.scalar(select(func.count(Space.id))) or 0) >= MAX_HOUSEHOLDS:
-        raise HouseholdError(f"Höchstens {MAX_HOUSEHOLDS} Haushalte.")
+        raise HouseholdError(_("Höchstens %(max)s Haushalte.", max=MAX_HOUSEHOLDS))
     space = Space(token=new_token(), name=name, is_admin=False)
     db.add(space)
     db.flush()

@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app import converter
 from app.config import now, today
+from app.i18n import N_
 from app.models import Recipe
 from app.recipe_sources.base import safe_https_url
 from app.services import history, images
@@ -54,8 +55,8 @@ def create_recipe(
     if source not in converter.CONVERTED_SOURCES or not link:
         source, link, image_url = "manual", None, ""
     steps = converter.with_source_line(steps, link)[:20000]
-    action = "aus Link übernommen" if link else "angelegt"
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"Rezept „{title.strip()[:60]}“ {action}") as act:
+    text = N_("Rezept „%(title)s“ aus Link übernommen") if link else N_("Rezept „%(title)s“ angelegt")
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg(text, title=title.strip()[:60])) as act:
         recipe = recipe_service.create_recipe(
             act,
             ctx.db,
@@ -154,7 +155,7 @@ def update_recipe(
     recipe = _get_or_404(ctx, recipe_id)
     if not title.strip():
         raise HTTPException(400, "Titel fehlt")
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"Rezept „{title.strip()[:60]}“ bearbeitet") as act:
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Rezept „%(title)s“ bearbeitet", title=title.strip()[:60])) as act:
         act.updating(recipe)
         recipe.title = title.strip()[:200]
         recipe.servings = recipe_service.parse_servings(servings)
@@ -168,7 +169,7 @@ def update_recipe(
 @router.post("/recipes/{recipe_id}/delete")
 def delete_recipe(ctx: Annotated[Ctx, Depends(get_ctx)], recipe_id: int):
     recipe = _get_or_404(ctx, recipe_id)
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"Rezept „{recipe.title[:60]}“ gelöscht") as act:
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Rezept „%(title)s“ gelöscht", title=recipe.title[:60])) as act:
         act.updating(recipe)
         recipe.deleted_at = now()
     return redirect(f"{ctx.base}/recipes")
@@ -185,7 +186,8 @@ def add_to_shopping_list(
     chosen = [i for i in recipe.ingredients if i.id in wanted]
     if chosen:
         with history.record(
-            ctx.db, ctx.space.id, ctx.member.name, f"{len(chosen)} Zutaten von „{recipe.title[:60]}“ auf die Einkaufsliste gesetzt"
+            ctx.db, ctx.space.id, ctx.member.name,
+            history.msg("%(count)s Zutaten von „%(title)s“ auf die Einkaufsliste gesetzt", count=len(chosen), title=recipe.title[:60]),
         ) as act:
             shopping_service.add_recipe_ingredients(ctx.db, act, ctx.space.id, recipe.id, chosen, added_by=ctx.member.name)
     return redirect(f"{ctx.base}/shopping")

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings, today
 from app.db import get_db
+from app.i18n import _
 from app.models import Member, Space
 from app.services import households, history, stats
 from app.services.seed import share_url
@@ -167,10 +168,10 @@ def delete_household(ctx: Annotated[Ctx, Depends(get_ctx)], space_id: int, confi
     if target is None:
         raise HTTPException(404, "Haushalt nicht gefunden")
     if target.id == ctx.space.id or target.is_admin:
-        return _households(ctx, error="Der Verwaltungs-Haushalt kann nicht gelöscht werden.", status_code=400)
+        return _households(ctx, error=_("Der Verwaltungs-Haushalt kann nicht gelöscht werden."), status_code=400)
     if " ".join(confirm_name.split()) != target.name:
         return _households(
-            ctx, error=f"Zum Löschen bitte den Namen „{target.name}“ genau eintippen.", status_code=400
+            ctx, error=_("Zum Löschen bitte den Namen „%(name)s“ genau eintippen.", name=target.name), status_code=400
         )
     households.delete_household(ctx.db, target)
     return redirect(f"{ctx.base}/households")

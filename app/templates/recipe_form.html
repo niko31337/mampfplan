@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set nav = 'recipes' %}
 {% set draft = draft|default(none) %}
-{% set heading = 'Rezept bearbeiten' if recipe else ('Vorschlag aus Link' if draft else 'Neues Rezept') %}
+{% set heading = _('Rezept bearbeiten') if recipe else (_('Vorschlag aus Link') if draft else _('Neues Rezept')) %}
 {% set f_title = title|default(recipe.title if recipe else '') %}
 {% set f_servings = servings|default(recipe.servings if recipe else none) %}
 {% set f_steps = steps|default(recipe.steps if recipe else '') %}
@@ -12,25 +12,25 @@
 {% if draft %}
   {% set img = image_key|cached_img(base) if image_key else '' %}{% if img %}<img class="hero" src="{{ img }}" alt="">{% endif %}
   <p class="muted small">
-    Quelle: <a href="{{ draft.source_url }}" rel="noopener noreferrer nofollow" target="_blank">{{ draft.source_url|host }}</a>.
-    Prüfe den Vorschlag und passe ihn an – gespeichert wird erst mit „Speichern“. Der Link zur Quelle bleibt am Ende der Zubereitung stehen.
+    {{ _('Quelle:') }} <a href="{{ draft.source_url }}" rel="noopener noreferrer nofollow" target="_blank">{{ draft.source_url|host }}</a>.
+    {{ _('Prüfe den Vorschlag und passe ihn an – gespeichert wird erst mit „Speichern“. Der Link zur Quelle bleibt am Ende der Zubereitung stehen.') }}
   </p>
   {% if not draft.found %}
-  <p class="alert">Im Link wurden keine Zutaten oder Schritte erkannt. {% if draft.source == 'tiktok' %}Steht das Rezept nur im Video oder im angepinnten Kommentar, kopiere den Text und <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">füge ihn ein</a>; oder trag es unten selbst ein.{% else %}Trag sie unten selbst ein oder <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">füge den Rezepttext ein</a>.{% endif %}</p>
+  <p class="alert">{{ _('Im Link wurden keine Zutaten oder Schritte erkannt.') }} {% if draft.source == 'tiktok' %}{{ _('Steht das Rezept nur im Video oder im angepinnten Kommentar, kopiere den Text und füge ihn ein – oder trag es unten selbst ein.') }}{% else %}{{ _('Trag sie unten selbst ein oder füge den Rezepttext ein.') }}{% endif %} <a href="{{ base }}/recipes/convert?url={{ draft.source_url|urlencode }}">{{ _('Text einfügen') }}</a></p>
   {% endif %}
   {% if draft.conversions or draft.steps_converted %}
   <details class="alert">
-    <summary>📏 Amerikanische Maße in g/ml umgerechnet{% if draft.conversions %} ({{ draft.conversions|length }} Zutaten){% endif %} – bitte kurz prüfen</summary>
+    <summary>📏 {{ _('Amerikanische Maße in g/ml umgerechnet') }}{% if draft.conversions %} ({{ ngettext('%(num)s Zutat', '%(num)s Zutaten', draft.conversions|length) }}){% endif %} – {{ _('bitte kurz prüfen') }}</summary>
     {% if draft.conversions %}
     <ul class="small">
       {% for c in draft.conversions %}<li>{{ c.before }} → <strong>{{ c.after }}</strong></li>{% endfor %}
     </ul>
     {% endif %}
-    {% if draft.steps_converted %}<p class="small">Auch in der Zubereitung: Temperaturen in °C, Zoll in cm, Tassen und Unzen in ml bzw. g.</p>{% endif %}
+    {% if draft.steps_converted %}<p class="small">{{ _("Auch in der Zubereitung: Temperaturen in °C, Zoll in cm, Tassen und Unzen in ml bzw. g.") }}</p>{% endif %}
   </details>
   {% endif %}
   {% if existing %}
-  <p class="alert">Dieses Rezept hast du schon: <a href="{{ base }}/recipes/{{ existing.id }}">{{ existing.title }}</a>. Speichern legt eine zweite Kopie an.</p>
+  <p class="alert">{{ _("Dieses Rezept hast du schon:") }} <a href="{{ base }}/recipes/{{ existing.id }}">{{ existing.title }}</a>. {{ _("Speichern legt eine zweite Kopie an.") }}</p>
   {% endif %}
 {% endif %}
 
@@ -42,21 +42,21 @@
   {% if image_key %}<input type="hidden" name="image_url" value="{{ image_key }}">{% endif %}
   {% endif %}
 
-  <label for="title">Titel</label>
+  <label for="title">{{ _("Titel") }}</label>
   <input id="title" type="text" name="title" value="{{ f_title }}" required maxlength="200">
 
-  <label for="servings">Portionen <small>(optional)</small></label>
+  <label for="servings">{{ _("Portionen") }} <small>({{ _("optional") }})</small></label>
   <input id="servings" type="number" name="servings" min="1" max="100" inputmode="numeric" value="{{ f_servings if f_servings }}">
 
-  <label for="ingredients">Zutaten <small>(eine pro Zeile, z. B. „200 g Mehl“ oder „2 Eier“)</small></label>
+  <label for="ingredients">{{ _("Zutaten") }} <small>({{ _("eine pro Zeile, z. B. „200 g Mehl“ oder „2 Eier“") }})</small></label>
   <textarea id="ingredients" name="ingredients" rows="{{ 12 if draft else 8 }}" maxlength="10000">{{ ingredient_text }}</textarea>
 
-  <label for="steps">Zubereitung</label>
+  <label for="steps">{{ _("Zubereitung") }}</label>
   <textarea id="steps" name="steps" rows="{{ 14 if draft else 10 }}" maxlength="20000">{{ f_steps }}</textarea>
 
   <div class="row spread">
-    <a class="btn" href="{{ base }}/recipes{{ '/' ~ recipe.id if recipe }}">Abbrechen</a>
-    <button class="btn primary">Speichern</button>
+    <a class="btn" href="{{ base }}/recipes{{ '/' ~ recipe.id if recipe }}">{{ _('Abbrechen') }}</a>
+    <button class="btn primary">{{ _("Speichern") }}</button>
   </div>
 </form>
 {% endblock %}

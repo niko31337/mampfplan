@@ -125,6 +125,19 @@ rest:
           - days
 ```
 
+### Sprachen
+
+Mampfplan gibt es auf **Deutsch, Englisch, Französisch und Spanisch**. Die Sprache gilt **pro Gerät**: Beim ersten Besuch kommt sie aus der Browsersprache (sonst Deutsch), umstellen lässt sie sich unter **„Mehr → Sprache“**, auf der Profilauswahl und auf der Startseite (gespeichert als Cookie `mp_lang`).
+
+- **Übersetzt** werden die ganze Oberfläche, Meldungen, Verlauf und „Rückgängig“ (auch rückwirkend: jeder sieht den Verlauf in seiner Sprache), Kategorien, der Artikelkatalog (Vorschläge beim Tippen in der eigenen Sprache), Datumsangaben und Dezimalzeichen.
+- **Nicht übersetzt** wird, was ihr selbst eintragt: Rezepte, Notizen und Artikel bleiben so, wie sie geschrieben wurden.
+- **Kategorien erkennt die Liste sprachübergreifend:** „Milk“, „Lait“ und „Leche“ landen wie „Milch“ bei den Milchprodukten.
+- Zutaten verstehen zusätzlich französische und spanische Einheiten (cs/cc, pincée, gousse, cda/cdta, pizca, diente …); der Rezept-Konverter erkennt französische und spanische Beschreibungen (Ingrédients/Préparation, Ingredientes/Preparación). Umgerechnete US-Löffel heißen je nach Sprache EL/TL, tbsp/tsp, cs/cc oder cda/cdta.
+- Die Rezeptsuche startet auf Deutsch bei Chefkoch, in den anderen Sprachen bei TheMealDB.
+- Die JSON-Schnittstelle liefert Wochentage standardmäßig weiter auf Deutsch; `?lang=en|fr|es` stellt um.
+
+**Eine Sprache ergänzen oder Texte ändern:** Die Übersetzungen liegen in `app/i18n/<sprache>.json` (Schlüssel ist der deutsche Text), die Katalognamen in `seed/catalog.translations.json`. `python -m app.i18n.extract fr` listet fehlende Texte einer Sprache; ein Test stellt sicher, dass jede Sprachdatei vollständig ist.
+
 ### Einstellungen (`.env`)
 
 | Variable | Bedeutung |
@@ -166,6 +179,7 @@ app/
     stats.py         Statistik-Abfragen
   recipe_sources/    Chefkoch, TheMealDB, Spoonacular (gemeinsames Interface)
   services/units.py  US-Maße → metrisch (cup, oz, lb, fl oz, °F, inch)
+  i18n/              Sprachen: Auswahl, Übersetzungen (en/fr/es.json), Datum/Zahlen, Text-Extraktion
   converter/         Rezept aus Link: fetch.py (abgesicherter Abruf), html.py (Meta, JSON-LD, Text),
                      text.py (Zutaten/Anleitung aus Fließtext erkennen)
   templates/, static/   Jinja2 + HTMX (lokal eingebunden, kein CDN)

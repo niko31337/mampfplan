@@ -7,10 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.models import CatalogItem, Member, Space
+from app.models import CatalogItem, CatalogName, Member, Space
 
 log = logging.getLogger("mampfplan")
 CATALOG_FILE = Path(__file__).resolve().parents[2] / "seed" / "catalog.json"
+TRANSLATIONS_FILE = CATALOG_FILE.with_name("catalog.translations.json")
 
 
 def seed_catalog(db: Session) -> None:
@@ -20,6 +21,24 @@ def seed_catalog(db: Session) -> None:
         for name in names:
             if name not in existing:
                 db.add(CatalogItem(name=name, category=category))
+    db.commit()
+    _seed_catalog_names(db)
+
+
+def _seed_catalog_names(db: Session) -> None:
+    """Übersetzte Katalognamen (en/fr/es) nachtragen; vorhandene bleiben unverändert."""
+    if not TRANSLATIONS_FILE.exists():
+        return
+    data = json.loads(TRANSLATIONS_FILE.read_text(encoding="utf-8"))
+    items = {item.name: item.id for item in db.scalars(select(CatalogItem))}
+    present = set(db.execute(select(CatalogName.catalog_item_id, CatalogName.lang)).all())
+    for german, names in data.items():
+        item_id = items.get(german)
+        if item_id is None or not isinstance(names, list):
+            continue
+        for lang, name in zip(("en", "fr", "es"), names, strict=False):
+            if (item_id, lang) not in present and name:
+                db.add(CatalogName(catalog_item_id=item_id, lang=lang, name=name[:100]))
     db.commit()
 
 

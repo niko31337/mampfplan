@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from sqlalchemy import select
 
 from app.config import now
-from app.models import CatalogItem, ShoppingItem
+from app.i18n import N_, _
+from app.models import ShoppingItem
 from app.services import households, history
 from app.services import shopping as service
 from app.services.ingredients import parse_line
@@ -72,10 +73,8 @@ def suggest(ctx: Annotated[Ctx, Depends(get_ctx)], q: Annotated[str, Query(alias
 
 @router.get("/shopping/catalog")
 def catalog(ctx: Annotated[Ctx, Depends(get_ctx)], q: Annotated[str, Query(max_length=100)] = ""):
-    items = service.search_catalog(ctx.db, q, limit=300) if q.strip() else list(
-        ctx.db.scalars(select(CatalogItem).order_by(CatalogItem.name))
-    )
-    groups: dict[str, list[CatalogItem]] = {}
+    items = service.search_catalog(ctx.db, q, limit=300) if q.strip() else service.catalog_entries(ctx.db)
+    groups: dict[str, list[service.CatalogEntry]] = {}
     for item in sorted(items, key=lambda i: (service.category_rank(i.category), i.name.casefold())):
         groups.setdefault(item.category, []).append(item)
     on_list = {
@@ -99,13 +98,13 @@ def add(
     if not clean_name:
         return _respond_list(ctx, clear_suggestions=True)
     category = category if category in service.CATEGORY_ORDER else None
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"„{clean_name[:60]}“ auf die Einkaufsliste gesetzt") as act:
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("„%(name)s“ auf die Einkaufsliste gesetzt", name=clean_name[:60])) as act:
         item, merged = service.add_item(
             ctx.db, act, ctx.space.id, clean_name, amount, unit, category, added_by=ctx.member.name
         )
     if target == "chip":
         return render(ctx, "partials/chip_added.html", name=item.name)
-    return _respond_list(ctx, f"„{item.name}“ hinzugefügt", clear_suggestions=True)
+    return _respond_list(ctx, _("„%(name)s“ hinzugefügt", name=item.name), clear_suggestions=True)
 
 
 # Reihenfolge: vor "/shopping/{item_id}/…" deklarieren, damit "reorder"/"categories" nicht als item_id gelesen werden.
@@ -118,7 +117,7 @@ def reorder(
     if category not in service.CATEGORY_ORDER:
         raise HTTPException(400, "Unbekannte Kategorie")
     ordered = (ids or [])[:MAX_IDS]
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"Artikel in „{category}“ umsortiert") as act:
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Artikel in „%(category)s“ umsortiert", category=category)) as act:
         service.reorder_items(ctx.db, act, ctx.space.id, category, ordered)
     return _respond_list(ctx)
 
@@ -147,7 +146,7 @@ def order_categories(
 ):
     """Entweder eine Kategorie vor/hinter eine andere setzen (Ziehen in der Liste)
     oder eine vollständige Reihenfolge übernehmen (Seite „Ladenreihenfolge“)."""
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, "Kategorien umsortiert") as act:
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Kategorien umsortiert")) as act:
         if category:
             if category not in service.CATEGORY_ORDER:
                 raise HTTPException(400, "Unbekannte Kategorie")
@@ -164,10 +163,10 @@ def clear_checked(ctx: Annotated[Ctx, Depends(get_ctx)]):
         select(ShoppingItem).where(ShoppingItem.space_id == ctx.space.id, ShoppingItem.checked.is_(True))
     ).all()
     if checked:
-        with history.record(ctx.db, ctx.space.id, ctx.member.name, f"{len(checked)} erledigte Artikel entfernt") as act:
+        with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("%(count)s erledigte Artikel entfernt", count=len(checked))) as act:
             for item in checked:
                 act.deleting(item)
-    return _respond_list(ctx, f"{len(checked)} Artikel entfernt" if checked else None)
+    return _respond_list(ctx, _("%(count)s Artikel entfernt", count=len(checked)) if checked else None)
 
 
 @router.post("/shopping/{item_id}/toggle")
@@ -180,8 +179,8 @@ def toggle(
     item = _get_item(ctx, item_id)
     wanted = (not item.checked) if state == "" else state == "1"
     if wanted != item.checked:
-        label = "abgehakt" if wanted else "wieder auf die Liste gesetzt"
-        with history.record(ctx.db, ctx.space.id, ctx.member.name, f"„{item.name[:60]}“ {label}") as act:
+        text = N_("„%(name)s“ abgehakt") if wanted else N_("„%(name)s“ wieder auf die Liste gesetzt")
+        with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg(text, name=item.name[:60])) as act:
             act.updating(item)
             item.checked = wanted
             item.checked_at = now() if wanted else None
@@ -202,7 +201,11 @@ def move_to_category(
         raise HTTPException(400, "Unbekannte Kategorie")
     if item.checked:
         raise HTTPException(400, "Gekaufte Artikel lassen sich nicht verschieben")
-    label = f"„{item.name[:60]}“ nach „{category}“ verschoben" if item.category != category else f"„{item.name[:60]}“ verschoben"
+    label = (
+        history.msg("„%(name)s“ nach „%(category)s“ verschoben", name=item.name[:60], category=category)
+        if item.category != category
+        else history.msg("„%(name)s“ verschoben", name=item.name[:60])
+    )
     with history.record(ctx.db, ctx.space.id, ctx.member.name, label) as act:
         service.move_to_category(ctx.db, act, ctx.space.id, item, category, (ids or [])[:MAX_IDS])
     return _respond_list(ctx)
@@ -212,6 +215,6 @@ def move_to_category(
 def delete(ctx: Annotated[Ctx, Depends(get_ctx)], item_id: int):
     item = _get_item(ctx, item_id)
     name = item.name
-    with history.record(ctx.db, ctx.space.id, ctx.member.name, f"„{name[:60]}“ von der Einkaufsliste entfernt") as act:
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("„%(name)s“ von der Einkaufsliste entfernt", name=name[:60])) as act:
         act.deleting(item)
-    return _respond_list(ctx, f"„{name[:40]}“ entfernt")
+    return _respond_list(ctx, _("„%(name)s“ entfernt", name=name[:40]))

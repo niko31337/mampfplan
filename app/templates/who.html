@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Wer bist du? – Mampfplan{% endblock %}
+{% block title %}{{ _('Wer bist du?') }} – Mampfplan{% endblock %}
 {% block content %}
-<h1>Wer bist du?</h1>
-<p class="muted">Damit im Verlauf steht, wer was geändert hat. Das ist kein Login – du kannst jederzeit wechseln.</p>
+<h1>{{ _('Wer bist du?') }}</h1>
+<p class="muted">{{ _("Damit im Verlauf steht, wer was geändert hat. Das ist kein Login – du kannst jederzeit wechseln.") }}</p>
 <div class="big-btn-list">
   {% for m in members %}
   <form method="post" action="{{ base }}/who" hx-boost="false">
@@ -12,4 +12,5 @@
   </form>
   {% endfor %}
 </div>
+{% include "partials/language_form.html" %}
 {% endblock %}

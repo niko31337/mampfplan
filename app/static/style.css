@@ -78,7 +78,8 @@ main { max-width: 640px; margin: 0 auto; padding: 0.5rem 1rem 1rem; }
 }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.danger { color: var(--danger); }
-.btn.small { min-height: 36px; padding: 0 0.8rem; font-size: 0.9rem; }
+.btn.small { min-height: 36px; padding: 0 0.8rem; font-size: 0.9rem; white-space: nowrap; }
+.row.spread > h1 { min-width: 0; hyphens: auto; } /* lange Überschriften (z. B. „Liste de courses“) brechen statt der Buttons */
 .btn.block { width: 100%; }
 .btn-undo {
   min-height: 36px; padding: 0 0.8rem; border-radius: 999px; border: 0; cursor: pointer;

@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 
 import httpx
 
+from app.i18n import _, get_language
+
 from app.services.units import metric_ingredient, metric_text
 
 USER_AGENT = "Mampfplan/1.0 (private family app)"
@@ -75,8 +77,9 @@ class RecipeSource(ABC):
 
     def get(self, external_id: str) -> ExternalRecipe:
         if not ID_PATTERN.match(external_id):
-            raise SourceError("Ungültige Rezept-ID")
-        return self._cached(("get", external_id), lambda: to_metric(self._get(external_id)))
+            raise SourceError(_("Ungültige Rezept-ID"))
+        # Je Sprache getrennt zwischenspeichern: die Umrechnung nutzt sprachabhängige Löffel-Kürzel
+        return self._cached(("get", external_id, get_language()), lambda: to_metric(self._get(external_id)))
 
     def _json(self, url: str, **kwargs) -> dict:
         try:
@@ -84,9 +87,9 @@ class RecipeSource(ABC):
             response.raise_for_status()
             data = response.json()
         except (httpx.HTTPError, ValueError) as exc:
-            raise SourceError(f"{self.label} ist gerade nicht erreichbar") from exc
+            raise SourceError(_("%(source)s ist gerade nicht erreichbar", source=self.label)) from exc
         if not isinstance(data, dict):
-            raise SourceError(f"{self.label} lieferte unerwartete Daten")
+            raise SourceError(_("%(source)s lieferte unerwartete Daten", source=self.label))
         return data
 
     def _cached(self, key: tuple, producer):

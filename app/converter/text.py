@@ -12,32 +12,49 @@ from dataclasses import dataclass, field
 from app.converter.html import Line
 
 _INGREDIENT_HEADING = re.compile(
-    r"(zutaten(liste)?|du brauchst|ihr braucht|was du brauchst|einkaufsliste|ingredients?|rezept|recipe)(?![\w-])",
+    r"(zutaten(liste)?|du brauchst|ihr braucht|was du brauchst|einkaufsliste|ingredients?|rezept|recipe"
+    r"|ingrédients?|il (vous )?faut|recette|ingredientes|necesitas|receta)(?![\w-])",
     re.I,
 )
 _STEPS_HEADING = re.compile(
     r"(zubereitung|anleitung|und so geht'?s|so geht'?s|so wird'?s gemacht|schritte|instructions?|directions?"
-    r"|method|preparation|how to make it)(?![\w-])",
+    r"|method|preparation|how to make it"
+    r"|préparation|étapes|recette pas à pas|instructions|déroulé"
+    r"|preparación|elaboración|pasos|modo de preparación|instrucciones)(?![\w-])",
     re.I,
 )
-_NUMBER_WORDS = {"ein": 1, "eine": 1, "einen": 1, "zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "sechs": 6, "acht": 8, "zehn": 10, "two": 2, "three": 3, "four": 4, "six": 6}  # fmt: skip
+_NUMBER_WORDS = {
+    "ein": 1, "eine": 1, "einen": 1, "zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "sechs": 6, "acht": 8, "zehn": 10,
+    "two": 2, "three": 3, "four": 4, "six": 6,
+    "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "huit": 8,
+    "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "ocho": 8,
+}  # fmt: skip
 _SERVINGS = re.compile(
     r"(\d+|" + "|".join(_NUMBER_WORDS) + r")(?:\s*[-–]\s*\d+)?\s*"
-    r"(portionen|portion|personen|person|pers\.?|servings?|portions?|people|schüsseln|bowls?|teller)\b",
+    r"(portionen|portion|personen|person|pers\.?|servings?|portions?|people|schüsseln|bowls?|teller"
+    r"|personnes|parts|porciones|raciones|personas|comensales)\b",
     re.I,
 )
 # In Überschriften („Zutaten für 12 Stück“) zählen auch Stück – im übrigen Text wäre „1 Stück Zwiebel“ falsch
-_SERVINGS_IN_HEADING = re.compile(_SERVINGS.pattern.replace("|teller)", "|teller|stücke?|stk\\.?)"), re.I)
+_SERVINGS_IN_HEADING = re.compile(
+    _SERVINGS.pattern.replace("|comensales)", "|comensales|stücke?|stk\\.?|pièces|unidades)"), re.I
+)
 _NUMBERED = re.compile(r"^\s*\d{1,2}\s*[.)]\s+")
 _KEYCAP = re.compile("([0-9])️?⃣")  # 1️⃣ → 1.
 _LEADING_SYMBOLS = re.compile(r"^[^\w(„“\"'’]+")
 _HASHTAG = re.compile(r"#[\w-]+")
 _PROMO = re.compile(
     r"link in (der |meiner )?bio|folge? (mir|uns)|follow (me|us|for)|speicher(e|t)? (dir )?(das|den|dieses)|save (this|it|for)"
-    r"|teil(e|t) (das|den|dieses)|share (this|with)|comment\b|kommentier|markier(e|t)|tag (a|someone)|abonnier|werbung|anzeige",
+    r"|teil(e|t) (das|den|dieses)|share (this|with)|comment\b|kommentier|markier(e|t)|tag (a|someone)|abonnier|werbung|anzeige"
+    r"|lien (dans|en) (la )?bio|abonne[sz]?-vous|suivez-moi|enregistre[sz]? (la|cette)|partage[sz]? (la|cette)|commentaire"
+    r"|enlace en (la )?bio|sígueme|síguenos|guarda (la|esta)|comparte (la|esta)|comenta\b",
     re.I,
 )
-_GROUP_START = re.compile(r"^(für|for|zum|zur|zusätzlich|außerdem|optional|topping|garnish|deko|sauce|soße|dressing|dip|teig|füllung|marinade)\b", re.I)
+_GROUP_START = re.compile(
+    r"^(für|for|zum|zur|zusätzlich|außerdem|optional|topping|garnish|deko|sauce|soße|dressing|dip|teig|füllung|marinade"
+    r"|pour|la sauce|la pâte|la garniture|para|la salsa|la masa|el relleno|el aliño)\b",
+    re.I,
+)
 
 
 _KEEP_SYMBOLS = set("°℃℉©®")
@@ -133,7 +150,7 @@ def _heading(raw: str):
         head = head.strip()
         if len(head) > 45:
             continue
-        if head and not colon and not re.match(r"^(\(|für|for|fuer|\d)", head, re.I):
+        if head and not colon and not re.match(r"^(\(|für|for|fuer|pour|para|\d)", head, re.I):
             continue  # Satz wie „Rezept findet ihr im Blog“
         return kind, head, inline.strip()
     return None
@@ -347,20 +364,24 @@ def _collect_steps(rows: list[Line]) -> list[str]:
 
 _FLAT_KEYWORD = re.compile(
     r"(?<![\w'-])(zutaten(?:liste)?|zubereitung|anleitung|und so geht'?s|so geht'?s|du brauchst|ingredients?|instructions?"
-    r"|directions?|method|rezept|recipe)(?![\w-])",
+    r"|directions?|method|rezept|recipe|ingrédients?|préparation|étapes|recette|ingredientes|preparación|elaboración"
+    r"|pasos|receta)(?![\w-])",
     re.I,
 )
 _FLAT_HEAD_END = [
     re.compile(r"^[^:\n!?]{0,45}?:"),  # „Zutaten für 4 Portionen:“
     re.compile(r"^\s*\([^()]{0,30}\)"),  # „ZUTATEN (Für 2 Pers.)“
-    re.compile(r"^\s+(?:für|for)\s+(?:ca\.?\s*)?\d+(?:\s*[-–]\s*\d+)?\s+\S+", re.I),  # „Zutaten für 6 Stück“
+    re.compile(r"^\s+(?:für|for|pour|para)\s+(?:ca\.?\s*)?\d+(?:\s*[-–]\s*\d+)?\s+\S+", re.I),  # „Zutaten für 6 Stück“
 ]
 _FLAT_FOLLOWS_LIST = re.compile(r"^(\s{2,}|\s*[•▪▫👉✅➡🔸]|\s+[-–]\s|\s+1[.)]\s|\s*$)")
 _FLAT_BULLETS = re.compile(r"\s*(?=[•▪▫👉✅➡🔸])")
 _FLAT_DASHES = re.compile(r"\s+(?=[-–]\s*\S)")
 _FLAT_NUMBERED = re.compile(r"\s+(?=\d{1,2}[.)]\s+[A-Za-zÄÖÜäöü])")
 _QUANTITY_START = re.compile(r"^(\d+(?:[.,/]\d+)?|[½¼¾⅓⅔])")
-_NOT_BEFORE_QUANTITY = {"ca", "ca.", "für", "for", "x", "bis", "to", "oder", "or", "und", "and", "-", "–", "von", "of", "à", "je"}
+_NOT_BEFORE_QUANTITY = {
+    "ca", "ca.", "für", "for", "x", "bis", "to", "oder", "or", "und", "and", "-", "–", "von", "of", "à", "je",
+    "pour", "ou", "et", "de", "para", "o", "y", "a",
+}  # fmt: skip
 
 
 def _flat_headings(text: str) -> str:

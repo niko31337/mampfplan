@@ -15,6 +15,7 @@ from markupsafe import Markup, escape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import i18n
 from app.config import get_settings, today
 from app.db import get_db
 from app.models import Member, Space
@@ -28,10 +29,11 @@ MEMBER_COOKIE = "mp_member"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
-WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
-MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+WEEKDAYS = i18n.WEEKDAYS["de"]  # API-Standard (Home Assistant)
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+templates.env.add_extension("jinja2.ext.i18n")
+templates.env.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=True)
 
 
 def _asset_version() -> str:
@@ -88,22 +90,57 @@ def source_label(recipe) -> str:
 
 
 def _date_short(d: date) -> str:
-    return d.strftime("%d.%m.")
+    return i18n.date_short(d)
 
 
 def _date_long(d: date) -> str:
-    return f"{WEEKDAYS[d.weekday()]}, {d.day}. {MONTHS[d.month - 1]}"
+    return i18n.date_long(d)
+
+
+def category_label(category: str) -> str:
+    """Kategorien heißen intern deutsch (Datenbank, Ladenreihenfolge); angezeigt wird die Übersetzung."""
+    return i18n.translate(category)
+
+
+def describe(description: str) -> str:
+    """Verlaufseintrag anzeigen: neue Einträge sind übersetzbar gespeichert, alte als deutscher Klartext."""
+    return history.describe(description)
+
+
+# Texte, die app.js braucht (als JSON-Datenblock in base.html – kein Inline-Skript)
+JS_TEXTS = [
+    "Alle wählen", "Keine wählen", "Kopiert ✓", "📴 Gemerkt – wird übertragen, sobald du wieder Verbindung hast.",
+    "Keine Verbindung zum Server.", "Sitzung abgelaufen – bitte Seite neu laden.", "Das hat leider nicht geklappt.",
+    "✓ Änderungen synchronisiert",
+    "🔄 %(num)s Änderung wird übertragen …", "🔄 %(num)s Änderungen werden übertragen …",
+    "📴 Keine Verbindung – %(num)s Änderung wartet auf Übertragung", "📴 Keine Verbindung – %(num)s Änderungen warten auf Übertragung",
+    "📴 Offline – Abhaken und Ansehen funktioniert weiterhin", "Gekauft",
+    "in den Wagen gelegt von %(name)s", "eingetragen von %(name)s",
+    "Display-Sperre nicht verfügbar (benötigt HTTPS)", "🔆 Display bleibt an, solange diese Seite offen ist",
+]  # fmt: skip
+
+
+def js_texts() -> dict[str, str]:
+    from app.services.shopping import CATEGORY_ORDER  # Kategorienamen für neu angelegte Gruppen
+
+    return {msgid: i18n.translate(msgid) for msgid in [*JS_TEXTS, *CATEGORY_ORDER]}
 
 
 templates.env.filters["date_short"] = _date_short
 templates.env.filters["date_long"] = _date_long
+templates.env.filters["category"] = category_label
+templates.env.filters["date_numeric"] = i18n.date_numeric
+templates.env.filters["describe"] = describe
+templates.env.globals["js_texts"] = js_texts
+templates.env.globals["current_lang"] = i18n.get_language
+templates.env.globals["languages"] = i18n.LANGUAGES
 templates.env.filters["amount"] = format_amount
 templates.env.filters["quantity"] = format_quantity
 templates.env.filters["cached_img"] = cached_image_src
 templates.env.filters["host"] = url_host
 templates.env.filters["linkify"] = linkify
 templates.env.filters["source_label"] = source_label
-templates.env.globals["weekdays"] = WEEKDAYS
+templates.env.globals["weekday_name"] = i18n.weekday_name
 
 
 class NeedsProfile(Exception):

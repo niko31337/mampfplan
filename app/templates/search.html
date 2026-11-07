@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set nav = 'search' %}
-{% block title %}Rezeptsuche – Mampfplan{% endblock %}
+{% block title %}{{ _('Rezeptsuche') }} – Mampfplan{% endblock %}
 {% block content %}
-<h1>Rezepte online suchen</h1>
+<h1>{{ _('Rezepte online suchen') }}</h1>
 
 <div class="tabs" role="tablist">
   {% for key, src in sources.items() %}
@@ -14,16 +14,16 @@
 <form method="get" action="{{ base }}/search" class="inline">
   <input type="hidden" name="source" value="{{ active.key }}">
   {% if day %}<input type="hidden" name="day" value="{{ day.isoformat() }}">{% endif %}
-  <input type="search" name="q" value="{{ q }}" placeholder="{{ 'z. B. Lasagne' if active.language == 'de' else 'e.g. chicken' }}" maxlength="100" required aria-label="Suchbegriff">
-  <button class="btn primary">Suchen</button>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('z. B. Lasagne') if active.language == 'de' else 'e.g. chicken' }}" maxlength="100" required aria-label="{{ _('Suchbegriff') }}">
+  <button class="btn primary">{{ _("Suchen") }}</button>
 </form>
 
 {% if active.key == 'chefkoch' %}
-<p class="muted small">Chefkoch wird über eine inoffizielle Schnittstelle abgefragt und kann gelegentlich ausfallen.</p>
-{% elif active.language == 'en' %}
-<p class="muted small">Diese Quelle liefert englische Rezepte. Zutaten und Schritte kannst du nach dem Übernehmen selbst bearbeiten.</p>
+<p class="muted small">{{ _("Chefkoch wird über eine inoffizielle Schnittstelle abgefragt und kann gelegentlich ausfallen.") }}</p>
+{% elif active.language == 'en' and current_lang() != 'en' %}
+<p class="muted small">{{ _('Diese Quelle liefert englische Rezepte. Zutaten und Schritte kannst du nach dem Übernehmen selbst bearbeiten.') }}</p>
 {% endif %}
-{% if day %}<p class="alert">Das übernommene Rezept wird danach für {{ day|date_long }} vorgeschlagen.</p>{% endif %}
+{% if day %}<p class="alert">{{ _('Das übernommene Rezept wird danach für %(day)s vorgeschlagen.', day=day|date_long) }}</p>{% endif %}
 
 {% if error %}<p class="alert error">{{ error }}</p>{% endif %}
 
@@ -38,7 +38,7 @@
       </a>
     </li>
     {% else %}
-    <li class="empty">Keine Treffer.</li>
+    <li class="empty">{{ _("Keine Treffer.") }}</li>
     {% endfor %}
   </ul>
 </div>

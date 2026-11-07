@@ -20,6 +20,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from app.recipe_sources.base import USER_AGENT
+from app.i18n import _
 
 MAX_URL_LENGTH = 2000
 MAX_PAGE_BYTES = 6 * 1024 * 1024
@@ -48,18 +49,18 @@ def validate_url(url: str) -> str:
     """Prüft die Form der Adresse und gibt sie bereinigt zurück (ohne Fragment)."""
     url = (url or "").strip()
     if not url or len(url) > MAX_URL_LENGTH:
-        raise FetchError("Bitte einen gültigen Link eingeben.")
+        raise FetchError(_("Bitte einen gültigen Link eingeben."))
     try:
         parts = urlsplit(url)
         port = parts.port
     except ValueError as exc:
-        raise FetchError("Bitte einen gültigen Link eingeben.") from exc
+        raise FetchError(_("Bitte einen gültigen Link eingeben.")) from exc
     if parts.scheme != "https":
-        raise FetchError("Nur Links mit https:// werden unterstützt.")
+        raise FetchError(_("Nur Links mit https:// werden unterstützt."))
     if not parts.hostname or parts.username is not None or parts.password is not None:
-        raise FetchError("Bitte einen gültigen Link eingeben.")
+        raise FetchError(_("Bitte einen gültigen Link eingeben."))
     if port not in (None, 443):
-        raise FetchError("Links auf andere Ports als 443 werden nicht abgerufen.")
+        raise FetchError(_("Links auf andere Ports als 443 werden nicht abgerufen."))
     return parts._replace(fragment="").geturl()
 
 
@@ -77,7 +78,7 @@ def _resolve(host: str) -> list[str]:
     try:
         infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
     except (socket.gaierror, UnicodeError) as exc:
-        raise FetchError("Die Seite wurde nicht gefunden.") from exc
+        raise FetchError(_("Die Seite wurde nicht gefunden.")) from exc
     return [info[4][0] for info in infos]
 
 
@@ -85,7 +86,7 @@ def check_host(host: str) -> None:
     """Der Host muss ausschließlich auf öffentliche Adressen zeigen."""
     addresses = _resolve(host)
     if not addresses or not all(_is_public(a) for a in addresses):
-        raise FetchError("Dieser Link zeigt auf ein internes Netz und wird nicht abgerufen.")
+        raise FetchError(_("Dieser Link zeigt auf ein internes Netz und wird nicht abgerufen."))
 
 
 def _check_peer(response: httpx.Response) -> None:
@@ -94,7 +95,7 @@ def _check_peer(response: httpx.Response) -> None:
         return
     peer = stream.get_extra_info("server_addr")
     if peer and not _is_public(str(peer[0])):
-        raise FetchError("Dieser Link zeigt auf ein internes Netz und wird nicht abgerufen.")
+        raise FetchError(_("Dieser Link zeigt auf ein internes Netz und wird nicht abgerufen."))
 
 
 def make_client() -> httpx.Client:
@@ -117,7 +118,7 @@ def fetch(
     client = client or make_client()
     try:
         current = validate_url(url)
-        for _ in range(MAX_REDIRECTS + 1):
+        for _hop in range(MAX_REDIRECTS + 1):
             check_host(urlsplit(current).hostname)
             try:
                 with client.stream("GET", current, headers={"Accept": ", ".join(accept) + ", */*;q=0.1"}) as response:
@@ -127,14 +128,14 @@ def fetch(
                         current = validate_url(urljoin(current, location))
                         continue
                     if response.status_code != 200:
-                        raise FetchError(f"Die Seite antwortet mit Fehler {response.status_code}.")
+                        raise FetchError(_("Die Seite antwortet mit Fehler %(code)s.", code=response.status_code))
                     content_type, charset = _content_type(response.headers.get("content-type", ""))
                     if content_type not in accept:
-                        raise FetchError("Unter diesem Link liegt keine Webseite.")
+                        raise FetchError(_("Unter diesem Link liegt keine Webseite."))
                     return Fetched(current, _read_limited(response, max_bytes), content_type, charset)
             except httpx.HTTPError as exc:
-                raise FetchError("Die Seite ist gerade nicht erreichbar.") from exc
-        raise FetchError("Zu viele Weiterleitungen.")
+                raise FetchError(_("Die Seite ist gerade nicht erreichbar.")) from exc
+        raise FetchError(_("Zu viele Weiterleitungen."))
     finally:
         if own_client:
             client.close()
@@ -144,7 +145,7 @@ def _content_type(header: str) -> tuple[str, str | None]:
     main, *params = [p.strip() for p in header.split(";")]
     charset = None
     for param in params:
-        key, _, value = param.partition("=")
+        key, _sep, value = param.partition("=")
         if key.strip().lower() == "charset":
             charset = value.strip().strip('"') or None
     return main.lower(), charset
@@ -153,12 +154,12 @@ def _content_type(header: str) -> tuple[str, str | None]:
 def _read_limited(response: httpx.Response, max_bytes: int) -> bytes:
     declared = response.headers.get("content-length", "")
     if declared.isdigit() and int(declared) > max_bytes:
-        raise FetchError("Die Seite ist zu groß.")
+        raise FetchError(_("Die Seite ist zu groß."))
     chunks, total = [], 0
     for chunk in response.iter_bytes():
         total += len(chunk)
         if total > max_bytes:
-            raise FetchError("Die Seite ist zu groß.")
+            raise FetchError(_("Die Seite ist zu groß."))
         chunks.append(chunk)
     return b"".join(chunks)
 

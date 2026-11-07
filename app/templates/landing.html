@@ -2,7 +2,8 @@
 {% block content %}
 <div class="card center">
   <h1>🍽 Mampfplan</h1>
-  <p>Wochenplan und Einkaufsliste für die Familie.</p>
-  <p class="muted">Diese App ist privat. Bitte den persönlichen Link benutzen, den du beim ersten Start bekommen hast.</p>
+  <p>{{ _('Wochenplan und Einkaufsliste für die Familie.') }}</p>
+  <p class="muted">{{ _("Diese App ist privat. Bitte den persönlichen Link benutzen, den du beim ersten Start bekommen hast.") }}</p>
+  {% include "partials/language_form.html" %}
 </div>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% if undo and member %}
 <form method="post" action="{{ base }}/undo" hx-post="{{ base }}/undo" hx-swap="none">
   <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-  <button class="btn-undo" title="Rückgängig: {{ undo.description }} ({{ undo.member_name }})">↶ Rückgängig</button>
+  <button class="btn-undo" title="{{ _('Rückgängig: %(what)s (%(who)s)', what=undo.description|describe, who=undo.member_name) }}">↶ {{ _("Rückgängig") }}</button>
 </form>
 {% endif %}

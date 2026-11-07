@@ -44,7 +44,20 @@ _PARENS_US = re.compile(rf"\(\s*{_RANGE}\s*-?\s*(?:{_UNIT_RE})(?![\w])\s*\)", re
 
 ML = {"cup": 240.0, "floz": 29.57, "pint": 473.0, "quart": 946.0, "gallon": 3785.0, "oz": 29.57}
 GRAMS = {"oz": 28.35, "lb": 453.6, "stick": 113.0}
-SPOONS = {"tbsp": "EL", "tsp": "TL"}
+# Löffel bleiben Löffel – nur mit dem Kürzel der Anzeigesprache
+SPOONS_BY_LANG = {
+    "de": {"tbsp": "EL", "tsp": "TL"},
+    "en": {"tbsp": "tbsp", "tsp": "tsp"},
+    "fr": {"tbsp": "cs", "tsp": "cc"},
+    "es": {"tbsp": "cda", "tsp": "cdta"},
+}
+SPOONS = SPOONS_BY_LANG["de"]
+
+
+def _spoon(key: str) -> str:
+    from app.i18n import get_language
+
+    return SPOONS_BY_LANG.get(get_language(), SPOONS)[key]
 
 # Gramm pro US-Tasse (240 ml). Spezifische Begriffe zuerst, damit „brown sugar“ nicht als „sugar“ zählt.
 CUP_GRAMS: list[tuple[str, float]] = [
@@ -138,7 +151,7 @@ def _metric(value: float, unit: str) -> tuple[float, str]:
 def convert_amount(amount: float, key: str, name: str) -> tuple[float, str] | None:
     """Menge in US-Einheit → (Menge, metrische Einheit). None, wenn die Einheit nicht umgerechnet wird."""
     if key in SPOONS:
-        return amount, SPOONS[key]
+        return amount, _spoon(key)
     if key == "stick":
         return _metric(amount * GRAMS["stick"], "g")
     if key == "lb":

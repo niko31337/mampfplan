@@ -10,7 +10,7 @@
   <li>
     <button type="button" class="chip new" hx-post="{{ base }}/shopping/add"
             hx-vals='{{ {"name": q}|tojson }}'
-            hx-target="#shopping-list" hx-swap="outerHTML">＋ „{{ q }}“ neu</button>
+            hx-target="#shopping-list" hx-swap="outerHTML">＋ {{ _("„%(q)s“ neu", q=q) }}</button>
   </li>
 </ul>
 {% endif %}
