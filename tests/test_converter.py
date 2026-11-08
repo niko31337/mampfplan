@@ -1,4 +1,4 @@
-"""Rezept-Konverter: Erkennung aus Rezept-Markup, Blogtext und Instagram-Beschreibungen; Seitenablauf."""
+"""Recipe converter: detection from recipe markup, blog text and Instagram captions; page flow."""
 
 import html as html_lib
 import json
@@ -23,7 +23,7 @@ from app.services.images import ImageCache
 
 JPEG = b"\xff\xd8\xff\xe0" + b"j" * 200
 
-# --- Beispieltexte (selbst geschrieben, im Aufbau echten Posts nachempfunden) -------------------
+# --- Sample texts (self-written, structured like real posts) ----------------------------------
 
 CAPTION_DE = """Ofen-Gnocchi mit Feta 🧀🍅
 
@@ -169,7 +169,7 @@ def instagram_page(caption: str) -> str:
     )
 
 
-# --- Erkennung ----------------------------------------------------------------------------------
+# --- Detection ---------------------------------------------------------------------------------
 
 
 def test_german_caption_with_headings_and_emoji_bullets():
@@ -177,7 +177,7 @@ def test_german_caption_with_headings_and_emoji_bullets():
     assert result.title == "Ofen-Gnocchi mit Feta"
     assert result.servings == 2
     assert result.ingredients == ["500 g Gnocchi", "250 g Kirschtomaten, halbiert", "1 rote Zwiebel", "200 g Feta", "Salz & Pfeffer"]
-    # Plauderei und Hashtags nach der Aufzählung gehören nicht zur Anleitung
+    # chit-chat and hashtags after the list don't belong to the steps
     assert result.steps == ["Ofen auf 200 °C vorheizen", "Alles aufs Blech geben und 20 Minuten backen", "Feta zerdrücken, verrühren – fertig!"]
 
 
@@ -281,7 +281,7 @@ def test_page_with_several_recipes_picks_the_main_one():
     chili = {"@type": "Recipe", "name": "Chili con Carne", "recipeIngredient": ["500 g Hack", "1 Dose Bohnen"]}
     page = ld_page(seasoning) + ld_page(chili)
     assert structured_recipe(page, "Chili con Carne – Mein Blog").title == "Chili con Carne"
-    assert structured_recipe(page, "Ganz anderer Titel").title == "Chili-Gewürzmischung"  # mehr Zutaten → bei Gleichstand das erste
+    assert structured_recipe(page, "Ganz anderer Titel").title == "Chili-Gewürzmischung"  # more ingredients → on a tie the first one
     bigger = {**chili, "recipeIngredient": ["500 g Hack", "1 Dose Bohnen", "1 Zwiebel"]}
     assert structured_recipe(ld_page(seasoning) + ld_page(bigger)).title == "Chili con Carne"
 
@@ -320,16 +320,16 @@ def test_source_line_is_appended_once():
     assert with_source_line("1. Kochen", None) == "1. Kochen"
 
 
-# --- convert() mit gefälschtem Abruf ----------------------------------------------------------
+# --- convert() with a fake fetch -------------------------------------------------------------
 
 
 class Table(dict):
-    """URL → HTML; merkt sich zusätzlich die abgerufenen Adressen (requested)."""
+    """URL → HTML; also remembers the fetched addresses (requested)."""
 
 
 @pytest.fixture
 def pages(monkeypatch):
-    """Gefälschtes Internet: URL → HTML (oder FetchError). Bilder liefern ein JPEG."""
+    """Fake internet: URL → HTML (or FetchError). Images return a JPEG."""
     table = Table()
     requested: list[str] = []
 
@@ -343,7 +343,7 @@ def pages(monkeypatch):
             raise FetchError("Die Seite antwortet mit Fehler 404.")
         if isinstance(page, Exception):
             raise page
-        if isinstance(page, tuple):  # (Ziel der Weiterleitung, HTML)
+        if isinstance(page, tuple):  # (redirect target, HTML)
             return Fetched(page[0], page[1].encode(), "text/html", "utf-8")
         return Fetched(url, page.encode(), "text/html", "utf-8")
 
@@ -408,7 +408,7 @@ def test_other_fetch_errors_are_reported(pages):
         convert("http://blog.example/unsicher")
 
 
-# --- Seitenablauf ------------------------------------------------------------------------------
+# --- Page flow -------------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -469,9 +469,9 @@ def test_preview_is_editable_and_saved_with_source(web, pages, image_cache):
     assert "2 Dosen Kidneybohnen" in page
     assert f"Quelle: {url}" in page
     with SessionLocal() as db:
-        assert db.scalars(select(Recipe)).all() == []  # Vorschau speichert nichts
+        assert db.scalars(select(Recipe)).all() == []  # the draft stores nothing
 
-    # Anpassen: Titel ändern, Zutat ergänzen, Quellenzeile löschen → kommt beim Speichern zurück
+    # adjust: change the title, add an ingredient, delete the source line → comes back on save
     recipe = save_draft(web, page, title="Chili für Zuhause", ingredients="1 Zwiebel\n1 Paprika", steps="1. Alles kochen.")
     assert recipe.title == "Chili für Zuhause"
     assert recipe.source == "link" and recipe.source_url == url
@@ -716,7 +716,7 @@ def test_tiktok_paste_box_has_a_tiktok_hint(web, pages):
     assert "angepinnten Kommentar" in page
 
 
-# --- Beschreibungen ohne Zeilenumbrüche (so liefert TikTok sie aus) -----------------------------
+# --- Captions without line breaks (that's how TikTok delivers them) ----------------------------
 
 from app.converter.text import restore_lines  # noqa: E402
 
@@ -751,7 +751,7 @@ def test_restore_lines_splits_run_on_ingredients_before_each_quantity():
         "1 Zwiebel",
         "2 Knoblauchzehen",
         "1 Dose Kidneybohnen",
-        "400 g Tomaten (gehackt, 2 Dosen)",  # in Klammern wird nicht getrennt
+        "400 g Tomaten (gehackt, 2 Dosen)",  # no splitting inside parentheses
         "1 TL Kreuzkümmel Salz Pfeffer",
     ]
 

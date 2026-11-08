@@ -5,14 +5,14 @@ services:
     container_name: mampfplan
     restart: unless-stopped
     ports:
-      # Nur lokal erreichbar. Von außen kommt man über den Reverse Proxy (siehe docker-compose.caddy.yml).
+      # Only reachable locally. From outside, access goes through the reverse proxy (see docker-compose.caddy.yml).
       - "127.0.0.1:8000:8000"
     env_file:
       - .env
     volumes:
-      # Benanntes Volume: gehört automatisch dem Container-User (keine chown-Probleme).
-      # Für Backups auf dem NAS alternativ ein Verzeichnis einbinden: ./data:/data
-      # (dann vorher `chown 10001 data` ausführen).
+      # Named volume: automatically owned by the container user (no chown issues).
+      # For backups on a NAS, mount a directory instead: ./data:/data
+      # (run `chown 10001 data` first).
       - mampfplan-data:/data
     read_only: true
     tmpfs:

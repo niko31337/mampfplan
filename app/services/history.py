@@ -1,8 +1,8 @@
-"""Änderungsverlauf und Rückgängig-Funktion.
+"""Change history and undo.
 
-Jede Benutzeraktion läuft über `record(...)`. Dabei werden die *Umkehr-Operationen*
-(löschen / wieder einfügen / alte Werte zurückschreiben) als JSON im `ActivityLog`
-gespeichert. `undo_last` führt sie aus. Dieselbe Tabelle dient als Verlaufsanzeige.
+Every user action goes through `record(...)`. It stores the *inverse operations*
+(delete / re-insert / write back old values) as JSON in the `ActivityLog`.
+`undo_last` executes them. The same table serves as the history view.
 """
 
 import json
@@ -25,7 +25,7 @@ from app.models import (
     ShoppingItem,
 )
 
-# Nur diese Tabellen dürfen über Undo-Operationen verändert werden.
+# Only these tables may be changed by undo operations.
 UNDOABLE_MODELS = {
     "plan_entries": PlanEntry,
     "shopping_items": ShoppingItem,
@@ -62,24 +62,24 @@ def snapshot(obj) -> dict[str, Any]:
 
 
 class Action:
-    """Sammelt die Umkehr-Operationen einer Benutzeraktion."""
+    """Collects the inverse operations of a user action."""
 
     def __init__(self, db: Session):
         self.db = db
         self.ops: list[dict] = []
 
-    # Reihenfolge: neue Umkehr-Operationen vorne einfügen, damit sie rückwärts laufen.
+    # Order: insert new inverse operations at the front so they run backwards.
     def created(self, obj) -> None:
-        """Nach `db.flush()` aufrufen, wenn `obj` neu angelegt wurde."""
+        """Call after `db.flush()` when `obj` was newly created."""
         self.ops.insert(0, {"op": "delete", "table": obj.__tablename__, "id": obj.id})
 
     def updating(self, obj) -> None:
-        """VOR dem Ändern von `obj` aufrufen."""
+        """Call BEFORE changing `obj`."""
         values = snapshot(obj)
         self.ops.insert(0, {"op": "update", "table": obj.__tablename__, "id": values.pop("id"), "values": values})
 
     def deleting(self, obj) -> None:
-        """Merkt sich `obj` und löscht es."""
+        """Remembers `obj` and deletes it."""
         self.ops.insert(0, {"op": "insert", "table": obj.__tablename__, "row": snapshot(obj)})
         self.db.delete(obj)
 
@@ -90,7 +90,7 @@ def record(db: Session, space_id: int, member_name: str, description: str) -> It
     try:
         yield action
         db.flush()
-        if not action.ops:  # nichts geändert (z. B. gleiche Reihenfolge erneut gesendet): nicht protokollieren
+        if not action.ops:  # nothing changed (e.g. the same order sent again): don't log
             db.commit()
             return
         db.add(
@@ -109,9 +109,9 @@ def record(db: Session, space_id: int, member_name: str, description: str) -> It
 
 
 def msg(msgid: str, **args: Any) -> str:
-    """Verlaufstext übersetzbar speichern: deutscher Ausgangstext + Platzhalter, übersetzt wird erst beim Anzeigen.
+    """Store a history text in translatable form: German source text + placeholders, translated only when displayed.
 
-    Ein Datum (`date`) wird als ISO-Text abgelegt und in der Sprache des Lesers formatiert.
+    A date (`date`) is stored as ISO text and formatted in the reader's language.
     """
     stored = {k: (v.isoformat() if isinstance(v, date) else v) for k, v in args.items()}
     dates = [k for k, v in args.items() if isinstance(v, date)]
@@ -119,7 +119,7 @@ def msg(msgid: str, **args: Any) -> str:
     if dates:
         payload["d"] = dates
     text = json.dumps(payload, ensure_ascii=False)
-    if len(text) > 300:  # Spalte fasst 300 Zeichen: lange Titel kürzen
+    if len(text) > 300:  # column holds 300 characters: shorten long titles
         for key, value in stored.items():
             if isinstance(value, str) and key not in dates:
                 stored[key] = value[:40]
@@ -128,7 +128,7 @@ def msg(msgid: str, **args: Any) -> str:
 
 
 def describe(description: str) -> str:
-    """Gespeicherten Verlaufstext in der aktuellen Sprache anzeigen (alte Einträge: deutscher Klartext)."""
+    """Show a stored history text in the current language (old entries: plain German text)."""
     if not description.startswith('{"m"'):
         return description
     from app import i18n
@@ -138,7 +138,7 @@ def describe(description: str) -> str:
         args = dict(data.get("a") or {})
         for key in data.get("d") or []:
             args[key] = i18n.date_short(date.fromisoformat(args[key]))
-        if isinstance(args.get("category"), str):  # Kategorien sind intern deutsch
+        if isinstance(args.get("category"), str):  # categories are German internally
             args["category"] = i18n.translate(args["category"])
         return i18n.gettext(data["m"], **args)
     except (ValueError, KeyError, TypeError):
@@ -188,7 +188,7 @@ def undo_last(db: Session, space_id: int) -> ActivityLog | None:
 
 
 def _apply(db: Session, space_id: int, op: dict) -> None:
-    model = UNDOABLE_MODELS[op["table"]]  # KeyError bei unbekannter Tabelle -> Abbruch
+    model = UNDOABLE_MODELS[op["table"]]  # KeyError for an unknown table -> abort
     columns = {c.key: c for c in inspect(model).mapper.column_attrs}
 
     def restore(values: dict) -> dict:

@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    migrate(engine)  # vor create_all: ergänzt Spalten an bestehenden Tabellen
+    migrate(engine)  # before create_all: adds columns to existing tables
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
         seed_catalog(db)
@@ -38,7 +38,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-# Keine interaktive API-Dokumentation: reduziert die Angriffsfläche.
+# No interactive API docs: reduces the attack surface.
 app = FastAPI(
     title="Mampfplan",
     lifespan=lifespan,
@@ -55,7 +55,7 @@ for module in (api, images, misc, plan, recipes, search, shopping):
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    """Sprache wählen, CSRF-Cookie ausstellen und Security-Header setzen."""
+    """Pick the language, issue the CSRF cookie and set security headers."""
     lang_token = i18n.set_language(i18n.pick_language(request.cookies, request.headers))
     csrf = request.cookies.get(CSRF_COOKIE)
     new_cookie = csrf is None
@@ -86,7 +86,7 @@ async def security_middleware(request: Request, call_next):
 
 
 def _safe_next(target: str) -> str:
-    """Nur eigene relative Pfade als Rücksprung (kein Open Redirect über //host oder Schema)."""
+    """Only the app's own relative paths as redirect target (no open redirect via //host or scheme)."""
     if not target.startswith("/") or target.startswith(("//", "/\\")) or len(target) > 500:
         return "/"
     if any(c in target for c in "\r\n\\"):
@@ -96,7 +96,7 @@ def _safe_next(target: str) -> str:
 
 @app.post("/lang")
 def switch_language(lang: str = Form(max_length=5), next: str = Form("/", max_length=500)):  # noqa: A002
-    """Sprache für dieses Gerät umstellen (Cookie, ein Jahr gültig)."""
+    """Switch the language for this device (cookie, valid for one year)."""
     response = RedirectResponse(_safe_next(next), status_code=303)
     if lang in i18n.LANGUAGES:
         response.set_cookie(
@@ -135,8 +135,8 @@ def landing(request: Request):
 
 @app.get("/sw.js", include_in_schema=False)
 def service_worker():
-    # Muss unter "/" ausgeliefert werden, damit der Worker alle Seiten (/s/…) abdecken darf.
-    # Die eingesetzte Versionskennung sorgt dafür, dass sich der Worker bei jedem Update erneuert.
+    # Must be served under "/" so the worker may cover all pages (/s/…).
+    # The inserted version tag makes the worker renew itself on every update.
     script = (BASE_DIR / "static" / "sw.js").read_text(encoding="utf-8").replace("__ASSET_VERSION__", ASSET_VERSION)
     return Response(
         script,

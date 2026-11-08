@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.models import PlanEntry
 
-DAY = "2026-10-21"  # Mittwoch
+DAY = "2026-10-21"  # Wednesday
 
 
 def make_recipe(web, title="Spaghetti", ingredients="500 g Spaghetti\n2 Eier\nSalz", steps="Kochen."):
@@ -47,7 +47,7 @@ def test_reorder_entries(web):
     first, second = entry_ids()
     web.post(f"/plan/entries/{second}/move", {"direction": "up"})
     assert [e[1] for e in entries()] == [r2, r1]
-    # am Rand passiert nichts
+    # nothing happens at the edge
     web.post(f"/plan/entries/{second}/move", {"direction": "up"})
     assert [e[1] for e in entries()] == [r2, r1]
 

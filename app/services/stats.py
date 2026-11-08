@@ -15,7 +15,7 @@ class RecipeStat:
 
 
 def _cooked_filter(space_id: int, today: date):
-    """Als gekocht zählt, was geplant und nicht mehr in der Zukunft liegt, oder manuell markiert ist."""
+    """Counts as cooked: planned and no longer in the future, or marked manually."""
     return (
         PlanEntry.space_id == space_id,
         PlanEntry.kind == KIND_RECIPE,
@@ -47,7 +47,7 @@ def cooked_history(db: Session, space_id: int, today: date, limit: int = 30) -> 
 
 
 def totals(db: Session, space_id: int, today: date) -> tuple[int, int]:
-    """(Anzahl gekochter Mahlzeiten, Anzahl verschiedener Rezepte)"""
+    """(number of cooked meals, number of distinct recipes)"""
     total, distinct = db.execute(
         select(func.count(PlanEntry.id), func.count(func.distinct(PlanEntry.recipe_id))).where(
             *_cooked_filter(space_id, today)

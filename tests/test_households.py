@@ -16,7 +16,7 @@ DAY = "2026-10-21"
 
 
 def create_household(web: Browser, name="Familie Müller", owner="Mia") -> Browser:
-    """Legt über die Verwaltung einen Haushalt an und gibt einen Browser in diesem Haushalt zurück."""
+    """Creates a household via the management and returns a browser in that household."""
     response = web.post("/households", {"name": name, "owner_name": owner})
     assert response.status_code == 303
     created = int(re.search(r"created=(\d+)", response.headers["location"])[1])
@@ -25,7 +25,7 @@ def create_household(web: Browser, name="Familie Müller", owner="Mia") -> Brows
     return web.household(token)
 
 
-# --- Verwaltungs-Haushalt --------------------------------------------------------------------
+# --- Admin household -------------------------------------------------------------------------
 
 
 def test_first_household_is_the_admin_household(web):
@@ -40,7 +40,7 @@ def test_admin_creates_household_with_own_link_and_first_profile(web):
     other = create_household(web, "Familie Müller", "Mia")
     page = web.get("/households").text
     assert "Familie Müller" in page and "Mia" in page and other.base in page
-    assert other.base != web.base and len(other.base.rsplit("/", 1)[1]) >= 40  # eigener, langer Zufalls-Link
+    assert other.base != web.base and len(other.base.rsplit("/", 1)[1]) >= 40  # own, long random link
     who = other.get("/who").text
     assert ">Mia</button>" in who and ">Anna</button>" not in who
 
@@ -54,7 +54,7 @@ def test_new_household_is_not_an_admin(web):
 
 @pytest.mark.parametrize(
     ("name", "owner", "status"),
-    # leer = Pflichtfeld fehlt (422), nur Leerzeichen/zu lang = verständliche Meldung (400), viel zu lang = 422
+    # empty = required field missing (422), only spaces/too long = readable message (400), far too long = 422
     [("", "Mia", 422), ("Familie", "", 422), ("   ", "Mia", 400), ("x" * 101, "Mia", 400), ("x" * 300, "Mia", 422)],
 )
 def test_household_creation_validates_input(web, name, owner, status):
@@ -68,13 +68,13 @@ def test_admin_can_renew_another_households_link(web):
     with SessionLocal() as db:
         target = db.scalars(select(Space).where(Space.is_admin.is_(False))).one()
     assert web.post(f"/households/{target.id}/rotate").status_code == 303
-    assert other.get("/plan").status_code == 404  # alter Link ungültig
+    assert other.get("/plan").status_code == 404  # old link invalid
     with SessionLocal() as db:
         new_token = db.get(Space, target.id).token
     assert web.household(new_token).get("/who").status_code == 200
 
 
-# --- Datentrennung zwischen Haushalten -------------------------------------------------------
+# --- Data separation between households ------------------------------------------------------
 
 
 def test_households_do_not_see_each_others_data(web):
@@ -109,7 +109,7 @@ def test_foreign_ids_are_not_reachable_from_another_household(web):
     assert other.post(f"/plan/entries/{entry_id}/shop").status_code == 404
     assert other.post(f"/shopping/{item_id}/toggle", {"state": "1"}).status_code == 404
     assert other.post(f"/shopping/{item_id}/delete").status_code == 404
-    with SessionLocal() as db:  # nichts verändert
+    with SessionLocal() as db:  # nothing changed
         assert db.get(ShoppingItem, item_id).checked is False
         assert db.get(PlanEntry, entry_id) is not None
 
@@ -117,7 +117,7 @@ def test_foreign_ids_are_not_reachable_from_another_household(web):
 def test_undo_only_affects_the_own_household(web):
     web.post("/shopping/add", {"name": "Milch"})
     other = create_household(web).login("Mia")
-    other.post("/undo")  # hat selbst nichts zum Rückgängigmachen
+    other.post("/undo")  # has nothing to undo itself
     assert "Milch" in web.get("/shopping").text
 
 
@@ -142,20 +142,20 @@ def test_profile_of_one_household_is_not_valid_in_another(web):
     with SessionLocal() as db:
         anna = db.scalars(select(Member).where(Member.name == "Anna")).one()
         other_space = db.scalars(select(Space).where(Space.is_admin.is_(False))).one()
-    # Gefälschtes Cookie: Annas Profil-ID im fremden Haushalt
+    # forged cookie: Anna's profile ID in a foreign household
     other.client.cookies.set(f"mp_member_{other_space.id}", str(anna.id))
     assert other.get("/plan").headers["location"].endswith("/who")
 
 
 def test_one_device_can_use_two_households_at_once(web):
     other = create_household(web).login("Mia")
-    # Ohne erneute Profilwahl abwechselnd in beiden Haushalten
+    # alternating between both households without picking the profile again
     assert web.get("/plan").status_code == 200
     assert other.get("/plan").status_code == 200
     assert "Anna" in web.get("/more").text and "Mia" in other.get("/more").text
 
 
-# --- Profile ---------------------------------------------------------------------------------
+# --- Profiles --------------------------------------------------------------------------------
 
 
 def test_first_profile_can_add_profiles(web):
@@ -165,7 +165,7 @@ def test_first_profile_can_add_profiles(web):
 
 
 def test_other_profiles_cannot_add_profiles(anon):
-    anon.login("Ben")  # zweites Profil
+    anon.login("Ben")  # second profile
     assert anon.post("/members", {"name": "Clara"}).status_code == 403
     page = anon.get("/more").text
     assert 'action="' + anon.base + '/members"' not in page and "Neue Profile kann Anna anlegen" in page
@@ -197,7 +197,7 @@ def test_owner_can_renew_own_link_others_cannot(anon):
     anon.login("Anna")
     response = anon.post("/link/rotate")
     assert response.status_code == 303 and TOKEN not in response.headers["location"]
-    assert anon.get("/plan").status_code == 404  # alter Link (self.base) ungültig
+    assert anon.get("/plan").status_code == 404  # old link (self.base) invalid
 
 
 def _space_id(browser: Browser) -> int:
@@ -205,7 +205,7 @@ def _space_id(browser: Browser) -> int:
         return db.scalars(select(Space.id).where(Space.token == browser.base.rsplit("/", 1)[1])).one()
 
 
-# --- Start/Migration -------------------------------------------------------------------------
+# --- Startup/migration -----------------------------------------------------------------------
 
 
 def test_existing_database_gets_an_admin_household(web):
@@ -221,7 +221,7 @@ def test_members_setting_only_applies_to_a_new_household(web):
     with SessionLocal() as db:
         ensure_space(db, Settings(members="Anna,Ben,Neu"))
         names = [m.name for m in db.scalars(select(Member).order_by(Member.id))]
-    assert names == ["Anna", "Ben"]  # Profile werden danach in der App verwaltet
+    assert names == ["Anna", "Ben"]  # profiles are managed in the app afterwards
 
 
 def test_migration_adds_household_and_badge_columns():
@@ -252,18 +252,18 @@ def test_cli_lists_all_households_and_rotates_by_id(web, capsys):
     assert main(["cli", "rotate", str(other.id)]) == 0
     with SessionLocal() as db:
         assert db.get(Space, other.id).token != old
-        assert db.scalars(select(Space).where(Space.is_admin.is_(True))).one().token == TOKEN  # unverändert
+        assert db.scalars(select(Space).where(Space.is_admin.is_(True))).one().token == TOKEN  # unchanged
     assert main(["cli", "rotate", "999"]) == 1
     assert main(["cli", "rotate", "abc"]) == 2
 
 
-# --- Kürzel in der Einkaufsliste --------------------------------------------------------------
+# --- Initials in the shopping list -----------------------------------------------------------
 
 
 def test_badges_use_initials_and_two_letters_on_clash():
     result = households.badges(["Niko", "Partnerin", "Nina"])
     assert result["Partnerin"].text == "P"
-    assert result["Niko"].text == "Ni" and result["Nina"].text == "Ni"  # gleicher Anfang → zwei Buchstaben
+    assert result["Niko"].text == "Ni" and result["Nina"].text == "Ni"  # same start → two letters
     assert [b.color for b in result.values()] == [0, 1, 2]
     assert households.badge_for(None, result) is None
     assert households.badge_for("Gelöscht", result).text == "G"

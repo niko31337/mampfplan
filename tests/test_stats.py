@@ -14,16 +14,16 @@ def test_stats_count_past_and_marked_entries_only(web):
     web.post("/plan/recipe", {"day": past, "recipe_id": pasta})
     web.post("/plan/recipe", {"day": older, "recipe_id": pasta})
     web.post("/plan/recipe", {"day": past, "recipe_id": salat})
-    web.post("/plan/recipe", {"day": future, "recipe_id": salat})  # noch nicht gekocht
+    web.post("/plan/recipe", {"day": future, "recipe_id": salat})  # not cooked yet
 
     page = web.get("/stats").text.split("Am häufigsten gekocht", 1)[1]
-    assert page.index("Pasta") < page.index("Salat")  # Pasta häufiger
+    assert page.index("Pasta") < page.index("Salat")  # pasta more often
     assert "2×" in page and "1×" in page
 
-    # Zukünftiges manuell als gekocht markieren
+    # mark a future meal as cooked manually
     (future_entry,) = entry_ids(future)
     web.post(f"/plan/entries/{future_entry}/cooked")
-    assert "2×" in web.get("/stats").text  # Salat jetzt ebenfalls 2×
+    assert "2×" in web.get("/stats").text  # salad now also 2×
 
 
 def test_notes_do_not_count(web):

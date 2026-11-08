@@ -29,7 +29,7 @@ def _list_context(ctx: Ctx) -> dict:
         groups.setdefault(item.category, []).append(item)
     checked = sorted((i for i in items if i.checked), key=lambda i: i.checked_at or now(), reverse=True)
     known = households.badges([m.name for m in households.members_of(ctx.db, ctx.space.id)])
-    # Alle Kategorien in Haushalts-Reihenfolge: leere dienen beim Ziehen als Ablagefläche
+    # all categories in household order: empty ones serve as drop targets while dragging
     categories = list(order) + [c for c in groups if c not in order]
     return {
         "categories": categories,
@@ -61,7 +61,7 @@ def shopping_page(ctx: Annotated[Ctx, Depends(get_ctx)]):
 
 @router.get("/shopping/list")
 def shopping_list_fragment(ctx: Annotated[Ctx, Depends(get_ctx)]):
-    """Nur die Liste (für die Synchronisation nach Offline-Phasen)."""
+    """Only the list (for syncing after offline periods)."""
     return _respond_list(ctx)
 
 
@@ -107,7 +107,7 @@ def add(
     return _respond_list(ctx, _("„%(name)s“ hinzugefügt", name=item.name), clear_suggestions=True)
 
 
-# Reihenfolge: vor "/shopping/{item_id}/…" deklarieren, damit "reorder"/"categories" nicht als item_id gelesen werden.
+# Order: declare before "/shopping/{item_id}/…" so "reorder"/"categories" aren't read as item_id.
 @router.post("/shopping/reorder")
 def reorder(
     ctx: Annotated[Ctx, Depends(get_ctx)],
@@ -124,7 +124,7 @@ def reorder(
 
 @router.get("/shopping/categories")
 def store_order_page(ctx: Annotated[Ctx, Depends(get_ctx)]):
-    """Alle Kategorien in Ladenreihenfolge sortieren – auch die, die gerade leer sind."""
+    """Sort all categories in store order, including those that are currently empty."""
     counts: dict[str, int] = {}
     for item in ctx.db.scalars(
         select(ShoppingItem).where(ShoppingItem.space_id == ctx.space.id, ShoppingItem.checked.is_(False))
@@ -144,8 +144,8 @@ def order_categories(
     before: CategoryField = "",
     after: CategoryField = "",
 ):
-    """Entweder eine Kategorie vor/hinter eine andere setzen (Ziehen in der Liste)
-    oder eine vollständige Reihenfolge übernehmen (Seite „Ladenreihenfolge“)."""
+    """Either move a category before/after another one (dragging in the list)
+    or take over a complete order (page „Store order“)."""
     with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Kategorien umsortiert")) as act:
         if category:
             if category not in service.CATEGORY_ORDER:
@@ -175,7 +175,7 @@ def toggle(
     item_id: int,
     state: Annotated[str, Form(pattern="^[01]$")] = "",
 ):
-    """Setzt den Haken. Mit `state` (1/0) idempotent – wichtig für das erneute Senden nach Offline-Phasen."""
+    """Sets the tick. Idempotent with `state` (1/0), which matters when resending after offline periods."""
     item = _get_item(ctx, item_id)
     wanted = (not item.checked) if state == "" else state == "1"
     if wanted != item.checked:
@@ -195,7 +195,7 @@ def move_to_category(
     category: Annotated[str, Form(max_length=40)],
     ids: Annotated[list[int] | None, Form()] = None,
 ):
-    """Artikel per Drag & Drop in eine andere Kategorie (und dort an eine Stelle) schieben."""
+    """Move an item by drag & drop into another category (and to a position there)."""
     item = _get_item(ctx, item_id)
     if category not in service.CATEGORY_ORDER:
         raise HTTPException(400, "Unbekannte Kategorie")

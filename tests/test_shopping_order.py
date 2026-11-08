@@ -32,9 +32,9 @@ def test_clean_name(raw, expected):
         ("Kartoffel(n)", "Obst & Gemüse"),
         ("Zwiebel(n)", "Obst & Gemüse"),
         ("Tomate", "Obst & Gemüse"),
-        ("Apfel", "Obst & Gemüse"),  # Katalog: "Äpfel"
+        ("Apfel", "Obst & Gemüse"),  # catalog: "Äpfel"
         ("Knoblauchzehe(n)", "Obst & Gemüse"),
-        ("Ei", "Sonstiges"),  # zu kurz für einen sicheren Treffer
+        ("Ei", "Sonstiges"),  # too short for a reliable match
         ("Hackfleisch, gemischtes", "Fleisch, Fisch & Wurst"),
         ("Geburtstagskerzen", "Haushalt & Reinigung"),
         ("Tintenpatronen", "Sonstiges"),
@@ -73,7 +73,7 @@ def item_ids():
 
 
 def listing(web) -> str:
-    """Nur der Listenbereich (Undo-Button und Eingabefeld enthalten ebenfalls Namen)."""
+    """Only the list area (the undo button and input field contain names too)."""
     return web.get("/shopping").text.split('id="shopping-list"', 1)[1]
 
 
@@ -112,7 +112,7 @@ def test_reorder_keeps_items_missing_from_the_request_and_ignores_unknown_ids(we
     ids = item_ids()
     web.client.post(
         f"{web.base}/shopping/reorder",
-        data={"category": "Obst & Gemüse", "ids": [ids["Bananen"], 99999]},  # Karotten/Äpfel fehlen (z. B. neu ergänzt)
+        data={"category": "Obst & Gemüse", "ids": [ids["Bananen"], 99999]},  # Karotten/Äpfel missing (e.g. newly added)
         headers={"X-CSRF-Token": web.client.cookies.get("mp_csrf")},
         follow_redirects=False,
     )
@@ -123,9 +123,9 @@ def test_reorder_is_idempotent(web):
     for name in ("Karotten", "Äpfel"):
         web.post("/shopping/add", {"name": name})
     reorder(web, "Obst & Gemüse", "Äpfel", "Karotten")
-    reorder(web, "Obst & Gemüse", "Äpfel", "Karotten")  # z. B. erneutes Senden nach einer Offline-Phase
+    reorder(web, "Obst & Gemüse", "Äpfel", "Karotten")  # e.g. resending after an offline period
     assert order_of(listing(web), "Karotten", "Äpfel") == ["Äpfel", "Karotten"]
-    web.post("/undo")  # nur eine Änderung wurde protokolliert, ein Undo genügt
+    web.post("/undo")  # only one change was logged, one undo is enough
     assert order_of(listing(web), "Karotten", "Äpfel") == ["Karotten", "Äpfel"]
 
 
@@ -153,24 +153,24 @@ def test_categories_can_be_reordered_and_undone(web):
     )
     assert order_of(listing(web), "Karotten", "Milch", "Zahnpasta") == ["Zahnpasta", "Karotten", "Milch"]
 
-    # Die Reihenfolge ist dauerhaft – auch für später hinzukommende Artikel
+    # the order is permanent, also for items added later
     web.post("/shopping/add", {"name": "Brot"})
     assert order_of(listing(web), "Karotten", "Zahnpasta", "Brot")[0] == "Zahnpasta"
 
     web.post("/undo")  # Brot
-    web.post("/undo")  # Kategorien
+    web.post("/undo")  # categories
     assert order_of(listing(web), "Karotten", "Milch", "Zahnpasta") == ["Karotten", "Milch", "Zahnpasta"]
 
 
 def test_toggle_with_state_is_idempotent(web):
     web.post("/shopping/add", {"name": "Milch"})
     item_id = item_ids()["Milch"]
-    for _ in range(3):  # z. B. erneutes Senden nach einer Offline-Phase
+    for _ in range(3):  # e.g. resending after an offline period
         assert web.post(f"/shopping/{item_id}/toggle", {"state": "1"}, htmx=True).status_code == 200
     with SessionLocal() as db:
         assert db.get(ShoppingItem, item_id).checked is True
     history = web.get("/history").text.split("<main>", 1)[1]
-    assert history.count("abgehakt") == 1  # nur die erste Änderung wurde protokolliert
+    assert history.count("abgehakt") == 1  # only the first change was logged
 
     web.post(f"/shopping/{item_id}/toggle", {"state": "0"})
     with SessionLocal() as db:
@@ -201,7 +201,7 @@ def test_list_markup_has_drag_handles_and_ids_for_the_client(web):
     page = web.get("/shopping").text
     assert 'class="drag-handle item-handle"' in page and 'class="drag-handle cat-handle"' in page
     assert 'data-reorder-url="' in page and 'data-order-url="' in page and "data-id=" in page
-    assert "Sortieren" not in page  # kein Sortiermodus mehr
+    assert "Sortieren" not in page  # no sort mode anymore
     assert 'data-base="/s/' in page and 'id="sync-banner"' in page
 
 

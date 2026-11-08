@@ -14,7 +14,7 @@ def test_service_worker_is_served_from_root_with_wide_scope(anon):
 def test_offline_fallback_page_is_public_and_precached(anon):
     response = anon.client.get("/offline")
     assert response.status_code == 200 and "Offline" in response.text
-    assert "/offline" in anon.client.get("/sw.js").text  # wird beim Installieren vorab gecacht
+    assert "/offline" in anon.client.get("/sw.js").text  # precached on install
 
 
 def test_csp_allows_worker_but_still_blocks_inline_script(web):
@@ -46,7 +46,7 @@ def test_recipe_pages_request_a_screen_wake_lock(web):
     recipe_id = make_recipe(web, "Pasta")
     detail = web.get(f"/recipes/{recipe_id}").text
     assert "data-wake-lock" in detail and "data-wake-status" in detail
-    assert "data-wake-lock" not in web.get("/plan").text  # nur auf Rezeptseiten
+    assert "data-wake-lock" not in web.get("/plan").text  # only on recipe pages
     assert "data-wake-lock" not in web.get("/shopping").text
 
 

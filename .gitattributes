@@ -1,6 +1,6 @@
-# Einheitliche Zeilenenden (LF), auch wenn unter Windows entwickelt wird – wichtig für Docker/Shell.
+# Consistent line endings (LF), even when developing on Windows; important for Docker/shell.
 * text=auto eol=lf
 
-# Mitgelieferte Fremdbibliotheken nicht als Projektcode zählen
+# Don't count bundled third-party libraries as project code
 app/static/htmx.min.js linguist-vendored
 app/static/sortable.min.js linguist-vendored

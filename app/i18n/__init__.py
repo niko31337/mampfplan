@@ -1,8 +1,8 @@
-"""Mehrsprachigkeit (Deutsch, Englisch, Französisch, Spanisch) – bewusst schlank, ohne Zusatzpakete.
+"""Multiple languages (German, English, French, Spanish), deliberately lean, without extra packages.
 
-- Schlüssel ist der deutsche Ausgangstext (wie bei gettext); fehlt eine Übersetzung, erscheint er.
-- Die Sprache gilt pro Gerät: Cookie `mp_lang`, sonst die Browsersprache, sonst Deutsch.
-- Die aktuelle Sprache steht in einer ContextVar, die die Middleware pro Request setzt.
+- The key is the German source text (like gettext); if a translation is missing, it is shown.
+- The language is per device: cookie `mp_lang`, otherwise the browser language, otherwise German.
+- The current language lives in a ContextVar that the middleware sets per request.
 """
 
 import json
@@ -24,7 +24,7 @@ def get_language() -> str:
 
 
 def set_language(lang: str):
-    """Sprache für den laufenden Request/Kontext setzen; gibt ein Token zum Zurücksetzen zurück."""
+    """Set the language for the current request/context; returns a token for resetting it."""
     return _current.set(lang if lang in LANGUAGES else DEFAULT_LANGUAGE)
 
 
@@ -50,17 +50,17 @@ def gettext(msgid: str, **kwargs) -> str:
 
 
 def ngettext(singular: str, plural: str, n: int, **kwargs) -> str:
-    """Ohne kwargs unformatiert (Jinja formatiert selbst, inkl. `num`); in Python mit kwargs aufrufen."""
+    """Unformatted without kwargs (Jinja formats itself, incl. `num`); call with kwargs from Python."""
     text = translate(singular if n == 1 else plural)
     return text % {"num": n, **kwargs} if kwargs else text
 
 
-def _(msgid: str, **kwargs) -> str:  # Kurzform für Python-Code
+def _(msgid: str, **kwargs) -> str:  # short form for Python code
     return gettext(msgid, **kwargs)
 
 
 def N_(msgid: str) -> str:
-    """Nur markieren (wird später beim Anzeigen übersetzt)."""
+    """Only mark (translated later when displayed)."""
     return msgid
 
 
@@ -68,7 +68,7 @@ _ACCEPT = re.compile(r"\s*([a-zA-Z]{1,8})(?:-[a-zA-Z0-9]{1,8})*\s*(?:;\s*q\s*=\s
 
 
 def from_accept_language(header: str | None) -> str | None:
-    """Beste unterstützte Sprache aus dem Accept-Language-Header (mit q-Werten)."""
+    """Best supported language from the Accept-Language header (with q values)."""
     best, best_q = None, 0.0
     for position, part in enumerate((header or "").split(",")[:20]):
         match = _ACCEPT.fullmatch(part)
@@ -79,7 +79,7 @@ def from_accept_language(header: str | None) -> str | None:
             q = float(match[2]) if match[2] else 1.0
         except ValueError:
             continue
-        q -= position * 1e-6  # bei gleichem q gewinnt die frühere Angabe
+        q -= position * 1e-6  # with equal q the earlier entry wins
         if lang in LANGUAGES and q > best_q:
             best, best_q = lang, q
     return best
@@ -92,7 +92,7 @@ def pick_language(cookies, headers) -> str:
     return from_accept_language(headers.get("accept-language")) or DEFAULT_LANGUAGE
 
 
-# --- Datum und Zahlen -------------------------------------------------------------------------
+# --- Dates and numbers -----------------------------------------------------------------------
 
 WEEKDAYS = {
     "de": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],

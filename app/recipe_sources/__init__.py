@@ -11,7 +11,7 @@ __all__ = ["ExternalRecipe", "RecipeSource", "SourceError", "get_sources", "get_
 
 @lru_cache
 def get_sources() -> dict[str, RecipeSource]:
-    """Alle aktivierten Rezeptquellen (Spoonacular nur mit API-Key)."""
+    """All enabled recipe sources (Spoonacular only with an API key)."""
     candidates = [ChefkochSource(), MealDBSource(), SpoonacularSource(get_settings().spoonacular_api_key)]
     return {s.key: s for s in candidates if s.enabled}
 

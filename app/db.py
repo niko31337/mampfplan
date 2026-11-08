@@ -37,7 +37,7 @@ engine = make_engine(get_settings().database_url)
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 
-# Spalten, die nach der ersten Version hinzugekommen sind: (Tabelle, Spalte, SQL-Definition)
+# Columns added after the first version: (table, column, SQL definition)
 ADDED_COLUMNS = [
     ("shopping_items", "position", "INTEGER NOT NULL DEFAULT 0"),
     ("shopping_items", "added_by", "VARCHAR(50)"),
@@ -48,11 +48,11 @@ ADDED_COLUMNS = [
 
 
 def migrate(bind: Engine) -> None:
-    """Minimale Schema-Updates für bestehende Datenbanken (create_all ergänzt nur neue Tabellen)."""
+    """Minimal schema updates for existing databases (create_all only adds new tables)."""
     inspector = inspect(bind)
     for table, column, definition in ADDED_COLUMNS:
         if not inspector.has_table(table):
-            continue  # neue Datenbank: create_all legt die Tabelle vollständig an
+            continue  # new database: create_all creates the whole table
         if column not in {c["name"] for c in inspector.get_columns(table)}:
             with bind.begin() as conn:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))

@@ -1,4 +1,4 @@
-"""HTML auswerten: Meta-Angaben, schema.org-Rezepte (JSON-LD) und lesbarer Text als Zeilen."""
+"""Parse HTML: meta tags, schema.org recipes (JSON-LD) and readable text as lines."""
 
 import html as html_lib
 import json
@@ -10,7 +10,7 @@ from html.parser import HTMLParser
 @dataclass
 class Line:
     text: str
-    heading: int = 0  # 1–6 bei <h1>…<h6>, sonst 0
+    heading: int = 0  # 1–6 for <h1>…<h6>, otherwise 0
 
 
 @dataclass
@@ -83,7 +83,7 @@ class _TextExtractor(HTMLParser):
 
 
 def text_lines(document: str) -> list[Line]:
-    """Sichtbarer Text als Zeilen; leere Zeilen trennen Absätze."""
+    """Visible text as lines; empty lines separate paragraphs."""
     parser = _TextExtractor()
     body = document
     match = re.search(r"<body[^>]*>", document, re.I)
@@ -99,14 +99,14 @@ def text_lines(document: str) -> list[Line]:
     return result
 
 
-# --- Meta-Angaben ----------------------------------------------------------------------------
+# --- Meta tags -------------------------------------------------------------------------------
 
 _META = re.compile(r"<meta\s[^>]*>", re.I)
 _ATTR = re.compile(r"""([a-zA-Z:_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
 
 
 def meta_tags(document: str) -> dict[str, str]:
-    """og:…/twitter:…/description aus dem <head> (erstes Vorkommen gewinnt)."""
+    """og:…/twitter:…/description from the <head> (first occurrence wins)."""
     found: dict[str, str] = {}
     head = document[: document.lower().find("<body")] if "<body" in document.lower() else document[:200_000]
     for tag in _META.findall(head):
@@ -129,7 +129,7 @@ _TAGS = re.compile(r"<[^>]+>")
 
 
 def clean(text: str) -> str:
-    """HTML-Reste entfernen, Entities auflösen, Leerraum zusammenfassen."""
+    """Strip leftover HTML, resolve entities, collapse whitespace."""
     text = html_lib.unescape(_TAGS.sub(" ", str(text)))
     return _SPACES.sub(" ", text.replace("\n", " ")).strip()
 
@@ -180,7 +180,7 @@ def _image(value) -> str | None:
 
 
 def _instructions(value) -> list[str]:
-    """recipeInstructions: Text, Liste von Texten, HowToStep oder HowToSection."""
+    """recipeInstructions: text, list of texts, HowToStep or HowToSection."""
     if isinstance(value, str):
         text = html_lib.unescape(value)
         parts = re.split(r"\n\s*\n|<br\s*/?>|</p>|</li>", text) if "\n\n" in text or "<" in text else text.split("\n")
@@ -217,8 +217,8 @@ def _to_structured(node: dict) -> StructuredRecipe:
 
 
 def structured_recipe(document: str, page_title: str = "") -> StructuredRecipe | None:
-    """Rezept aus JSON-LD. Stehen mehrere auf der Seite (z. B. Hauptrezept + Gewürzmischung), gewinnt das,
-    dessen Name im Seitentitel vorkommt, sonst das mit den meisten Zutaten."""
+    """Recipe from JSON-LD. If the page has several (e.g. main recipe + spice mix), the one whose name
+    appears in the page title wins, otherwise the one with the most ingredients."""
     recipes: list[StructuredRecipe] = []
     for raw in _LD_JSON.findall(document):
         try:
@@ -254,10 +254,10 @@ def _https(value) -> str | None:
 
 
 def tiktok_post(document: str) -> TikTokPost:
-    """Beschreibung, Vorschaubild und Autor eines TikTok-Videos (bzw. einer Foto-Serie).
+    """Caption, thumbnail and author of a TikTok video (or photo post).
 
-    TikTok liefert die Daten der Videoseite als JSON im Skript __UNIVERSAL_DATA_FOR_REHYDRATION__.
-    Fehlt es, bleiben nur die Meta-Angaben.
+    TikTok delivers the video page's data as JSON in the script __UNIVERSAL_DATA_FOR_REHYDRATION__.
+    If it's missing, only the meta tags are left.
     """
     post = TikTokPost()
     match = _TIKTOK_DATA.search(document)

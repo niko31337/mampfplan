@@ -1,11 +1,11 @@
-# Umgebung / IDE
+# Environment / IDE
 .venv/
 .idea/
 __pycache__/
 *.pyc
 .pytest_cache/
 
-# Konfiguration und Geheimnisse – gehören NIE ins Repository
+# Configuration and secrets: NEVER belong in the repository
 .env
 .env.*
 !.env.example
@@ -19,7 +19,7 @@ deploy.local/
 *.key
 *.crt
 
-# Laufzeitdaten
+# Runtime data
 data/
 *.db
 *.db-wal
@@ -27,5 +27,5 @@ data/
 *.sqlite
 *.sqlite3
 
-# Launch-Videos von /brag (enthalten Demo-Datenbank und Render-Zwischenstände)
+# Launch videos from /brag (contain a demo database and intermediate render files)
 brag-output*/

@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-MIN_TOKEN_LENGTH = 22  # entspricht ~128 Bit bei base64url
+MIN_TOKEN_LENGTH = 22  # equals ~128 bits with base64url
 
 
 class Settings(BaseSettings):
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     secure_cookies: bool = False
     public_url: str = "http://localhost:8000"
     spoonacular_api_key: str | None = None
-    image_cache_dir: str | None = None  # Standard: Ordner "imagecache" neben der Datenbank
+    image_cache_dir: str | None = None  # Default: folder "imagecache" next to the database
     image_cache_max_mb: int = 300
 
     @field_validator("space_token")
@@ -50,7 +50,7 @@ def get_settings() -> Settings:
 
 
 def now() -> datetime:
-    """Aktuelle Zeit (naiv) in der konfigurierten Zeitzone."""
+    """Current time (naive) in the configured time zone."""
     return datetime.now(ZoneInfo(get_settings().timezone)).replace(tzinfo=None)
 
 

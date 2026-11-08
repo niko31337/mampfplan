@@ -1,4 +1,4 @@
-"""Gemeinsame Web-Helfer: Templates, Zugriffsprüfung (Token + Profil), CSRF."""
+"""Shared web helpers: templates, access check (token + profile), CSRF."""
 
 import hashlib
 import re
@@ -29,7 +29,7 @@ MEMBER_COOKIE = "mp_member"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
-WEEKDAYS = i18n.WEEKDAYS["de"]  # API-Standard (Home Assistant)
+WEEKDAYS = i18n.WEEKDAYS["de"]  # API default (Home Assistant)
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 templates.env.add_extension("jinja2.ext.i18n")
@@ -37,8 +37,8 @@ templates.env.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=Tr
 
 
 def _asset_version() -> str:
-    """Fingerabdruck der statischen Dateien. Ändert sich mit jedem Update, damit Browser und Service Worker
-    nie eine neue Seite mit altem CSS/JS kombinieren."""
+    """Fingerprint of the static files. Changes with every update so the browser and service worker
+    never combine a new page with old CSS/JS."""
     digest = hashlib.sha256()
     for path in sorted((BASE_DIR / "static").iterdir()):
         if path.is_file() and path.name != "sw.js":
@@ -66,7 +66,7 @@ def url_host(url: str | None) -> str:
 
 
 def linkify(text: str | None) -> Markup:
-    """Text sicher ausgeben und https-Links darin anklickbar machen (z. B. „Quelle: https://…“)."""
+    """Output text safely and make https links in it clickable (e.g. „Quelle: https://…“)."""
     text = text or ""
     parts, last = [], 0
     for match in _LINK.finditer(text):
@@ -83,7 +83,7 @@ SOURCE_LABELS = {"manual": "", "chefkoch": "Chefkoch", "mealdb": "TheMealDB", "s
 
 
 def source_label(recipe) -> str:
-    """Anzeigename der Herkunft: bekannte Quellen mit Namen, Links mit ihrer Domain."""
+    """Display name of the origin: known sources by name, links by their domain."""
     if recipe.source in SOURCE_LABELS:
         return SOURCE_LABELS[recipe.source]
     return url_host(recipe.source_url) or recipe.source
@@ -98,16 +98,16 @@ def _date_long(d: date) -> str:
 
 
 def category_label(category: str) -> str:
-    """Kategorien heißen intern deutsch (Datenbank, Ladenreihenfolge); angezeigt wird die Übersetzung."""
+    """Categories are German internally (database, store order); the translation is displayed."""
     return i18n.translate(category)
 
 
 def describe(description: str) -> str:
-    """Verlaufseintrag anzeigen: neue Einträge sind übersetzbar gespeichert, alte als deutscher Klartext."""
+    """Display a history entry: new entries are stored translatable, old ones as plain German text."""
     return history.describe(description)
 
 
-# Texte, die app.js braucht (als JSON-Datenblock in base.html – kein Inline-Skript)
+# texts app.js needs (as a JSON data block in base.html, no inline script)
 JS_TEXTS = [
     "Alle wählen", "Keine wählen", "Kopiert ✓", "📴 Gemerkt – wird übertragen, sobald du wieder Verbindung hast.",
     "Keine Verbindung zum Server.", "Sitzung abgelaufen – bitte Seite neu laden.", "Das hat leider nicht geklappt.",
@@ -121,7 +121,7 @@ JS_TEXTS = [
 
 
 def js_texts() -> dict[str, str]:
-    from app.services.shopping import CATEGORY_ORDER  # Kategorienamen für neu angelegte Gruppen
+    from app.services.shopping import CATEGORY_ORDER  # category names for newly created groups
 
     return {msgid: i18n.translate(msgid) for msgid in [*JS_TEXTS, *CATEGORY_ORDER]}
 
@@ -144,7 +144,7 @@ templates.env.globals["weekday_name"] = i18n.weekday_name
 
 
 class NeedsProfile(Exception):
-    """Der Besucher hat noch kein Profil (Mitglied) gewählt."""
+    """The visitor hasn't picked a profile (member) yet."""
 
     def __init__(self, token: str):
         self.token = token
@@ -163,7 +163,7 @@ class Ctx:
 
     @property
     def is_partial(self) -> bool:
-        """True, wenn nur ein Seitenfragment gewünscht ist (HTMX-Request, aber kein Boost)."""
+        """True if only a page fragment is wanted (HTMX request, but no boost)."""
         headers = self.request.headers
         return headers.get("HX-Request") == "true" and headers.get("HX-Boosted") != "true"
 
@@ -176,7 +176,7 @@ def get_space(token: str, db: Session = Depends(get_db)) -> Space:
 
 
 def member_cookie_name(space_id: int) -> str:
-    """Eigenes Profil-Cookie je Haushalt, damit ein Gerät mehrere Haushalte nutzen kann."""
+    """Separate profile cookie per household so one device can use several households."""
     return f"{MEMBER_COOKIE}_{space_id}"
 
 
@@ -195,7 +195,7 @@ def render(ctx: Ctx, template: str, status_code: int = 200, **context) -> HTMLRe
         base=ctx.base,
         today=today(),
         undo=history.last_undoable(ctx.db, ctx.space.id),
-        oob=ctx.is_partial,  # Fragment-Antwort: Undo-Button/Toast per Out-of-band-Swap mitliefern
+        oob=ctx.is_partial,  # fragment response: include the undo button/toast via out-of-band swap
     )
     return templates.TemplateResponse(ctx.request, template, context, status_code=status_code)
 
@@ -216,7 +216,7 @@ def set_member_cookie(response: Response, member: Member) -> None:
 
 
 async def verify_csrf(request: Request) -> None:
-    """Double-Submit-Cookie: Header `X-CSRF-Token` (HTMX) oder Formularfeld `csrf_token`."""
+    """Double-submit cookie: header `X-CSRF-Token` (HTMX) or form field `csrf_token`."""
     if request.method in SAFE_METHODS:
         return
     cookie = request.cookies.get(CSRF_COOKIE)

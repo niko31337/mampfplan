@@ -31,7 +31,7 @@ class MealDBSource(RecipeSource):
             measure = (meal.get(f"strMeasure{i}") or "").strip()
             amount, unit, extra = parse_measure(measure) if measure else (None, "", "")
             extra = extra.lstrip(" /,;")
-            if amount is None and measure:  # z. B. "Pinch", "to taste"
+            if amount is None and measure:  # e.g. "Pinch", "to taste"
                 extra = measure
             if extra:
                 name = f"{name} ({extra})"

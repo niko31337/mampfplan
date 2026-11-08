@@ -1,4 +1,4 @@
-"""Zutaten-Zeilen ("200 g Mehl") parsen und wieder formatieren."""
+"""Parse and format ingredient lines ("200 g Mehl")."""
 
 import re
 
@@ -9,10 +9,10 @@ UNITS = {
     "blätter", "kopf", "tasse", "tassen", "handvoll", "stk", "stück", "st", "flasche", "flaschen",
     "cup", "cups", "tbsp", "tbs", "tsp", "oz", "lb", "lbs", "pinch", "clove", "cloves", "slice",
     "slices", "can", "cans", "bunch", "knob",
-    # Französisch
+    # French
     "cs", "cc", "cuillère", "cuillères", "cuil", "pincée", "pincées", "gousse", "gousses", "boîte", "boîtes",
     "sachet", "sachets", "tranche", "tranches", "bouquet", "verre", "verres", "brin", "brins", "pot",
-    # Spanisch
+    # Spanish
     "cda", "cdas", "cdta", "cdtas", "cucharada", "cucharadas", "cucharadita", "cucharaditas", "pizca", "pizcas",
     "diente", "dientes", "lata", "latas", "taza", "tazas", "sobre", "sobres", "rebanada", "rebanadas",
     "manojo", "ramita", "ramitas", "vaso", "vasos",
@@ -29,7 +29,7 @@ _NUMBER = re.compile(
     re.VERBOSE,
 )
 _RANGE_SEP = re.compile(r"\s*[-–]\s*")
-_UNIT_WORD = re.compile(r"([^\W\d_]+)\.?")  # Buchstaben inkl. Akzente (cuillère, pincée)
+_UNIT_WORD = re.compile(r"([^\W\d_]+)\.?")  # letters incl. accents (cuillère, pincée)
 _SPOON_KIND = re.compile(r"^à\s+(soupe|café)\b\.?", re.I)
 _LINKING_WORD = re.compile(r"^(?:de\s+|d['’]\s*|of\s+)", re.I)
 
@@ -51,7 +51,7 @@ def _take_number(text: str) -> tuple[float | None, str]:
     value = _match_value(m)
     rest = text[m.end() :]
     sep = _RANGE_SEP.match(rest)
-    if sep:  # "2-3 Tomaten" -> obere Grenze
+    if sep:  # "2-3 Tomaten" -> upper bound
         upper = _NUMBER.match(rest[sep.end() :])
         if upper:
             return _match_value(upper), rest[sep.end() + upper.end() :]
@@ -59,7 +59,7 @@ def _take_number(text: str) -> tuple[float | None, str]:
 
 
 def parse_measure(text: str) -> tuple[float | None, str, str]:
-    """Zerlegt "200 g Mehl" in (200.0, "g", "Mehl"). Der Rest ist der Name bzw. Zusatztext."""
+    """Splits "200 g Mehl" into (200.0, "g", "Mehl"). The rest is the name or extra text."""
     text = text.strip().lstrip("-•* ").strip()
     amount, rest = _take_number(text)
     rest = rest.strip()
@@ -75,14 +75,14 @@ def parse_measure(text: str) -> tuple[float | None, str, str]:
         if spoon:
             unit = "cs" if spoon[1].lower() == "soupe" else "cc"
             rest = rest[spoon.end() :].strip()
-        # „1 pincée de sel“, „2 dientes de ajo“, „1 cup of flour“ → nur der Name
+        # „1 pincée de sel“, „2 dientes de ajo“, „1 cup of flour“ → just the name
         rest = _LINKING_WORD.sub("", rest, count=1)
     return amount, unit, rest
 
 
 def parse_line(line: str) -> tuple[float | None, str, str]:
     amount, unit, name = parse_measure(line)
-    if not name and unit:  # "2 EL" ohne Namen -> Einheit ist der Name
+    if not name and unit:  # "2 EL" without a name -> the unit is the name
         name, unit = unit, ""
     return amount, unit[:20], name[:100]
 
@@ -105,7 +105,7 @@ def format_amount(amount: float | None) -> str:
         return ""
     if float(amount).is_integer():
         return str(int(amount))
-    from app.i18n import decimal_separator  # Dezimalzeichen der Anzeigesprache (Englisch: Punkt)
+    from app.i18n import decimal_separator  # decimal separator of the display language (English: point)
 
     return f"{amount:.2f}".rstrip("0").rstrip(".").replace(".", decimal_separator())
 

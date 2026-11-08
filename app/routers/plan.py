@@ -45,7 +45,7 @@ def _week_context(ctx: Ctx, start: date) -> dict:
 
 
 def _respond_week(ctx: Ctx, day: date, toast: str | None = None):
-    """Nach einer Änderung: nur die Wochenansicht (HTMX) oder Redirect (normales Formular)."""
+    """After a change: only the week view (HTMX) or a redirect (plain form)."""
     start = monday_of(day)
     if ctx.is_partial:
         return render(ctx, "partials/week.html", toast=toast, **_week_context(ctx, start))
@@ -164,7 +164,7 @@ def toggle_cooked(ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int):
 
 @router.post("/plan/entries/{entry_id}/shop")
 def shop_entry(ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int):
-    """Alle Zutaten des eingeplanten Rezepts auf die Einkaufsliste setzen."""
+    """Put all ingredients of the planned recipe on the shopping list."""
     entry = _get_entry(ctx, entry_id)
     if entry.kind != KIND_RECIPE or entry.recipe is None:
         raise HTTPException(400, _("Nur Rezepte haben Zutaten"))

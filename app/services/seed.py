@@ -26,7 +26,7 @@ def seed_catalog(db: Session) -> None:
 
 
 def _seed_catalog_names(db: Session) -> None:
-    """Übersetzte Katalognamen (en/fr/es) nachtragen; vorhandene bleiben unverändert."""
+    """Add translated catalog names (en/fr/es); existing ones stay unchanged."""
     if not TRANSLATIONS_FILE.exists():
         return
     data = json.loads(TRANSLATIONS_FILE.read_text(encoding="utf-8"))
@@ -43,10 +43,10 @@ def _seed_catalog_names(db: Session) -> None:
 
 
 def ensure_space(db: Session, settings: Settings) -> Space:
-    """Legt beim ersten Start den Verwaltungs-Haushalt samt Profilen (MEMBERS) an und gibt den Link aus.
+    """On first start, creates the admin household with its profiles (MEMBERS) and prints the link.
 
-    Danach werden Haushalte und Profile in der App verwaltet; MEMBERS wirkt nur, solange der erste
-    Haushalt noch keine Profile hat.
+    After that, households and profiles are managed in the app; MEMBERS only applies while the first
+    household has no profiles yet.
     """
     space = db.scalars(select(Space).order_by(Space.id)).first()
     if space is None:
@@ -57,7 +57,7 @@ def ensure_space(db: Session, settings: Settings) -> Space:
         db.flush()
         log.warning("Erster Start: persönlicher Link: %s", share_url(settings, space))
     elif not db.scalars(select(Space.id).where(Space.is_admin.is_(True))).first():
-        space.is_admin = True  # Bestandsdatenbank vor Einführung der Haushalte: erster Haushalt verwaltet
+        space.is_admin = True  # existing database from before households existed: the first household is the admin
 
     if not db.scalars(select(Member.id).where(Member.space_id == space.id)).first():
         for name in settings.member_names:

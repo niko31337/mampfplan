@@ -1,4 +1,4 @@
-"""Profile umbenennen/löschen und Haushalte löschen."""
+"""Rename/delete profiles and delete households."""
 
 import pytest
 from sqlalchemy import func, select
@@ -24,7 +24,7 @@ def switch(browser: Browser, name: str) -> Browser:
     return browser.login(name)
 
 
-# --- Profile umbenennen ----------------------------------------------------------------------
+# --- Renaming profiles -----------------------------------------------------------------------
 
 
 def test_owner_renames_profile_and_stored_names_follow(anon):
@@ -49,7 +49,7 @@ def test_owner_renames_profile_and_stored_names_follow(anon):
 
 
 def test_renaming_never_touches_another_household(web):
-    other = create_household(web, owner="Ben").login("Ben")  # gleicher Name, anderer Haushalt
+    other = create_household(web, owner="Ben").login("Ben")  # same name, other household
     other.post("/shopping/add", {"name": "Fremde Milch"})
     assert web.post(f"/members/{member_id('Ben')}/rename", {"name": "Benni"}).status_code == 303
     with SessionLocal() as db:
@@ -69,7 +69,7 @@ def test_rename_is_validated(web, name, status):
     assert ">Ben</button>" in web.get("/who").text
 
 
-# --- Profile löschen -------------------------------------------------------------------------
+# --- Deleting profiles -----------------------------------------------------------------------
 
 
 def test_owner_deletes_profile_but_not_self(anon):
@@ -77,15 +77,15 @@ def test_owner_deletes_profile_but_not_self(anon):
     anon.post("/shopping/add", {"name": "Milch"})
     ben_id = member_id("Ben")
     switch(anon, "Anna")
-    assert anon.post(f"/members/{member_id('Anna')}/delete").status_code == 400  # sich selbst nicht
+    assert anon.post(f"/members/{member_id('Anna')}/delete").status_code == 400  # not itself
     assert anon.post(f"/members/{ben_id}/delete").status_code == 303
     assert ">Ben</button>" not in anon.get("/who").text
     with SessionLocal() as db:
         assert db.get(Member, ben_id) is None
-        assert db.scalars(select(ShoppingItem.added_by)).one() == "Ben"  # Eingetragenes bleibt
-    assert "eingetragen von Ben" in anon.get("/shopping").text  # Kürzel bleibt sichtbar
+        assert db.scalars(select(ShoppingItem.added_by)).one() == "Ben"  # entries are kept
+    assert "eingetragen von Ben" in anon.get("/shopping").text  # initials stay visible
 
-    # Ein Gerät, das noch als Ben angemeldet war, muss neu wählen
+    # a device still signed in as Ben has to pick again
     anon.client.cookies.set("mp_member_1", str(ben_id))
     assert anon.get("/plan").headers["location"].endswith("/who")
 
@@ -112,10 +112,10 @@ def test_more_page_shows_edit_controls_for_owner(web):
     page = web.get("/more").text
     assert f"{web.base}/members/{member_id('Ben')}/rename" in page
     assert f"{web.base}/members/{member_id('Ben')}/delete" in page
-    assert f"{web.base}/members/{member_id('Anna')}/delete" not in page  # eigenes Profil nicht löschbar
+    assert f"{web.base}/members/{member_id('Anna')}/delete" not in page  # own profile can't be deleted
 
 
-# --- Haushalte löschen -----------------------------------------------------------------------
+# --- Deleting households ---------------------------------------------------------------------
 
 
 def fill_household(browser: Browser) -> None:
@@ -152,8 +152,8 @@ def counts(space_id: int) -> dict[str, int]:
 
 
 def test_admin_deletes_household_with_all_its_data(web):
-    fill_household(web)  # der eigene Haushalt hat ebenfalls Daten
-    other = create_household(web, "Haushalt Schmidt", "Mia").login("Mia")  # Name kommt nicht im Formular-Platzhalter vor
+    fill_household(web)  # the own household has data too
+    other = create_household(web, "Haushalt Schmidt", "Mia").login("Mia")  # the name doesn't appear in the form placeholder
     fill_household(other)
     other_id = _space_id(other)
     own_before = counts(_space_id(web))
@@ -161,8 +161,8 @@ def test_admin_deletes_household_with_all_its_data(web):
 
     assert web.post(f"/households/{other_id}/delete", {"confirm_name": "Haushalt Schmidt"}).status_code == 303
     assert set(counts(other_id).values()) == {0}
-    assert other.get("/plan").status_code == 404  # Link ungültig
-    assert counts(_space_id(web)) == own_before  # eigener Haushalt unberührt
+    assert other.get("/plan").status_code == 404  # link invalid
+    assert counts(_space_id(web)) == own_before  # own household untouched
     assert "Haushalt Schmidt" not in web.get("/households").text
 
 

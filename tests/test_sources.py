@@ -40,7 +40,7 @@ def test_mealdb_parses_ingredients_and_measures():
     (recipe,) = MealDBSource(client_for(handler)).search("pasta")
     assert recipe.title == "Pasta"
     assert recipe.steps == "Kochen.\nEssen."
-    assert recipe.source_url == "https://www.themealdb.com/meal/1"  # unsichere URL verworfen
+    assert recipe.source_url == "https://www.themealdb.com/meal/1"  # unsafe URL discarded
     spaghetti, salt, egg = recipe.ingredients
     assert (spaghetti.amount, spaghetti.unit, spaghetti.name) == (200.0, "g", "Spaghetti (7oz)")
     assert (salt.amount, salt.name) == (None, "Salt (Pinch)")
@@ -150,7 +150,7 @@ def test_import_via_web_creates_independent_recipe(web, monkeypatch):
     first = web.post("/search/import", {"source": "mealdb", "external_id": "52795", "day": "2026-10-21"})
     assert first.status_code == 303 and "plan_date=2026-10-21" in first.headers["location"]
     again = web.post("/search/import", {"source": "mealdb", "external_id": "52795"})
-    assert again.headers["location"].split("?")[0] == first.headers["location"].split("?")[0]  # kein Duplikat
+    assert again.headers["location"].split("?")[0] == first.headers["location"].split("?")[0]  # no duplicate
     assert "Chicken" in web.get(first.headers["location"].split("?")[0].removeprefix(web.base)).text
 
 

@@ -21,7 +21,7 @@ MEALDB_IMG = "https://www.themealdb.com/images/media/meals/abc.jpg"
 
 
 class Upstream:
-    """Gefälschter Bildserver: zählt Anfragen und liefert konfigurierbare Antworten."""
+    """Fake image server: counts requests and returns configurable responses."""
 
     def __init__(self, response=None):
         self.calls: list[str] = []
@@ -45,7 +45,7 @@ def upstream(tmp_path, monkeypatch):
     return fake
 
 
-# --- Erlaubte Adressen ---------------------------------------------------------------------
+# --- Allowed addresses ---------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -61,13 +61,13 @@ def test_allowed_urls(url):
     [
         None,
         "",
-        "http://img.chefkoch-cdn.de/a.jpg",  # kein https
+        "http://img.chefkoch-cdn.de/a.jpg",  # no https
         "https://evil.example/a.jpg",
-        "https://img.chefkoch-cdn.de.evil.example/a.jpg",  # Namenstrick
+        "https://img.chefkoch-cdn.de.evil.example/a.jpg",  # name trick
         "https://evil.example/?u=https://img.chefkoch-cdn.de/a.jpg",
-        "https://img.chefkoch-cdn.de@evil.example/a.jpg",  # Zugangsdaten-Trick
+        "https://img.chefkoch-cdn.de@evil.example/a.jpg",  # credentials trick
         "https://user:pw@img.chefkoch-cdn.de/a.jpg",
-        "https://img.chefkoch-cdn.de:8443/a.jpg",  # fremder Port
+        "https://img.chefkoch-cdn.de:8443/a.jpg",  # foreign port
         "https://127.0.0.1/a.jpg",
         "https://localhost/a.jpg",
         "file:///etc/passwd",
@@ -88,7 +88,7 @@ def test_sniff_by_content_not_by_header():
     assert sniff_extension(b"<html>nope</html>") is None
 
 
-# --- Cache-Dienst --------------------------------------------------------------------------
+# --- Cache service -------------------------------------------------------------------------
 
 
 def test_downloads_once_then_serves_from_cache(tmp_path):
@@ -98,13 +98,13 @@ def test_downloads_once_then_serves_from_cache(tmp_path):
     second = cache.get(CHEFKOCH_IMG)
     assert first and second and first == second
     assert first[1] == "image/jpeg" and first[0].read_bytes() == JPEG
-    assert len(fake.calls) == 1  # zweiter Zugriff ohne Netzwerk
+    assert len(fake.calls) == 1  # second access without network
 
 
 def test_cache_survives_restart(tmp_path):
     make_cache(tmp_path, Upstream()).get(CHEFKOCH_IMG)
     offline = Upstream(lambda request: httpx.Response(500))
-    again = make_cache(tmp_path, offline)  # „neuer Prozess“, selbes Verzeichnis
+    again = make_cache(tmp_path, offline)  # „new process“, same directory
     assert again.get(CHEFKOCH_IMG)[1] == "image/jpeg"
     assert offline.calls == []
 
@@ -130,9 +130,9 @@ def test_disallowed_url_never_hits_the_network(tmp_path):
         lambda r: httpx.Response(500),
         lambda r: httpx.Response(200, content=b"<html>kein Bild</html>", headers={"content-type": "image/jpeg"}),
         lambda r: httpx.Response(200, content=b"<svg onload=alert(1)/>", headers={"content-type": "image/svg+xml"}),
-        lambda r: httpx.Response(200, content=JPEG + b"x" * (images.MAX_IMAGE_BYTES + 1)),  # zu groß
-        lambda r: httpx.Response(302, headers={"location": "https://evil.example/a.jpg"}),  # Weiterleitung
-        lambda r: httpx.Response(302, headers={"location": MEALDB_IMG}),  # auch zu erlaubten Servern: nicht folgen
+        lambda r: httpx.Response(200, content=JPEG + b"x" * (images.MAX_IMAGE_BYTES + 1)),  # too large
+        lambda r: httpx.Response(302, headers={"location": "https://evil.example/a.jpg"}),  # redirect
+        lambda r: httpx.Response(302, headers={"location": MEALDB_IMG}),  # even to allowed servers: don't follow
     ],
     ids=["404", "500", "html", "svg", "zu-gross", "redirect-fremd", "redirect-erlaubt"],
 )
@@ -155,7 +155,7 @@ def test_failures_are_remembered_briefly(tmp_path):
     cache = make_cache(tmp_path, fake)
     for _ in range(5):
         assert cache.get(CHEFKOCH_IMG) is None
-    assert len(fake.calls) == 1  # nicht bei jedem Seitenaufruf erneut versuchen
+    assert len(fake.calls) == 1  # don't retry on every page view
 
 
 def test_recovers_after_failure_window(tmp_path, monkeypatch):
@@ -164,7 +164,7 @@ def test_recovers_after_failure_window(tmp_path, monkeypatch):
     cache = make_cache(tmp_path, fake)
     assert cache.get(CHEFKOCH_IMG) is None
     state["ok"] = True
-    cache._failures.clear()  # Zeitfenster abgelaufen
+    cache._failures.clear()  # time window expired
     assert cache.get(CHEFKOCH_IMG) is not None
 
 
@@ -187,7 +187,7 @@ def test_cache_dir_defaults_next_to_database():
     assert Settings(database_url="sqlite:////data/x.db", image_cache_dir="/tmp/bilder").image_cache_path == Path("/tmp/bilder")
 
 
-# --- Endpunkt ------------------------------------------------------------------------------
+# --- Endpoint ------------------------------------------------------------------------------
 
 
 def img_path(url: str) -> str:
@@ -201,11 +201,11 @@ def test_endpoint_serves_cached_image_with_safe_headers(web, upstream):
     assert response.headers["x-content-type-options"] == "nosniff"
     assert "immutable" in response.headers["cache-control"] and "private" in response.headers["cache-control"]
     web.get(img_path(CHEFKOCH_IMG))
-    assert len(upstream.calls) == 1  # beim zweiten Mal aus dem Cache
+    assert len(upstream.calls) == 1  # from the cache the second time
 
 
 def test_endpoint_works_without_profile_but_needs_the_secret_token(anon, upstream):
-    assert anon.get(img_path(CHEFKOCH_IMG)).status_code == 200  # <img> schickt keine Zusatzinfos; Token im Pfad genügt
+    assert anon.get(img_path(CHEFKOCH_IMG)).status_code == 200  # <img> sends no extra info; the token in the path is enough
     assert anon.client.get(f"/s/falsch/img?u={quote(CHEFKOCH_IMG, safe='')}").status_code == 404
 
 
@@ -224,7 +224,7 @@ def test_endpoint_requires_a_url(web, upstream):
     assert web.get("/img").status_code == 422
 
 
-# --- Einbindung in die Seiten ----------------------------------------------------------------
+# --- Embedding in the pages ----------------------------------------------------------------
 
 
 def external(image=CHEFKOCH_IMG, source="chefkoch"):
@@ -246,7 +246,7 @@ def test_search_results_and_preview_use_the_local_cache_only(web, upstream, monk
     preview = web.get("/search/preview?source=chefkoch&id=1").text
     for page in (results, preview):
         assert f'src="{BASE}/img?u={quote(CHEFKOCH_IMG, safe="")}"' in page
-        assert "https://img.chefkoch-cdn.de" not in page  # die Originaladresse steht nur URL-codiert im Link zum eigenen Server
+        assert "https://img.chefkoch-cdn.de" not in page  # the original address only appears URL-encoded in the link to our own server
 
 
 def test_no_page_references_a_foreign_image_host(web, upstream, monkeypatch):
@@ -262,7 +262,7 @@ def test_no_page_references_a_foreign_image_host(web, upstream, monkeypatch):
     ]
     for page in pages:
         assert page.status_code == 200
-        assert re.findall(r'src="(https?://[^"]+)"', page.text) == []  # nur eigene (relative) Bildadressen
+        assert re.findall(r'src="(https?://[^"]+)"', page.text) == []  # only our own (relative) image addresses
         assert f"{BASE}/img?u=" in page.text
 
 

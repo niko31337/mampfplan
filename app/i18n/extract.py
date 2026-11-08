@@ -1,7 +1,7 @@
-"""Alle übersetzbaren Texte (msgids) aus Templates und Python-Code einsammeln.
+"""Collect all translatable texts (msgids) from templates and Python code.
 
-Wird von den Tests genutzt (jede Übersetzungsdatei muss vollständig sein) und hilft beim Ergänzen:
-    python -m app.i18n.extract fr     → listet fehlende französische Übersetzungen
+Used by the tests (every translation file must be complete) and helps when adding translations:
+    python -m app.i18n.extract fr     → lists missing French translations
 """
 
 import json

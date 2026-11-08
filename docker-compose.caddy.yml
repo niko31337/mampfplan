@@ -1,12 +1,12 @@
-# Produktivbetrieb: Caddy als HTTPS-Reverse-Proxy vor Mampfplan (Zertifikate vom certbot des Servers).
+# Production: Caddy as an HTTPS reverse proxy in front of Mampfplan (certificates from the server's certbot).
 #
 #   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
 #
-# oder dauerhaft in der .env:  COMPOSE_FILE=docker-compose.yml:docker-compose.caddy.yml
+# or permanently in .env:  COMPOSE_FILE=docker-compose.yml:docker-compose.caddy.yml
 services:
   mampfplan:
-    # Die App wird nicht auf dem Host veröffentlicht (auch nicht auf 127.0.0.1): Caddy erreicht sie
-    # direkt im Docker-Netz. Das vermeidet außerdem Portkonflikte mit anderen Diensten.
+    # The app isn't published on the host (not even on 127.0.0.1): Caddy reaches it
+    # directly in the Docker network. This also avoids port conflicts with other services.
     ports: !reset []
 
   caddy:
@@ -18,14 +18,14 @@ services:
     ports:
       - "8443:8443"
     environment:
-      DOMAIN: ${DOMAIN:?Bitte DOMAIN in der .env setzen}
-      # Name des certbot-Zertifikats (Ordner unter live/); Standard: gleich wie die Domain
+      DOMAIN: ${DOMAIN:?Please set DOMAIN in .env}
+      # Name of the certbot certificate (folder under live/); default: same as the domain
       CERT_NAME: ${CERT_NAME:-${DOMAIN}}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      # Zusätzliche, serverspezifische Weiterleitungen (nicht im Repository, siehe .gitignore)
+      # Additional, server-specific proxies (not in the repository, see .gitignore)
       - ./deploy.local/sites:/etc/caddy/sites:ro
-      # Ganzer certbot-Ordner (live/ enthält nur Symlinks nach archive/), nur lesend
+      # Whole certbot folder (live/ only contains symlinks to archive/), read-only
       - ${CERT_DIR:-/etc/letsencrypt}:/certs:ro
       - caddy-data:/data
       - caddy-config:/config
@@ -34,8 +34,8 @@ services:
     cap_drop:
       - ALL
     cap_add:
-      # Das Caddy-Programm trägt diese Berechtigung als Dateirecht; ohne sie bricht der Start mit
-      # "exec /usr/bin/caddy: operation not permitted" ab – auch wenn nur Port 8443 genutzt wird.
+      # The Caddy binary carries this capability as a file capability; without it, startup fails with
+      # "exec /usr/bin/caddy: operation not permitted", even if only port 8443 is used.
       - NET_BIND_SERVICE
 
 volumes:

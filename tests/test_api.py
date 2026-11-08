@@ -7,7 +7,7 @@ from tests.conftest import BASE
 from tests.test_households import create_household
 from tests.test_plan import entry_ids, make_recipe
 
-TODAY = date(2026, 10, 21)  # Mittwoch
+TODAY = date(2026, 10, 21)  # Wednesday
 
 
 @pytest.fixture(autouse=True)
@@ -25,14 +25,14 @@ def get_plan(browser, **params):
 def test_plan_lists_entries_in_order_within_the_window(web):
     pasta = make_recipe(web, "Pasta")
     salat = make_recipe(web, "Salat")
-    web.post("/plan/recipe", {"day": "2026-10-20", "recipe_id": pasta})  # gestern: nicht dabei
+    web.post("/plan/recipe", {"day": "2026-10-20", "recipe_id": pasta})  # yesterday: not included
     web.post("/plan/recipe", {"day": "2026-10-21", "recipe_id": pasta})
     web.post("/plan/note", {"day": "2026-10-21", "text": "Reste essen"})
     web.post("/plan/recipe", {"day": "2026-10-21", "recipe_id": salat})
     web.post("/plan/note", {"day": "2026-10-23", "text": "Auswärts"})
-    web.post("/plan/recipe", {"day": "2026-10-28", "recipe_id": salat})  # 8. Tag: nicht dabei
+    web.post("/plan/recipe", {"day": "2026-10-28", "recipe_id": salat})  # 8th day: not included
 
-    # Reihenfolge im Plan ändern: Salat nach oben
+    # change the order in the plan: salad to the top
     salat_entry = entry_ids("2026-10-21")[2]
     web.post(f"/plan/entries/{salat_entry}/move", {"direction": "up"})
     web.post(f"/plan/entries/{salat_entry}/move", {"direction": "up"})
@@ -54,7 +54,7 @@ def test_plan_lists_entries_in_order_within_the_window(web):
 
 
 def test_days_parameter_sets_the_window(web):
-    web.post("/plan/note", {"day": "2026-11-03", "text": "Geburtstag"})  # 14. Tag
+    web.post("/plan/note", {"day": "2026-11-03", "text": "Geburtstag"})  # 14th day
     assert len(get_plan(web, days=1)["days"]) == 1
     data = get_plan(web, days=14)
     assert len(data["days"]) == 14

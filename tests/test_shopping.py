@@ -59,7 +59,7 @@ def test_check_off_removes_from_open_list_and_undo(web):
     assert response.status_code == 200
     page = response.text
     open_part, done_part = page.split("<h2>Gekauft</h2>", 1)
-    # Artikelnamen gezielt prüfen: die (leere) Kategorie „Milch, Käse & Eier“ enthält ebenfalls „Milch“
+    # check item names specifically: the (empty) category „Milch, Käse & Eier“ also contains „Milch“
     assert item_names(open_part) == ["Brot"]
     assert item_names(done_part) == ["Milch"]
 

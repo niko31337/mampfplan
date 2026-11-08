@@ -1,11 +1,11 @@
-"""Haushalte (Mandanten) und ihre Profile.
+"""Households (tenants) and their profiles.
 
-- Jeder Haushalt hat einen eigenen geheimen Link; alle Daten hängen an genau einem Haushalt.
-- Der Verwaltungs-Haushalt (`is_admin`) darf weitere Haushalte anlegen.
-- In jedem Haushalt darf das erste Profil (das älteste) weitere Profile anlegen.
+- Every household has its own secret link; all data belongs to exactly one household.
+- The admin household (`is_admin`) may create further households.
+- In every household the first profile (the oldest) may create further profiles.
 
-Hinweis: Ohne Login ist das eine Bedienungs-, keine Sicherheitsgrenze – wer den Link hat, kann jedes
-Profil des Haushalts wählen. Die eigentliche Grenze zwischen Haushalten ist der geheime Link.
+Note: without a login this is a usability boundary, not a security boundary; anyone with the link can
+pick any profile of the household. The real boundary between households is the secret link.
 """
 
 import secrets
@@ -36,7 +36,7 @@ BADGE_COLORS = 6
 
 
 class HouseholdError(ValueError):
-    """Ungültige Eingabe (Meldung ist für Benutzer gedacht)."""
+    """Invalid input (the message is meant for users)."""
 
 
 def new_token() -> str:
@@ -52,7 +52,7 @@ def first_member_id(db: Session, space_id: int) -> int | None:
 
 
 def is_owner(db: Session, member: Member) -> bool:
-    """Das erste (älteste) Profil eines Haushalts verwaltet dessen Profile."""
+    """The first (oldest) profile of a household manages its profiles."""
     return first_member_id(db, member.space_id) == member.id
 
 
@@ -79,7 +79,7 @@ def add_member(db: Session, space: Space, name: str) -> Member:
 
 
 def rename_member(db: Session, member: Member, new_name: str) -> None:
-    """Profil umbenennen. Gespeicherte Namen (Kürzel, Verlauf, Rezept-Autor) ziehen mit – nur in diesem Haushalt."""
+    """Rename a profile. Stored names (initials, history, recipe author) follow along, only in this household."""
     new_name = _clean(new_name, MAX_NAME_LENGTH, N_("Name"))
     if new_name == member.name:
         return
@@ -104,9 +104,9 @@ def rename_member(db: Session, member: Member, new_name: str) -> None:
 
 
 def delete_member(db: Session, member: Member, acting: Member) -> None:
-    """Profil löschen. Das eigene Profil nicht – so bleibt immer mindestens eines (und die Verwaltung) übrig.
+    """Delete a profile. Not your own, so at least one (and the management) always remains.
 
-    Bereits Eingetragenes bleibt erhalten und zeigt weiter den alten Namen.
+    Existing entries are kept and still show the old name.
     """
     if member.id == acting.id:
         raise HouseholdError(_("Das eigene Profil kannst du nicht löschen."))
@@ -115,7 +115,7 @@ def delete_member(db: Session, member: Member, acting: Member) -> None:
 
 
 def delete_household(db: Session, space: Space) -> None:
-    """Haushalt mit allen Daten endgültig löschen (in Fremdschlüssel-Reihenfolge)."""
+    """Permanently delete a household with all its data (in foreign key order)."""
     if space.is_admin:
         raise HouseholdError(_("Der Verwaltungs-Haushalt kann nicht gelöscht werden."))
     recipe_ids = select(Recipe.id).where(Recipe.space_id == space.id)
@@ -135,7 +135,7 @@ def delete_household(db: Session, space: Space) -> None:
 
 
 def create_household(db: Session, name: str, owner_name: str) -> Space:
-    """Neuer Haushalt mit eigenem Link und dem ersten Profil (das weitere Profile anlegen darf)."""
+    """New household with its own link and the first profile (which may create further profiles)."""
     name = _clean(name, MAX_HOUSEHOLD_NAME_LENGTH, N_("Name des Haushalts"))
     owner_name = _clean(owner_name, MAX_NAME_LENGTH, N_("Name des ersten Profils"))
     if (db.scalar(select(func.count(Space.id))) or 0) >= MAX_HOUSEHOLDS:
@@ -149,7 +149,7 @@ def create_household(db: Session, name: str, owner_name: str) -> Space:
 
 
 def rotate_token(db: Session, space: Space) -> None:
-    """Neuer Link; der alte ist sofort ungültig (Daten bleiben erhalten)."""
+    """New link; the old one stops working immediately (data is kept)."""
     space.token = new_token()
     db.commit()
 
@@ -172,9 +172,9 @@ class Badge:
 
 
 def badges(member_names: list[str]) -> dict[str, Badge]:
-    """Kürzel je Profil: Anfangsbuchstabe; bei gleichem Anfangsbuchstaben die ersten zwei Buchstaben.
+    """Initials per profile: first letter; the first two letters if first letters collide.
 
-    Die Farbe richtet sich nach der Reihenfolge der Profile, damit sich Kürzel auch farblich unterscheiden.
+    The color follows the order of the profiles so that initials also differ by color.
     """
     result: dict[str, Badge] = {}
     for index, name in enumerate(member_names):
@@ -186,7 +186,7 @@ def badges(member_names: list[str]) -> dict[str, Badge]:
 
 
 def badge_for(name: str | None, known: dict[str, Badge]) -> Badge | None:
-    """Kürzel für einen gespeicherten Namen – auch für Profile, die es nicht (mehr) gibt."""
+    """Initials for a stored name, also for profiles that don't exist (anymore)."""
     if not name:
         return None
     return known.get(name) or Badge(name[:1].upper() or "?", BADGE_COLORS - 1)

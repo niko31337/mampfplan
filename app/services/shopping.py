@@ -26,7 +26,7 @@ CATEGORY_ORDER = [
 ]
 
 def category_rank(category: str) -> int:
-    """Rang in der Standardreihenfolge (für den Artikelkatalog)."""
+    """Rank in the default order (for the item catalog)."""
     return CATEGORY_ORDER.index(category) if category in CATEGORY_ORDER else len(CATEGORY_ORDER)
 
 
@@ -37,7 +37,7 @@ _FOLD = str.maketrans({"ä": "a", "ö": "o", "ü": "u", "ß": "s"})
 
 
 def clean_name(name: str) -> str:
-    """"Karotte(n)" -> "Karotte", "Zwiebel(n)" -> "Zwiebel"; sonstige Klammern bleiben erhalten."""
+    """"Karotte(n)" -> "Karotte", "Zwiebel(n)" -> "Zwiebel"; other parentheses are kept."""
     return re.sub(r"\s+", " ", _PLURAL_MARKER.sub("", name)).strip()
 
 
@@ -50,18 +50,18 @@ def _stem(word: str) -> str:
 
 
 def _stem_key(name: str) -> str:
-    """Vergleichsschlüssel: ohne Klammern, Singular/Plural und Umlaute vereinheitlicht."""
+    """Comparison key: without parentheses, singular/plural and umlauts normalized."""
     words = re.findall(r"[^\W\d_]+", _PARENTHESES.sub(" ", _PLURAL_MARKER.sub("", name)))
     return " ".join(_stem(w) for w in words)
 
 
 def guess_category(db: Session, name: str) -> str:
-    """Kategorie aus dem Katalog ableiten: erst gleicher Stamm, sonst längster Teiltreffer."""
+    """Derive the category from the catalog: same stem first, otherwise the longest partial match."""
     needle = _stem_key(name)
     if not needle:
         return DEFAULT_CATEGORY
     best: tuple[int, str] | None = None
-    # Namen in allen Sprachen: „Milk“, „Lait“ und „Leche“ landen wie „Milch“ bei den Milchprodukten
+    # names in all languages: „Milk“, „Lait“ and „Leche“ end up in dairy just like „Milch“
     names = db.execute(select(CatalogItem.name, CatalogItem.category).order_by(CatalogItem.id)).all()
     names += db.execute(
         select(CatalogName.name, CatalogItem.category).join(CatalogItem, CatalogItem.id == CatalogName.catalog_item_id)
@@ -89,10 +89,10 @@ def add_item(
     recipe_id: int | None = None,
     added_by: str | None = None,
 ) -> tuple[ShoppingItem, bool]:
-    """Fügt einen Artikel hinzu oder führt ihn mit einem offenen gleichnamigen zusammen.
+    """Adds an item or merges it with an open item of the same name.
 
-    Beim Zusammenführen bleibt vermerkt, wer den Artikel ursprünglich eingetragen hat.
-    Rückgabe: (Artikel, zusammengeführt?)
+    When merging, it keeps track of who originally added the item.
+    Returns: (item, merged?)
     """
     name = clean_name(name)[:100]
     unit = unit.strip()[:20]
@@ -103,7 +103,7 @@ def add_item(
         if item.name.casefold() != name.casefold() or item.unit.casefold() != unit.casefold():
             continue
         if item.amount is None and amount is None:
-            return item, True  # steht schon auf der Liste
+            return item, True  # already on the list
         if item.amount is not None and amount is not None:
             act.updating(item)
             item.amount += amount
@@ -115,7 +115,7 @@ def add_item(
         name=name,
         amount=amount,
         unit=unit,
-        # Eigene Korrektur des Haushalts schlägt Katalogvorschlag und automatische Erkennung
+        # the household's own correction beats the catalog suggestion and automatic detection
         category=learned_category(db, space_id, name) or category or guess_category(db, name),
         position=0 if last_position is None else last_position + 1,
         recipe_id=recipe_id,
@@ -142,7 +142,7 @@ def add_recipe_ingredients(
 
 @dataclass(frozen=True)
 class CatalogEntry:
-    """Katalogartikel in der Anzeigesprache; `category` bleibt der interne (deutsche) Schlüssel."""
+    """Catalog item in the display language; `category` stays the internal (German) key."""
 
     name: str
     category: str
@@ -157,7 +157,7 @@ def _localized(db: Session, lang: str):
 
 
 def catalog_entries(db: Session, lang: str | None = None) -> list[CatalogEntry]:
-    """Der ganze Katalog in der Anzeigesprache (fehlen Übersetzungen, dann deutsch)."""
+    """The whole catalog in the display language (German where translations are missing)."""
     lang = lang or get_language()
     rows = db.execute(_localized(db, lang)).all() or db.execute(_localized(db, DEFAULT_LANGUAGE)).all()
     return [CatalogEntry(name, category) for name, category in rows]
@@ -172,11 +172,11 @@ def search_catalog(db: Session, query: str, limit: int = 12, lang: str | None = 
     return [CatalogEntry(name, category) for name, category in rows]
 
 
-# --- Reihenfolge -----------------------------------------------------------------------------
+# --- Order -----------------------------------------------------------------------------------
 
 
 def category_order(db: Session, space_id: int) -> list[str]:
-    """Kategorien in der eingestellten Reihenfolge (nicht gespeicherte hängen in Standardreihenfolge an)."""
+    """Categories in the configured order (unsaved ones are appended in the default order)."""
     saved = list(
         db.scalars(
             select(CategoryOrder.category).where(CategoryOrder.space_id == space_id).order_by(CategoryOrder.position)
@@ -190,11 +190,11 @@ def item_sort_key(item: ShoppingItem) -> tuple[int, str, int]:
 
 
 def reorder_items(db: Session, act: Action, space_id: int, category: str, ordered_ids: list[int]) -> bool:
-    """Setzt die Reihenfolge der offenen Artikel einer Kategorie.
+    """Sets the order of the open items of a category.
 
-    Artikel, die in `ordered_ids` fehlen (z. B. zwischenzeitlich von jemand anderem ergänzt),
-    bleiben in ihrer bisherigen Reihenfolge am Ende. Unbekannte IDs werden ignoriert.
-    Rückgabe: wurde etwas geändert?
+    Items missing from `ordered_ids` (e.g. added by someone else in the meantime)
+    keep their previous order at the end. Unknown IDs are ignored.
+    Returns: was anything changed?
     """
     current = sorted(
         db.scalars(
@@ -223,7 +223,7 @@ def _name_key(name: str) -> str:
 
 
 def learned_category(db: Session, space_id: int, name: str) -> str | None:
-    """Vom Haushalt früher korrigierte Kategorie für diesen Artikelnamen."""
+    """Category this household previously corrected for this item name."""
     return db.scalar(
         select(CategoryOverride.category).where(
             CategoryOverride.space_id == space_id, CategoryOverride.name_key == _name_key(name)
@@ -249,7 +249,7 @@ def remember_category(db: Session, act: Action, space_id: int, name: str, catego
 def move_to_category(
     db: Session, act: Action, space_id: int, item: ShoppingItem, category: str, ordered_ids: list[int]
 ) -> None:
-    """Artikel in eine andere Kategorie schieben, dort an die gewünschte Stelle – und die Korrektur merken."""
+    """Move an item into another category, to the desired position there, and remember the correction."""
     if item.category != category:
         act.updating(item)
         item.category = category
@@ -259,9 +259,9 @@ def move_to_category(
 
 
 def set_category_order(db: Session, act: Action, space_id: int, ordered_visible: list[str]) -> bool:
-    """Ordnet die übergebenen Kategorien neu, ohne die Plätze der übrigen zu verändern.
+    """Reorders the given categories without changing the positions of the others.
 
-    Mit allen Kategorien (Seite „Ladenreihenfolge“) ist das genau die gewünschte Gesamtreihenfolge.
+    With all categories (page „Store order“) this is exactly the desired overall order.
     """
     full = category_order(db, space_id)
     wanted = [c for c in dict.fromkeys(ordered_visible) if c in full]
@@ -275,10 +275,10 @@ def set_category_order(db: Session, act: Action, space_id: int, ordered_visible:
 def move_category(
     db: Session, act: Action, space_id: int, category: str, before: str | None = None, after: str | None = None
 ) -> bool:
-    """Kategorie direkt vor `before` (bzw. hinter `after`) einfügen – die übrigen behalten ihre Reihenfolge.
+    """Insert a category directly before `before` (or after `after`); the others keep their order.
 
-    So bleibt eine einmal nach vorn gezogene Kategorie dauerhaft vorn, auch wenn später andere
-    Kategorien sichtbar werden (Reihenfolge des Supermarkts).
+    That way a category moved to the front stays at the front, even if other categories
+    become visible later (the supermarket's order).
     """
     full = category_order(db, space_id)
     if category not in full or category in (before, after):

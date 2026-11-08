@@ -1,7 +1,7 @@
-"""Nur lesende JSON-Schnittstelle, z. B. für Home Assistant.
+"""Read-only JSON API, e.g. for Home Assistant.
 
-Zugriff nur über das Token im Pfad (wie der geteilte Link); ein Profil ist nicht nötig, weil hier
-nichts geändert wird.
+Access only via the token in the path (like the shared link); no profile is needed because nothing
+is changed here.
 """
 
 from datetime import timedelta

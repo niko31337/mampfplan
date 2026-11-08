@@ -50,7 +50,7 @@ def create_recipe(
 ):
     if not title.strip():
         raise HTTPException(400, "Titel fehlt")
-    # Aus dem Konverter: Quelle merken und als letzte Zeile der Zubereitung festhalten
+    # from the converter: remember the source and keep it as the last line of the steps
     link = safe_https_url(source_url.strip())
     if source not in converter.CONVERTED_SOURCES or not link:
         source, link, image_url = "manual", None, ""
@@ -84,7 +84,7 @@ def convert_link(
     url: Annotated[str, Form(max_length=2000)],
     text: Annotated[str, Form(max_length=20000)] = "",
 ):
-    """Link abrufen und als bearbeitbaren Vorschlag zeigen – gespeichert wird erst mit „Speichern“."""
+    """Fetch the link and show it as an editable draft; nothing is stored until „Save“."""
     try:
         draft = converter.convert(url, text)
     except converter.FetchError as exc:
@@ -115,7 +115,7 @@ def convert_link(
 
 
 def _store_image(url: str | None) -> str | None:
-    """Rezeptbild abgesichert laden und im Bild-Cache ablegen; Rückgabe: Adresse für das Rezept."""
+    """Fetch the recipe image safely and store it in the image cache; returns the address for the recipe."""
     key = converter.image_key(url)
     if not key:
         return None
@@ -125,7 +125,7 @@ def _store_image(url: str | None) -> str | None:
             return key
         data = converter.fetch_image(url)
         return key if data and cache.store(key, data) else None
-    except Exception:  # noqa: BLE001 – ein fehlendes Bild darf den Konverter nie verhindern
+    except Exception:  # noqa: BLE001 – a missing image must never block the converter
         log.exception("Bild konnte nicht übernommen werden")
         return None
 
@@ -159,7 +159,7 @@ def update_recipe(
         act.updating(recipe)
         recipe.title = title.strip()[:200]
         recipe.servings = recipe_service.parse_servings(servings)
-        if recipe.source in converter.CONVERTED_SOURCES:  # die Quelle bleibt in der Zubereitung stehen
+        if recipe.source in converter.CONVERTED_SOURCES:  # the source stays in the steps
             steps = converter.with_source_line(steps, recipe.source_url)
         recipe.steps = steps.strip()[:20000]
         recipe_service.replace_ingredients(act, ctx.db, recipe, parse_lines(ingredients))

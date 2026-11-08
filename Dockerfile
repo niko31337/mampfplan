@@ -12,11 +12,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY seed ./seed
 
-# Die App läuft ohne Root-Rechte und muss ihre Dateien lesen können – unabhängig von den Rechten im
-# Build-Verzeichnis (z. B. umask 077 auf dem Server würde sonst "Permission denied" verursachen).
+# The app runs without root privileges and must be able to read its files, regardless of the permissions in
+# the build directory (e.g. umask 077 on the server would otherwise cause "Permission denied").
 RUN chmod -R a+rX /srv/app /srv/seed
 
-# Nicht als root laufen; die Datenbank liegt auf dem Volume /data
+# Don't run as root; the database lives on the volume /data
 RUN useradd --system --uid 10001 --no-create-home mampf \
     && mkdir /data && chown mampf /data
 USER mampf
@@ -26,6 +26,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).status == 200 else 1)"
 
-# --no-access-log: Der geheime Link-Token steht im URL-Pfad und soll nicht in Logs landen.
-# --proxy-headers: korrekte Client-/Schema-Infos hinter einem Reverse Proxy.
+# --no-access-log: the secret link token is in the URL path and must not end up in logs.
+# --proxy-headers: correct client/scheme info behind a reverse proxy.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--proxy-headers"]

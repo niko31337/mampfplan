@@ -3,7 +3,7 @@ import re
 import tempfile
 from pathlib import Path
 
-# Muss vor dem Import der App passieren (Engine wird beim Import erzeugt).
+# Must happen before importing the app (the engine is created on import).
 _TMP = Path(tempfile.mkdtemp(prefix="mampfplan-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{(_TMP / 'test.db').as_posix()}"
 os.environ["SPACE_TOKEN"] = "test-token-0123456789abcdefghij"
@@ -21,14 +21,14 @@ BASE = f"/s/{TOKEN}"
 
 
 class Browser:
-    """Dünner Wrapper um den TestClient, der CSRF-Token und Profil wie ein Browser mitschickt."""
+    """Thin wrapper around the TestClient that sends the CSRF token and profile like a browser."""
 
     def __init__(self, client: TestClient, base: str = BASE):
         self.client = client
         self.base = base
 
     def household(self, token: str) -> "Browser":
-        """Derselbe Browser (gleiche Cookies), aber im Haushalt mit diesem Link."""
+        """The same browser (same cookies), but in the household with this link."""
         return Browser(self.client, f"/s/{token}")
 
     def get(self, path: str, **kwargs):
@@ -43,7 +43,7 @@ class Browser:
         return self.client.post(self.base + path, data=data or {}, headers=headers, follow_redirects=False)
 
     def login(self, name: str = "Anna"):
-        self.get("/who")  # stellt das CSRF-Cookie aus
+        self.get("/who")  # issues the CSRF cookie
         page = self.get("/who").text
         match = re.search(rf'name="member_id" value="(\d+)">\s*<button[^>]*>{re.escape(name)}</button>', page)
         assert match, f"Profil {name} nicht auf der Profilauswahl"
@@ -54,7 +54,7 @@ class Browser:
 
 @pytest.fixture(autouse=True)
 def _clean_source_caches():
-    """Die Rezeptquellen merken sich Ergebnisse 10 Minuten – das darf Tests nicht beeinflussen."""
+    """The recipe sources cache results for 10 minutes; that must not affect tests."""
     from app.recipe_sources import get_sources
 
     for source in get_sources().values():

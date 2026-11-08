@@ -11,14 +11,14 @@ KIND_NOTE = "note"
 
 
 class Space(Base):
-    """Ein Haushalt. Zugriff nur über das geheime Token; alle Daten hängen an genau einem Haushalt."""
+    """A household. Access only via the secret token; all data belongs to exactly one household."""
 
     __tablename__ = "spaces"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     token: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(100))
-    # Verwaltungs-Haushalt: darf weitere Haushalte anlegen (der beim ersten Start erzeugte)
+    # admin household: may create further households (the one created on first start)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=now)
 
@@ -44,7 +44,7 @@ class Recipe(Base):
     steps: Mapped[str] = mapped_column(Text, default="")
     created_by: Mapped[str] = mapped_column(String(50), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)  # Soft-Delete (Undo, Statistik)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)  # soft delete (undo, statistics)
 
     ingredients: Mapped[list["RecipeIngredient"]] = relationship(
         order_by="RecipeIngredient.position", cascade="all, delete-orphan"
@@ -89,14 +89,14 @@ class ShoppingItem(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     checked: Mapped[bool] = mapped_column(Boolean, default=False)
     checked_at: Mapped[datetime | None] = mapped_column(DateTime)
-    added_by: Mapped[str | None] = mapped_column(String(50))  # Profilname: hat den Artikel eingetragen
-    checked_by: Mapped[str | None] = mapped_column(String(50))  # Profilname: hat ihn in den Wagen gelegt
+    added_by: Mapped[str | None] = mapped_column(String(50))  # profile name: added the item
+    checked_by: Mapped[str | None] = mapped_column(String(50))  # profile name: put it in the cart
     recipe_id: Mapped[int | None] = mapped_column(ForeignKey("recipes.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
 
 class CategoryOrder(Base):
-    """Eigene Reihenfolge der Kategorien auf der Einkaufsliste (z. B. nach Supermarkt-Rundgang)."""
+    """Custom order of the categories on the shopping list (e.g. by the route through the supermarket)."""
 
     __tablename__ = "category_order"
 
@@ -107,19 +107,19 @@ class CategoryOrder(Base):
 
 
 class CategoryOverride(Base):
-    """Vom Haushalt korrigierte Kategorie eines Artikels – gelernt beim Verschieben in eine andere Kategorie."""
+    """Category of an item as corrected by the household, learned when it is moved to another category."""
 
     __tablename__ = "category_overrides"
     __table_args__ = (UniqueConstraint("space_id", "name_key"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id"), index=True)
-    name_key: Mapped[str] = mapped_column(String(100))  # bereinigter, kleingeschriebener Artikelname
+    name_key: Mapped[str] = mapped_column(String(100))  # cleaned-up, lowercase item name
     category: Mapped[str] = mapped_column(String(40))
 
 
 class CatalogItem(Base):
-    """Vordefinierte Artikel (Lebensmittel, Haushalt, Hygiene) für die Einkaufsliste."""
+    """Predefined items (groceries, household, toiletries) for the shopping list."""
 
     __tablename__ = "catalog_items"
 
@@ -129,7 +129,7 @@ class CatalogItem(Base):
 
 
 class CatalogName(Base):
-    """Übersetzter Name eines Katalogartikels (en/fr/es); der deutsche Name steht in CatalogItem."""
+    """Translated name of a catalog item (en/fr/es); the German name is in CatalogItem."""
 
     __tablename__ = "catalog_names"
     __table_args__ = (UniqueConstraint("catalog_item_id", "lang"),)
@@ -141,7 +141,7 @@ class CatalogName(Base):
 
 
 class ActivityLog(Base):
-    """Änderungsverlauf; `undo_ops` enthält die Umkehr-Operationen (siehe services/history.py)."""
+    """Change history; `undo_ops` holds the inverse operations (see services/history.py)."""
 
     __tablename__ = "activity_log"
 

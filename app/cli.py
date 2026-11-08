@@ -1,8 +1,8 @@
-"""Kleine Verwaltungsbefehle.
+"""Small admin commands.
 
-    python -m app.cli link          zeigt die Links aller Haushalte
-    python -m app.cli rotate [ID]   neuer Link für Haushalt ID (Standard: Verwaltungs-Haushalt);
-                                    der alte Link wird sofort ungültig, die Daten bleiben erhalten
+    python -m app.cli link          shows the links of all households
+    python -m app.cli rotate [ID]   new link for household ID (default: admin household);
+                                    the old link stops working immediately, the data is kept
 """
 
 import sys

@@ -1,7 +1,7 @@
-"""Chefkoch.de über die inoffizielle, undokumentierte JSON-API (api.chefkoch.de/v2).
+"""Chefkoch.de via the unofficial, undocumented JSON API (api.chefkoch.de/v2).
 
-Es gibt keine offizielle API: Die Quelle kann sich jederzeit ändern oder wegfallen.
-Fehler bleiben deshalb auf diese Quelle beschränkt (SourceError).
+There is no official API: the source may change or disappear at any time.
+Errors are therefore confined to this source (SourceError).
 """
 
 from app.i18n import _

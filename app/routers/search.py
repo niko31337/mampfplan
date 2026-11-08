@@ -19,7 +19,7 @@ DEFAULT_SOURCE = "chefkoch"
 
 
 def default_source() -> str:
-    """Chefkoch ist deutsch – in den anderen Sprachen startet die Suche bei TheMealDB."""
+    """Chefkoch is German; in the other languages the search starts with TheMealDB."""
     return DEFAULT_SOURCE if get_language() == "de" else "mealdb"
 
 
@@ -108,10 +108,10 @@ def import_recipe(
 
 
 def _warm_image_cache(url: str | None) -> None:
-    """Bild gleich beim Übernehmen laden, damit es später ohne Zugriff auf die Quelle (auch offline) verfügbar ist."""
+    """Fetch the image right when importing so it's available later without access to the source (offline too)."""
     if not url:
         return
     try:
         images.get_image_cache().get(url)
-    except Exception:  # noqa: BLE001 – ein fehlendes Bild darf das Übernehmen nie verhindern
+    except Exception:  # noqa: BLE001 – a missing image must never block importing
         log.exception("Bild konnte nicht vorgeladen werden")

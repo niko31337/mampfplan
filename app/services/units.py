@@ -1,9 +1,9 @@
-"""Amerikanische Maße in metrische umrechnen (cup → g/ml, oz → g, fl oz → ml, °F → °C, inch → cm).
+"""Convert US measurements to metric (cup → g/ml, oz → g, fl oz → ml, °F → °C, inch → cm).
 
-Tassen sind Volumen: Für Flüssigkeiten wird daraus ml, für bekannte trockene Zutaten über eine
-Dichtetabelle Gramm (1 cup Mehl ≈ 120 g, Zucker ≈ 200 g …). Unbekannte Zutaten bekommen ml.
-Esslöffel/Teelöffel bleiben Löffel, nur der Name wird deutsch (tbsp → EL, tsp → TL).
-Steht die metrische Menge schon in Klammern daneben („1 lb (450 g) Hack“), wird diese genommen.
+Cups are volume: liquids become ml, known dry ingredients become grams via a density table
+(1 cup flour ≈ 120 g, sugar ≈ 200 g …). Unknown ingredients get ml.
+Tablespoons/teaspoons stay spoons, only the name follows the display language (tbsp → EL, tsp → TL).
+If the metric amount is already given in parentheses („1 lb (450 g) Hack“), that one is used.
 """
 
 import re
@@ -15,7 +15,7 @@ _FRACTIONS = {"½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3, "�
 _NUM = r"(?:\d+\s+(?:and\s+)?\d+\s*/\s*\d+|\d+\s*/\s*\d+|\d*\s?[½¼¾⅓⅔⅛]|\d+(?:[.,]\d+)?)"
 _RANGE = rf"(?P<qty>{_NUM})(?:\s*(?:-|–|to|bis)\s*(?P<upper>{_NUM}))?"
 
-# Reihenfolge wichtig: „fl oz“ vor „oz“
+# order matters: „fl oz“ before „oz“
 _UNITS = [
     ("floz", r"fl\.?\s*oz\.?|fluid\s+ounces?"),
     ("cup", r"cups?|c\.(?=\s)"),
@@ -31,7 +31,7 @@ _UNITS = [
 _UNIT_RE = "|".join(f"(?P<{key}>{pattern})" for key, pattern in _UNITS)
 _LINE = re.compile(rf"^\s*{_RANGE}\s*-?\s*(?:{_UNIT_RE})(?![\w])\s*(?:of\s+)?(?P<rest>.*)$", re.I)
 _IN_TEXT = re.compile(rf"(?<![\w/,.]){_RANGE}\s*-?\s*(?:{_UNIT_RE})(?![\w])(?:\s*(?P<paren>\([^()]{{0,40}}\)))?", re.I)
-# „(450 g)“, „(80ml)“, „(8 Tbsp; 113g)“: metrische Menge, die der Autor schon dazugeschrieben hat
+# „(450 g)“, „(80ml)“, „(8 Tbsp; 113g)“: metric amount the author already wrote down
 _METRIC_IN_PARENS = re.compile(r"^\((?P<inner>[^()]{0,40})\)\s*(?P<rest>.*)$")
 _METRIC_AMOUNT = re.compile(r"(?<![\w.,])(?P<amount>\d+(?:[.,]\d+)?)\s*(?P<unit>g|kg|ml|l)(?![\w])", re.I)
 
@@ -44,7 +44,7 @@ _PARENS_US = re.compile(rf"\(\s*{_RANGE}\s*-?\s*(?:{_UNIT_RE})(?![\w])\s*\)", re
 
 ML = {"cup": 240.0, "floz": 29.57, "pint": 473.0, "quart": 946.0, "gallon": 3785.0, "oz": 29.57}
 GRAMS = {"oz": 28.35, "lb": 453.6, "stick": 113.0}
-# Löffel bleiben Löffel – nur mit dem Kürzel der Anzeigesprache
+# spoons stay spoons, just with the abbreviation of the display language
 SPOONS_BY_LANG = {
     "de": {"tbsp": "EL", "tsp": "TL"},
     "en": {"tbsp": "tbsp", "tsp": "tsp"},
@@ -59,7 +59,7 @@ def _spoon(key: str) -> str:
 
     return SPOONS_BY_LANG.get(get_language(), SPOONS)[key]
 
-# Gramm pro US-Tasse (240 ml). Spezifische Begriffe zuerst, damit „brown sugar“ nicht als „sugar“ zählt.
+# grams per US cup (240 ml). Specific terms first so „brown sugar“ doesn't count as „sugar“.
 CUP_GRAMS: list[tuple[str, float]] = [
     ("cooked rice", 160), ("brown sugar", 220), ("powdered sugar", 120), ("icing sugar", 120), ("confectioners", 120),
     ("almond flour", 100), ("bread flour", 130), ("cake flour", 115), ("whole wheat flour", 120), ("coconut flour", 115),
@@ -129,7 +129,7 @@ def _cup_grams(name: str) -> float | None:
 
 
 def _round(value: float) -> float:
-    """Küchentauglich runden: 7 g, 45 g, 120 g, 450 g, 1250 g."""
+    """Round for the kitchen: 7 g, 45 g, 120 g, 450 g, 1250 g."""
     if value < 15:
         return round(value * 2) / 2 if value < 3 else float(round(value))
     if value < 100:
@@ -149,7 +149,7 @@ def _metric(value: float, unit: str) -> tuple[float, str]:
 
 
 def convert_amount(amount: float, key: str, name: str) -> tuple[float, str] | None:
-    """Menge in US-Einheit → (Menge, metrische Einheit). None, wenn die Einheit nicht umgerechnet wird."""
+    """Amount in a US unit → (amount, metric unit). None if the unit isn't converted."""
     if key in SPOONS:
         return amount, _spoon(key)
     if key == "stick":
@@ -184,24 +184,24 @@ def _convert_match(match: re.Match, name: str) -> str | None:
     if low is None:
         return None
     high = convert_amount(upper, key, name) if upper is not None else None
-    if high and high[1] != low[1]:  # 0,5–2 l vs. ml: einheitlich in der kleineren Einheit bleiben
+    if high and high[1] != low[1]:  # 0.5–2 l vs. ml: stay consistently in the smaller unit
         return None
     return _format(low[0], high[0] if high else None, low[1])
 
 
 def metric_line(line: str) -> str:
-    """Zutatenzeile umrechnen; unverändert, wenn sie keine US-Einheit enthält."""
+    """Convert an ingredient line; unchanged if it contains no US unit."""
     match = _LINE.match(line)
     if not match:
-        if _METRIC_START.match(line):  # „545 g flour (4 1/2 cups)“: die US-Angabe ist nur Beiwerk
+        if _METRIC_START.match(line):  # „545 g flour (4 1/2 cups)“: the US amount is just an extra
             return re.sub(r"\s{2,}", " ", _PARENS_US.sub("", line)).strip()
-        # „1 (14 oz) can tomatoes“: nur die Klammer umrechnen; „optional: 1 cup nuts“: Mengen im Text
+        # „1 (14 oz) can tomatoes“: only convert the parentheses; „optional: 1 cup nuts“: amounts within the text
         line = _PARENS_US.sub(lambda m: f"({_convert_match(m, line) or m.group(0)[1:-1]})", line)
         return metric_text(line)
     rest = match["rest"].strip()
     parens = _METRIC_IN_PARENS.match(rest)
     given = _given_metric(parens["inner"]) if parens else None
-    if given:  # „1 lb (450 g) ground chicken“: die metrische Angabe steht schon da
+    if given:  # „1 lb (450 g) ground chicken“: the metric amount is already there
         return f"{given} {parens['rest'].strip()}".strip()
     converted = _convert_match(match, rest)
     if converted is None:
@@ -239,7 +239,7 @@ def _inches(match: re.Match) -> str:
 
 
 def metric_text(text: str) -> str:
-    """Fließtext (Anleitung): °F → °C, inch → cm, cup/oz/lb/fl oz → ml bzw. g, tbsp/tsp → EL/TL."""
+    """Plain text (steps): °F → °C, inch → cm, cup/oz/lb/fl oz → ml or g, tbsp/tsp → EL/TL."""
     text = _FAHRENHEIT.sub(_celsius, text)
     text = _INCH.sub(_inches, text)
 
@@ -257,7 +257,7 @@ def metric_text(text: str) -> str:
 
 
 def metric_lines(lines: list[str]) -> tuple[list[str], list[Conversion]]:
-    """Alle Zeilen umrechnen; zusätzlich die Liste der Änderungen (für den Hinweis in der Vorschau)."""
+    """Convert all lines; also returns the list of changes (for the note in the draft)."""
     result, changes = [], []
     for line in lines:
         converted = metric_line(line)
@@ -268,7 +268,7 @@ def metric_lines(lines: list[str]) -> tuple[list[str], list[Conversion]]:
 
 
 def metric_ingredient(amount: float | None, unit: str, name: str) -> tuple[float | None, str, str]:
-    """Für Rezepte aus der Online-Suche: (Menge, Einheit, Name) umrechnen."""
+    """For recipes from the online search: convert (amount, unit, name)."""
     key = next((k for k, pattern in _UNITS if re.fullmatch(pattern, unit.strip(), re.I)), None) if unit else None
     if amount is None or key is None:
         return amount, unit, name

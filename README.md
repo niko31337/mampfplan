@@ -1,79 +1,80 @@
 # 🍽 Mampfplan
 
-Kleine Familien-Webapp für **Wochen-Essensplan** und **Einkaufsliste** – mobil optimiert, ohne Login, per geheimem Link teilbar.
+A small family web app for a **weekly meal plan** and a **shopping list**: built for phones, no login, shared through a secret link.
 
-## Funktionen
+## Features
 
-- **Wochenplan** mit mehreren Rezepten *oder* Notizen pro Tag (z. B. „Wir gehen essen“), Reihenfolge per ▲▼ änderbar
-- **Rezepte**: selbst anlegen (Zutaten + Schritte), bearbeiten, löschen
-- **Rezeptsuche** in öffentlichen Datenbanken: **Chefkoch** (deutsch, inoffizielle API), **TheMealDB** (englisch), optional **Spoonacular** (englisch, API-Key nötig). Treffer werden als eigene, editierbare Kopie übernommen. **Rezeptbilder lädt nur der Server** (einmalig, danach aus dem Cache): Die Browser der Familie fragen nie direkt bei Chefkoch & Co. an.
-- **Rezept aus Link** (Rezepte → „🔗 Aus Link“): Link zu einem Instagram-Post, einem TikTok-Video (auch Kurzlinks wie `vm.tiktok.com/…`), einem Foodblog oder einer HelloFresh-Rezeptseite einfügen – daraus entsteht ein Vorschlag mit Titel, Portionen, Zutaten, Anleitung und Bild, den du vor dem Speichern beliebig anpasst. Der Link zur Quelle steht immer als letzte Zeile der Zubereitung (anklickbar) und wird beim Speichern und Bearbeiten wieder ergänzt, falls er gelöscht wurde. Erkannt werden Seiten mit Rezept-Markup (schema.org, z. B. HelloFresh, WordPress-Rezeptplugins) und Fließtext mit Abschnitten wie „Zutaten“ / „Zubereitung“ (auch englisch, mit Emojis, Aufzählungszeichen oder Zutaten in einer Zeile). Bei Instagram und TikTok wird die Beschreibung des Posts bzw. Videos ausgewertet (bei TikTok mit Vorschaubild). Liefert die Plattform sie nicht aus (das entscheidet die Plattform, z. B. für Server in Rechenzentren), fragt die App nach dem Text: Beschreibung kopieren, einfügen, fertig.
-- **Amerikanische Maße werden automatisch umgerechnet** (Rezept aus Link und Online-Suche): Tassen in Gramm (trockene Zutaten über eine Dichtetabelle, z. B. 1 cup Mehl ≈ 120 g, Zucker ≈ 200 g, Butter ≈ 227 g) bzw. ml (Flüssigkeiten und Unbekanntes), oz/lb/sticks in g, fl oz/pint/quart in ml, tbsp/tsp in EL/TL; in der Anleitung zusätzlich °F → °C und inch → cm. Hat der Autor die Grammzahl schon dazugeschrieben („1 cup (125 g) flour“), wird diese übernommen. Die Vorschau listet jede Umrechnung zum Prüfen auf.
-- **Einkaufsliste**: Zutaten eines (eingeplanten) Rezepts per Klick hinzufügen, Artikel frei eintippen („2 l Milch“) oder aus dem **Artikelkatalog** (~270 Lebensmittel-, Haushalts- und Hygieneartikel) suchen. Abhaken verschiebt Artikel nach „Gekauft“. Gleiche Artikel werden zusammengeführt (500 g + 250 g Mehl = 750 g). Zutatennamen werden bereinigt („Karotte(n)“ → „Karotte“) und per Katalog einer Kategorie zugeordnet. Artikel und Kategorien lassen sich per **Drag & Drop** am Griff ⠿ umordnen – z. B. passend zum Rundgang im Supermarkt. Unter **„↕ Laden“** bringst du alle Kategorien – auch gerade leere – einmal in die Reihenfolge deines Supermarkts (z. B. Getränke, Obst & Gemüse, Snacks …); eine in der Liste verschobene Kategorie wird vor ihrem neuen Nachbarn eingefügt und bleibt dauerhaft dort. Falsch einsortierte Artikel zieht man einfach **in eine andere Kategorie** (beim Ziehen erscheinen auch leere Kategorien als Ablagefläche); der Haushalt merkt sich die Korrektur für das nächste Mal.
-- **Rezept → Einkaufsliste**: In der Rezeptansicht ist standardmäßig nichts angehakt – nur ankreuzen, was wirklich fehlt (oder „Alle wählen“)
-- **Verlauf & Statistik**: Änderungsverlauf (wer hat was wann geändert), meistgekochte Rezepte, Kochverlauf
-- **Wer war's?** In der Einkaufsliste steht neben jedem Artikel das Kürzel des Profils, das ihn eingetragen hat – bei „Gekauft“ das Kürzel dessen, der ihn in den Wagen gelegt hat (bei gleichem Anfangsbuchstaben die ersten zwei Buchstaben).
-- **Rückgängig** für jede Aktion (Button oben rechts), mehrfach hintereinander
-- **Teilen**: Wer den Link kennt, kann Plan und Liste sehen und ändern. Kein Passwort, kein Benutzerkonto – beim ersten Öffnen wählt man nur sein Profil (für Verlauf und Kürzel).
-- **Mehrere Haushalte**: Jeder Haushalt hat eigene Rezepte, Wochenplan, Einkaufsliste und einen eigenen geheimen Link. Der beim ersten Start angelegte Haushalt verwaltet die übrigen (unter „Mehr → Haushalte verwalten“); in jedem Haushalt legt das erste Profil weitere Profile an.
+- **Meal plan** with several recipes *or* notes per day (e.g. "Eating out"); reorder them with ▲▼.
+- **Recipes**: create your own (ingredients + steps), edit, delete.
+- **Recipe search** in public databases: **Chefkoch** (German, unofficial API), **TheMealDB** (English), optionally **Spoonacular** (English, API key required). Results are saved as your own editable copy. **Only the server downloads recipe images** (once, then from its cache): the family's browsers never contact Chefkoch & co. directly.
+- **Recipe from link** (Recipes → "🔗 From link"): paste a link to an Instagram post, a TikTok video (short links like `vm.tiktok.com/…` work too), a food blog or a HelloFresh recipe page. The app turns it into a draft with title, servings, ingredients, steps and image, which you can edit freely before saving. The source link is always the last line of the steps (clickable) and is added back on save and edit if it was deleted. The converter understands pages with recipe markup (schema.org, e.g. HelloFresh and WordPress recipe plugins) and plain text with sections like "Ingredients" / "Instructions" (in German, English, French and Spanish, with emojis, bullet points or ingredients on a single line). For Instagram and TikTok it reads the post or video caption (for TikTok including the thumbnail). If the platform doesn't hand out the caption (the platform decides, e.g. for servers in data centers), the app asks for the text: copy the caption, paste it, done.
+- **US measurements are converted automatically** (recipe from link and online search): cups to grams (dry ingredients via a density table, e.g. 1 cup flour ≈ 120 g, sugar ≈ 200 g, butter ≈ 227 g) or ml (liquids and anything unknown), oz/lb/sticks to g, fl oz/pint/quart to ml, tbsp/tsp to the spoon units of the chosen language; in the steps also °F → °C and inch → cm. If the author already wrote the metric amount ("1 cup (125 g) flour"), that amount is used. The draft lists every conversion so you can check it.
+- **Shopping list**: add the ingredients of a (planned) recipe with one click, type items freely ("2 l milk") or search the **item catalog** (~270 groceries, household and toiletry items). Ticking an item moves it to "Bought". Identical items are merged (500 g + 250 g flour = 750 g). Ingredient names are cleaned up ("Karotte(n)" → "Karotte") and sorted into a category via the catalog. Items and categories can be reordered by **drag & drop** on the ⠿ handle, e.g. to match your route through the supermarket. Under **"↕ Store"** you put all categories, including currently empty ones, into the order of your supermarket once (e.g. drinks, fruit & vegetables, snacks …); a category moved in the list is placed before its new neighbor and stays there. Drag a misfiled item **into another category** (empty categories show up as drop targets while dragging); the household remembers the correction for next time.
+- **Recipe → shopping list**: in the recipe view nothing is ticked by default; tick only what you're actually missing (or "Select all").
+- **History & statistics**: change history (who changed what and when), most-cooked recipes, cooking history.
+- **Who added it?** Next to each item in the shopping list is the initial of the profile that added it; under "Bought", the initial of whoever put it in the cart (the first two letters if initials collide).
+- **Undo** for every action (button at the top right), several times in a row.
+- **Sharing**: anyone with the link can view and change the plan and the list. No password, no user account; on first visit you just pick your profile (for the history and initials).
+- **Multiple households**: each household has its own recipes, meal plan, shopping list and its own secret link. The household created on first start manages the others ("More → Manage households"); in every household the first profile creates further profiles.
+- **Four languages**: German, English, French and Spanish, chosen per device (see [Languages](#languages)).
 
-## Starten mit Docker
+## Running with Docker
 
 ```bash
-cp .env.example .env      # Namen anpassen
+cp .env.example .env      # adjust the names
 docker compose up -d --build
 docker compose exec mampfplan python -m app.cli link
 ```
 
-Der letzte Befehl zeigt die **Links aller Haushalte** (`http://…/s/<geheimes-token>`). Den Link an die Familie schicken und als Lesezeichen / „Zum Startbildschirm hinzufügen“ speichern. Beim ersten Start steht er auch im Log (`docker compose logs mampfplan`).
+The last command prints the **links of all households** (`http://…/s/<secret-token>`). Send the link to your family and save it as a bookmark / "Add to Home Screen". On first start it is also printed in the log (`docker compose logs mampfplan`).
 
-### Haushalte und Profile
+### Households and profiles
 
-- Beim **ersten Start** entsteht der Verwaltungs-Haushalt mit den Profilen aus `MEMBERS`. Danach werden Profile nur noch in der App verwaltet (`MEMBERS` wirkt nicht mehr).
-- **Weitere Haushalte** legst du im Verwaltungs-Haushalt unter „Mehr → Haushalte verwalten“ an: Name des Haushalts plus erstes Profil. Den angezeigten Link schickst du an den neuen Haushalt. Dort sieht man nur die eigenen Daten.
-- **Weitere Profile** legt in jedem Haushalt das erste Profil unter „Mehr → Profile“ an. Dort kann es Profile auch **umbenennen** (✏️) – Kürzel in der Einkaufsliste, Verlauf und „Rezept von …“ ziehen mit – und **löschen**. Das eigene Profil lässt sich nicht löschen; bereits Eingetragenes behält den alten Namen.
-- **Haushalte löschen** kann nur der Verwaltungs-Haushalt („Haushalt löschen …“ in der Verwaltung, Name zur Bestätigung eintippen). Das entfernt alle Rezepte, den Wochenplan, die Einkaufsliste, den Verlauf und die Profile des Haushalts **endgültig**. Der Verwaltungs-Haushalt selbst kann nicht gelöscht werden.
-- **Link erneuern**: Das erste Profil kann den Link des eigenen Haushalts erneuern, der Verwaltungs-Haushalt den jedes Haushalts. Auf der Kommandozeile: `python -m app.cli rotate <ID>` (IDs zeigt `python -m app.cli link`).
-- Ein Gerät kann mehrere Haushalte nutzen; das gewählte Profil merkt sich die App je Haushalt.
+- On **first start** the admin household is created with the profiles from `MEMBERS`. After that, profiles are managed only in the app (`MEMBERS` no longer has any effect).
+- **More households** are created in the admin household under "More → Manage households": household name plus first profile. Send the link shown to the new household. They only see their own data.
+- **More profiles** are created in each household by the first profile under "More → Profiles". There it can also **rename** profiles (✏️; the initials in the shopping list, the history and "Recipe by …" follow along) and **delete** them. Your own profile can't be deleted; existing entries keep the old name.
+- **Deleting households** is only possible from the admin household ("Delete household …" in the household management, type the name to confirm). This **permanently** removes all recipes, the meal plan, the shopping list, the history and the profiles of that household. The admin household itself can't be deleted.
+- **Renewing a link**: the first profile can renew its own household's link, the admin household can renew any household's link. On the command line: `python -m app.cli rotate <ID>` (`python -m app.cli link` shows the IDs).
+- One device can use several households; the app remembers the chosen profile per household.
 
-> Ohne Login sind die Profil-Rechte eine **Bedienungs-, keine Sicherheitsgrenze**: Wer den Link eines Haushalts hat, kann jedes Profil dieses Haushalts wählen. Die Grenze zwischen Haushalten ist der jeweilige geheime Link.
+> Without a login, profile permissions are a **usability boundary, not a security boundary**: anyone with a household's link can pick any profile of that household. The boundary between households is each household's secret link.
 
-Die Daten liegen in einer SQLite-Datei im Docker-Volume `mampfplan-data` (Backup: Volume sichern oder statt des Volumes `./data:/data` einbinden und vorher `chown 10001 data` ausführen).
+The data lives in a SQLite file in the Docker volume `mampfplan-data` (backup: back up the volume, or mount `./data:/data` instead of the volume and run `chown 10001 data` first).
 
-### Produktivbetrieb mit HTTPS (Caddy + certbot)
+### Production with HTTPS (Caddy + certbot)
 
-`docker-compose.caddy.yml` stellt Caddy als HTTPS-Reverse-Proxy auf Port **8443** vor die App. Die App selbst wird dann nicht mehr auf dem Host veröffentlicht, sondern ist nur über Caddy erreichbar. Caddy nutzt die Zertifikate des auf dem Server vorhandenen **certbot** (read-only eingebunden) und holt selbst keine.
+`docker-compose.caddy.yml` puts Caddy in front of the app as an HTTPS reverse proxy on port **8443**. The app itself is then no longer published on the host and is only reachable through Caddy. Caddy uses the certificates of the **certbot** already installed on the server (mounted read-only) and doesn't obtain any itself.
 
-1. DNS-Eintrag für die Domain anlegen und sie in das certbot-Zertifikat aufnehmen (`certbot certificates` zeigt Name und enthaltene Domains).
-2. In der `.env` setzen (Beispielwerte, siehe `.env.example`):
+1. Create a DNS record for the domain and add it to the certbot certificate (`certbot certificates` shows the name and the domains it contains).
+2. Set in `.env` (example values, see `.env.example`):
    ```
    DOMAIN=mampf.example.org
-   CERT_NAME=example.org            # nur nötig, wenn der certbot-Ordnername abweicht
+   CERT_NAME=example.org            # only needed if the certbot folder name differs
    PUBLIC_URL=https://mampf.example.org:8443
    SECURE_COOKIES=true
    COMPOSE_FILE=docker-compose.yml:docker-compose.caddy.yml
    ```
-3. `docker compose up -d --build`, Port 8443/tcp in der Firewall freigeben.
-4. **Nach jeder Zertifikatserneuerung** muss Caddy die Dateien neu laden. Dafür ein certbot-Deploy-Hook, z. B. `/etc/letsencrypt/renewal-hooks/deploy/mampfplan-caddy.sh` (ausführbar):
+3. Run `docker compose up -d --build` and open port 8443/tcp in the firewall.
+4. **After every certificate renewal** Caddy has to reload the files. Add a certbot deploy hook for that, e.g. `/etc/letsencrypt/renewal-hooks/deploy/mampfplan-caddy.sh` (executable):
    ```sh
    #!/bin/sh
    docker exec mampfplan-caddy caddy reload --config /etc/caddy/Caddyfile
    ```
 
-Zugriffslogs sind in Caddy standardmäßig aus – der geheime Link steht also in keiner Logdatei dieser Komponente.
+Access logs are off in Caddy by default, so the secret link doesn't end up in any log file of this component.
 
-### Weitere Dienste über denselben Caddy
+### More services behind the same Caddy
 
-Caddy lädt zusätzlich alle Dateien `deploy.local/sites/*.caddy`. Dieser Ordner ist **nicht im Repository** (`.gitignore`) – serverspezifische Weiterleitungen mit internen Adressen bleiben so auf dem Server. Beispiel `deploy.local/sites/beispiel.caddy`:
+Caddy also loads every file `deploy.local/sites/*.caddy`. This folder is **not in the repository** (`.gitignore`), so server-specific proxies with internal addresses stay on the server. Example `deploy.local/sites/example.caddy`:
 
 ```
-dienst.example.org:8123 {
+service.example.org:8123 {
 	tls /certs/live/{$CERT_NAME}/fullchain.pem /certs/live/{$CERT_NAME}/privkey.pem
 	reverse_proxy 192.168.1.10:8123
 }
 ```
 
-Weitere Ports veröffentlichst du in einer ebenfalls ignorierten `docker-compose.local.yml` und nimmst sie in `COMPOSE_FILE` auf (`docker-compose.yml:docker-compose.caddy.yml:docker-compose.local.yml`):
+Publish additional ports in a `docker-compose.local.yml` (also ignored) and add it to `COMPOSE_FILE` (`docker-compose.yml:docker-compose.caddy.yml:docker-compose.local.yml`):
 
 ```yaml
 services:
@@ -82,79 +83,79 @@ services:
       - "8123:8123"
 ```
 
-Die Domain muss im certbot-Zertifikat enthalten sein; nach Änderungen `docker compose up -d` (neue Ports) bzw. `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`.
+The domain must be included in the certbot certificate. After changes run `docker compose up -d` (new ports) or `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`.
 
-### Offline im Supermarkt & Display an beim Kochen
+### Offline in the supermarket & screen on while cooking
 
-- **Offline abhaken:** Die Einkaufsliste (und alle Seiten, die du schon einmal geöffnet hast) steht auch ohne Internet zur Verfügung. Abhaken und Umsortieren funktionieren offline weiter: Die Änderungen werden auf dem Handy gemerkt (Banner „📴 …“) und automatisch übertragen, sobald wieder Verbindung besteht. Wurde derselbe Artikel inzwischen von jemand anderem geändert, gilt der zuletzt gesendete Stand. Hinzufügen, Löschen und Rezeptsuche brauchen Verbindung.
-- **Display bleibt an:** Solange eine Rezeptseite offen ist, schaltet das Handy das Display nicht aus.
-- **Voraussetzung: HTTPS.** Beides nutzt Browser-Funktionen (Service Worker, Screen Wake Lock), die nur auf `https://…` oder `localhost` erlaubt sind – **nicht** über `http://192.168.x.x`. Betreibe die App deshalb hinter einem Reverse Proxy mit Zertifikat (Nginx Proxy Manager, Caddy, Traefik, Synology-Reverse-Proxy …) und ruf sie darüber auf.
-- **Einmal vorher öffnen:** Die Liste muss auf dem Handy mindestens einmal online geladen worden sein (die App aktualisiert sie bei jedem Besuch im Hintergrund). Am besten die App zum Startbildschirm hinzufügen.
+- **Tick items offline:** the shopping list (and every page you've opened before) is available without internet. Ticking and reordering keep working offline: changes are kept on the phone (banner "📴 …") and sent automatically once you're back online. If someone else changed the same item in the meantime, the last change sent wins. Adding, deleting and recipe search need a connection.
+- **Screen stays on:** while a recipe page is open, the phone doesn't turn off its screen.
+- **Requires HTTPS.** Both use browser features (service worker, Screen Wake Lock) that are only allowed on `https://…` or `localhost`, **not** over `http://192.168.x.x`. So run the app behind a reverse proxy with a certificate (Nginx Proxy Manager, Caddy, Traefik, Synology reverse proxy …) and open it through that.
+- **Open it once beforehand:** the list must have been loaded online on the phone at least once (the app refreshes it in the background on every visit). Best to add the app to your home screen.
 
-### Essensplan als JSON (z. B. für Home Assistant)
+### Meal plan as JSON (e.g. for Home Assistant)
 
-`GET /s/<token>/api/plan?days=7` liefert den Plan ab heute für `days` Tage (1–14, Standard 7). Die Schnittstelle ist nur lesend und braucht kein Profil; sie zeigt nur den Haushalt, zu dem das Token gehört. Ein falsches Token ergibt 404, ein ungültiges `days` 422.
+`GET /s/<token>/api/plan?days=7` returns the plan from today for `days` days (1–14, default 7). The endpoint is read-only and needs no profile; it only shows the household the token belongs to. A wrong token returns 404, an invalid `days` 422. Weekdays are German by default; `lang=en|fr|es` switches them. Response for `?days=7&lang=en`:
 
 ```json
 {
   "today": "2026-10-21",
   "days": [
-    {"date": "2026-10-21", "weekday": "Mittwoch", "entries": [
+    {"date": "2026-10-21", "weekday": "Wednesday", "entries": [
       {"kind": "recipe", "title": "Spaghetti Carbonara", "cooked": false},
-      {"kind": "note", "title": "Reste essen", "cooked": false}
+      {"kind": "note", "title": "Leftovers", "cooked": false}
     ]},
-    {"date": "2026-10-22", "weekday": "Donnerstag", "entries": []}
+    {"date": "2026-10-22", "weekday": "Thursday", "entries": []}
   ]
 }
 ```
 
-Die URL enthält das Token und ist damit der Zugang zum ganzen Haushalt. Leg sie in Home Assistant deshalb in der `secrets.yaml` ab und nicht direkt in der Konfiguration:
+The URL contains the token and therefore grants access to the whole household. So put it in Home Assistant's `secrets.yaml`, not directly in the configuration:
 
 ```yaml
 # secrets.yaml
-mampfplan_plan_url: https://mampf.example.org/s/<token>/api/plan?days=7
+mampfplan_plan_url: https://mampf.example.org/s/<token>/api/plan?days=7&lang=en
 
 # configuration.yaml
 rest:
   - resource: !secret mampfplan_plan_url
     scan_interval: 900
     sensor:
-      - name: Essen heute
-        value_template: "{{ value_json.days[0].entries | map(attribute='title') | join(', ') or 'nichts geplant' }}"
+      - name: Dinner today
+        value_template: "{{ value_json.days[0].entries | map(attribute='title') | join(', ') or 'nothing planned' }}"
         json_attributes:
           - days
 ```
 
-### Sprachen
+### Languages
 
-Mampfplan gibt es auf **Deutsch, Englisch, Französisch und Spanisch**. Die Sprache gilt **pro Gerät**: Beim ersten Besuch kommt sie aus der Browsersprache (sonst Deutsch), umstellen lässt sie sich unter **„Mehr → Sprache“**, auf der Profilauswahl und auf der Startseite (gespeichert als Cookie `mp_lang`).
+Mampfplan is available in **German, English, French and Spanish**. The language is set **per device**: on first visit it follows the browser language (German otherwise); you can change it under **"More → Language"**, on the profile picker and on the start page (stored in the cookie `mp_lang`).
 
-- **Übersetzt** werden die ganze Oberfläche, Meldungen, Verlauf und „Rückgängig“ (auch rückwirkend: jeder sieht den Verlauf in seiner Sprache), Kategorien, der Artikelkatalog (Vorschläge beim Tippen in der eigenen Sprache), Datumsangaben und Dezimalzeichen.
-- **Nicht übersetzt** wird, was ihr selbst eintragt: Rezepte, Notizen und Artikel bleiben so, wie sie geschrieben wurden.
-- **Kategorien erkennt die Liste sprachübergreifend:** „Milk“, „Lait“ und „Leche“ landen wie „Milch“ bei den Milchprodukten.
-- Zutaten verstehen zusätzlich französische und spanische Einheiten (cs/cc, pincée, gousse, cda/cdta, pizca, diente …); der Rezept-Konverter erkennt französische und spanische Beschreibungen (Ingrédients/Préparation, Ingredientes/Preparación). Umgerechnete US-Löffel heißen je nach Sprache EL/TL, tbsp/tsp, cs/cc oder cda/cdta.
-- Die Rezeptsuche startet auf Deutsch bei Chefkoch, in den anderen Sprachen bei TheMealDB.
-- Die JSON-Schnittstelle liefert Wochentage standardmäßig weiter auf Deutsch; `?lang=en|fr|es` stellt um.
+- **Translated:** the whole interface, messages, history and undo (retroactively too: everyone sees the history in their own language), categories, the item catalog (suggestions while typing in your own language), dates and decimal separators.
+- **Not translated:** whatever you enter yourselves. Recipes, notes and items stay as they were written.
+- **The list recognizes categories across languages:** "Milk", "Lait" and "Leche" end up in dairy just like "Milch".
+- Ingredients also understand French and Spanish units (cs/cc, pincée, gousse, cda/cdta, pizca, diente …); the recipe converter recognizes French and Spanish captions (Ingrédients/Préparation, Ingredientes/Preparación). Converted US spoons are called EL/TL, tbsp/tsp, cs/cc or cda/cdta depending on the language.
+- Recipe search starts with Chefkoch in German and with TheMealDB in the other languages.
+- The JSON endpoint still returns German weekdays by default; `?lang=en|fr|es` switches them.
 
-**Eine Sprache ergänzen oder Texte ändern:** Die Übersetzungen liegen in `app/i18n/<sprache>.json` (Schlüssel ist der deutsche Text), die Katalognamen in `seed/catalog.translations.json`. `python -m app.i18n.extract fr` listet fehlende Texte einer Sprache; ein Test stellt sicher, dass jede Sprachdatei vollständig ist.
+**Adding a language or changing texts:** translations live in `app/i18n/<language>.json` (the key is the German text), catalog names in `seed/catalog.translations.json`. `python -m app.i18n.extract fr` lists the missing texts of a language; a test makes sure every language file is complete.
 
-### Einstellungen (`.env`)
+### Settings (`.env`)
 
-| Variable | Bedeutung |
+| Variable | Meaning |
 | --- | --- |
-| `MEMBERS` | Profile des ersten Haushalts, kommagetrennt – **nur beim allerersten Start**; danach in der App verwalten |
-| `SPACE_NAME` | Name des ersten Haushalts (nur beim allerersten Start) |
-| `SPACE_TOKEN` | Optional eigenes Token (mind. 22 Zeichen). Leer = wird sicher zufällig erzeugt |
-| `PUBLIC_URL` | Adresse, unter der die App erreichbar ist (nur für die Anzeige des Teilen-Links) |
-| `SECURE_COOKIES` | `true`, wenn die App hinter HTTPS läuft |
-| `SPOONACULAR_API_KEY` | Optional: schaltet Spoonacular als weitere Quelle frei |
-| `IMAGE_CACHE_MAX_MB` | Obergrenze des Bild-Caches in MB (Standard 300; die ältesten Bilder werden zuerst gelöscht) |
-| `IMAGE_CACHE_DIR` | Ablageort des Bild-Caches (Standard: Ordner `imagecache` neben der Datenbank, also im Daten-Volume) |
-| `TIMEZONE` | Standard `Europe/Berlin` |
+| `MEMBERS` | Profiles of the first household, comma-separated. **Only on the very first start**; manage them in the app afterwards |
+| `SPACE_NAME` | Name of the first household (only on the very first start) |
+| `SPACE_TOKEN` | Optional custom token (at least 22 characters). Empty = a secure random one is generated |
+| `PUBLIC_URL` | Address where the app is reachable (only used to display the share link) |
+| `SECURE_COOKIES` | `true` when the app runs behind HTTPS |
+| `SPOONACULAR_API_KEY` | Optional: enables Spoonacular as an additional source |
+| `IMAGE_CACHE_MAX_MB` | Size limit of the image cache in MB (default 300; the oldest images are deleted first) |
+| `IMAGE_CACHE_DIR` | Location of the image cache (default: folder `imagecache` next to the database, i.e. in the data volume) |
+| `TIMEZONE` | Default `Europe/Berlin` |
 
-> **Wichtig:** Betreibe die App im Internet nur hinter HTTPS (Reverse Proxy, z. B. Nginx Proxy Manager, Traefik, Caddy) und setze dann `SECURE_COOKIES=true`. Der Link ist das einzige „Passwort“ – nicht öffentlich posten. Ist er in falsche Hände geraten, erzeugt `docker compose exec mampfplan python -m app.cli rotate` sofort einen neuen Link; der alte wird ungültig, alle Daten bleiben erhalten.
+> **Important:** only run the app on the internet behind HTTPS (reverse proxy, e.g. Nginx Proxy Manager, Traefik, Caddy) and then set `SECURE_COOKIES=true`. The link is the only "password", so don't post it publicly. If it falls into the wrong hands, `docker compose exec mampfplan python -m app.cli rotate` creates a new link right away; the old one stops working and all data is kept.
 
-## Lokal entwickeln
+## Local development
 
 ```bash
 python -m venv .venv
@@ -164,58 +165,58 @@ uvicorn app.main:app --reload
 pytest
 ```
 
-## Aufbau
+## Structure
 
 ```
 app/
-  main.py            App, Middleware (CSRF-Cookie, Security-Header), Fehlerseiten
-  web.py             Zugriff per Token + Profil, CSRF-Prüfung, Template-Helfer
-  models.py          Datenbank-Tabellen (SQLAlchemy)
-  routers/           plan, recipes, search, shopping, misc (Verlauf, Statistik, Undo)
+  main.py            app, middleware (CSRF cookie, security headers, language), error pages
+  web.py             access via token + profile, CSRF check, template helpers
+  models.py          database tables (SQLAlchemy)
+  routers/           plan, recipes, search, shopping, api, images, misc (history, statistics, undo)
   services/
-    history.py       Änderungsverlauf + Rückgängig (speichert Umkehr-Operationen)
-    ingredients.py   "200 g Mehl" parsen/formatieren
-    shopping.py      Artikel hinzufügen/zusammenführen, Kategorie raten
-    stats.py         Statistik-Abfragen
-  recipe_sources/    Chefkoch, TheMealDB, Spoonacular (gemeinsames Interface)
-  services/units.py  US-Maße → metrisch (cup, oz, lb, fl oz, °F, inch)
-  i18n/              Sprachen: Auswahl, Übersetzungen (en/fr/es.json), Datum/Zahlen, Text-Extraktion
-  converter/         Rezept aus Link: fetch.py (abgesicherter Abruf), html.py (Meta, JSON-LD, Text),
-                     text.py (Zutaten/Anleitung aus Fließtext erkennen)
-  templates/, static/   Jinja2 + HTMX (lokal eingebunden, kein CDN)
-seed/catalog.json    Artikelkatalog – einfach erweiterbar
+    history.py       change history + undo (stores inverse operations)
+    ingredients.py   parse/format "200 g flour"
+    shopping.py      add/merge items, guess category
+    stats.py         statistics queries
+    units.py         US measurements → metric (cup, oz, lb, fl oz, °F, inch)
+  recipe_sources/    Chefkoch, TheMealDB, Spoonacular (shared interface)
+  i18n/              languages: selection, translations (en/fr/es.json), dates/numbers, text extraction
+  converter/         recipe from link: fetch.py (hardened fetching), html.py (meta, JSON-LD, text),
+                     text.py (detect ingredients/steps in plain text)
+  templates/, static/   Jinja2 + HTMX (served locally, no CDN)
+seed/catalog.json    item catalog, easy to extend
 tests/               pytest
 ```
 
-Eine **neue Rezeptquelle** hinzuzufügen heißt: Klasse von `RecipeSource` ableiten (`_search`, `_get`) und in `recipe_sources/__init__.py` eintragen.
+Adding a **new recipe source** means: subclass `RecipeSource` (`_search`, `_get`) and register it in `recipe_sources/__init__.py`.
 
-**Artikelkatalog erweitern:** Einträge in `seed/catalog.json` ergänzen und die App neu starten – fehlende Artikel werden beim Start nachgetragen.
+**Extending the item catalog:** add entries to `seed/catalog.json` (and their names in other languages to `seed/catalog.translations.json`) and restart the app; missing items are added on startup.
 
-## Mitgelieferte Bibliotheken
+## Bundled libraries
 
-Lokal eingebunden (kein CDN, wegen der Content-Security-Policy), unverändert von jsDelivr:
+Served locally (no CDN, because of the Content Security Policy), unmodified from jsDelivr:
 
 - [htmx](https://htmx.org) 2.0.4 – BSD-2-Clause
 - [SortableJS](https://sortablejs.github.io/Sortable/) 1.15.6 – MIT
 
-## Sicherheit (OWASP)
+## Security (OWASP)
 
-- **Zugriffskontrolle:** unerratbares 256-Bit-Token im URL-Pfad; alle Daten sind strikt dem Space zugeordnet, fremde IDs liefern 404
-- **Injection:** ausschließlich SQLAlchemy mit gebundenen Parametern; LIKE-Wildcards werden escaped
-- **XSS:** Jinja2-Autoescaping, kein Inline-JavaScript/-CSS, strenge Content-Security-Policy; externe URLs nur `https`
-- **CSRF:** Double-Submit-Token (Header für HTMX, Feld für Formulare) plus `SameSite=Lax`
-- **SSRF:** Rezeptsuche und Bild-Cache nutzen nur fest hinterlegte Hosts, IDs werden per Regex validiert, Timeouts gesetzt. Der Rezept-Konverter ruft vom Nutzer eingegebene Links ab und ist deshalb eigens abgesichert: nur `https` auf Port 443, keine Zugangsdaten in der URL; der Hostname muss ausschließlich auf öffentliche IP-Adressen zeigen (kein Heimnetz, VPN, Docker-Netz, localhost, Cloud-Metadaten); nach dem Verbindungsaufbau wird die tatsächlich verbundene Adresse erneut geprüft (DNS-Rebinding); jede Weiterleitung wird einzeln geprüft (max. 5); Größenlimit 6 MB (Bilder 3 MB), kein Proxy aus Umgebungsvariablen, nur HTML bzw. echte Bilddateien. Der Bild-Cache lädt ausschließlich per `https` von fest hinterlegten Bildservern (Chefkoch, TheMealDB, Spoonacular), folgt keinen Weiterleitungen, begrenzt die Größe und prüft den Dateiinhalt (nur JPEG/PNG/GIF/WebP, nie SVG)
-- **Bilder:** Die Content-Security-Policy erlaubt Bilder nur von der App selbst (`img-src 'self' data:`) – ein Bild von einem fremden Server würde der Browser gar nicht laden
-- **Security-Header:** CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag`
-- **Hardening:** Container läuft als Nicht-Root, `read_only`, ohne Capabilities; keine API-Docs; Zugriffslog aus (Token steht im Pfad)
-- **Eingaben:** serverseitige Längenlimits und Typprüfung
+- **Access control:** unguessable 256-bit token in the URL path; all data is strictly bound to its household, foreign IDs return 404
+- **Injection:** SQLAlchemy with bound parameters only; LIKE wildcards are escaped
+- **XSS:** Jinja2 autoescaping, no inline JavaScript/CSS, strict Content Security Policy; external URLs only `https`
+- **CSRF:** double-submit token (header for HTMX, field for forms) plus `SameSite=Lax`; the language switch only redirects to the app's own relative paths
+- **SSRF:** recipe search and image cache only use fixed hosts, IDs are validated by regex, timeouts are set. The recipe converter fetches links entered by users and is therefore hardened separately: only `https` on port 443, no credentials in the URL; the hostname must resolve exclusively to public IP addresses (no home network, VPN, Docker network, localhost, cloud metadata); after connecting, the address actually connected to is checked again (DNS rebinding); every redirect is checked on its own (max. 5); size limit 6 MB (images 3 MB), no proxy from environment variables, only HTML or real image files. The image cache downloads only via `https` from fixed image servers (Chefkoch, TheMealDB, Spoonacular), follows no redirects, limits the size and checks the file content (JPEG/PNG/GIF/WebP only, never SVG)
+- **Images:** the Content Security Policy only allows images from the app itself (`img-src 'self' data:`); the browser wouldn't even load an image from a foreign server
+- **Security headers:** CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag`
+- **Hardening:** the container runs as non-root, `read_only`, without capabilities; no API docs; access log off (the token is in the path)
+- **Input:** server-side length limits and type checks
 
-## Bekannte Grenzen
+## Known limitations
 
-- Selbst angelegte Rezepte haben (noch) kein Bild; ein Foto-Upload ließe sich nachrüsten. Rezepte aus dem Konverter übernehmen das Bild der Quelle (einmalig vom Server geladen und im Bild-Cache abgelegt).
-- Der **Rezept-Konverter** erkennt Fließtext mit einfachen Regeln – das Ergebnis ist immer ein Vorschlag. Ob Instagram/TikTok die Beschreibung ohne Anmeldung herausgeben, entscheiden die Plattformen; sonst hilft das Einfügen des Textes. Bei TikTok steht das Rezept oft nur gesprochen im Video, als Text in den Bildern einer Foto-Serie oder im angepinnten Kommentar – das kann die App nicht lesen; dann den Text selbst einfügen.
-- Die **Chefkoch-Schnittstelle ist inoffiziell** und kann sich jederzeit ändern oder wegfallen. Dann ist nur dieser Tab betroffen; eigene Rezepte und TheMealDB laufen weiter.
-- Offline gemerkte Änderungen liegen nur auf dem jeweiligen Handy (Browser-Speicher). Löscht man die Website-Daten, bevor sie übertragen wurden, gehen sie verloren.
-- „Rückgängig“ nimmt immer die **letzte** Änderung zurück – auch wenn sie vom anderen Familienmitglied stammt (der Button zeigt, was es ist).
-- Es gibt nur eine minimale automatische Schema-Anpassung (`app/db.py: migrate`). Vor größeren Updates bitte die SQLite-Datei sichern.
-- Zum Installieren auf dem iPhone-Startbildschirm wird ein SVG-Icon genutzt; ein PNG-Icon wäre noch schöner.
+- Recipes you create yourself have no image (yet); a photo upload could be added. Recipes from the converter take the source's image (downloaded once by the server and stored in the image cache).
+- The **recipe converter** recognizes plain text with simple rules, so the result is always a draft. Whether Instagram/TikTok hand out the caption without a login is up to the platforms; otherwise pasting the text helps. On TikTok the recipe is often only spoken in the video, written in the images of a photo post or in the pinned comment. The app can't read those, so paste the text yourself.
+- The **Chefkoch API is unofficial** and may change or disappear at any time. Only that tab would be affected; your own recipes and TheMealDB keep working.
+- Changes saved offline only live on that phone (browser storage). If you clear the site data before they've been sent, they're lost.
+- "Undo" always reverts the **latest** change, even if another family member made it (the button shows what it is).
+- There is only minimal automatic schema migration (`app/db.py: migrate`). Please back up the SQLite file before larger updates.
+- An SVG icon is used for installing on the iPhone home screen; a PNG icon would be nicer.

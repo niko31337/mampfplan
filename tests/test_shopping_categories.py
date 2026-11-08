@@ -1,4 +1,4 @@
-"""Artikel in eine andere Kategorie verschieben (und die Korrektur je Haushalt merken)."""
+"""Move items into another category (and remember the correction per household)."""
 
 import html
 import re
@@ -21,7 +21,7 @@ def item(name: str) -> ShoppingItem:
 
 
 def move(browser: Browser, name: str, category: str, *order: str):
-    """Wie der Browser nach dem Ziehen: Ziel-Kategorie und Reihenfolge der Artikel dort."""
+    """Like the browser after dragging: target category and order of the items there."""
     ids = [item(n).id for n in order] if order else [item(name).id]
     return browser.client.post(
         f"{browser.base}/shopping/{item(name).id}/move",
@@ -44,7 +44,7 @@ def item_names(fragment: str) -> list[str]:
 
 
 def test_item_moves_to_another_category_at_the_dropped_position(web):
-    web.post("/shopping/add", {"name": "Tintenpatronen"})  # landet unter Sonstiges
+    web.post("/shopping/add", {"name": "Tintenpatronen"})  # ends up under Sonstiges
     web.post("/shopping/add", {"name": "Milch"})
     web.post("/shopping/add", {"name": "Butter"})
     assert item("Tintenpatronen").category == "Sonstiges"
@@ -60,14 +60,14 @@ def test_move_into_empty_category(web):
     assert move(web, "Tintenpatronen", "Getränke").status_code == 200
     page = listing(web)
     assert section_names(page, "Getränke") == ["Tintenpatronen"]
-    assert 'class="shop-group is-empty" data-category="Sonstiges"' in page  # leer, bleibt Ablagefläche
+    assert 'class="shop-group is-empty" data-category="Sonstiges"' in page  # empty, stays a drop target
 
 
 def test_correction_is_remembered_for_next_time(web):
     web.post("/shopping/add", {"name": "Tintenpatronen"})
     move(web, "Tintenpatronen", "Haushalt & Reinigung")
     web.post(f"/shopping/{item('Tintenpatronen').id}/delete")
-    web.post("/shopping/add", {"name": "2 Tintenpatronen"})  # Menge, andere Schreibweise egal
+    web.post("/shopping/add", {"name": "2 Tintenpatronen"})  # amount and different spelling don't matter
     assert item("Tintenpatronen").category == "Haushalt & Reinigung"
 
 
@@ -75,7 +75,7 @@ def test_correction_beats_catalog_suggestion(web):
     web.post("/shopping/add", {"name": "Milch"})
     move(web, "Milch", "Getränke")
     web.post(f"/shopping/{item('Milch').id}/delete")
-    web.post("/shopping/add", {"name": "Milch", "category": DAIRY})  # Tipp auf den Katalog-Chip
+    web.post("/shopping/add", {"name": "Milch", "category": DAIRY})  # tap on the catalog chip
     assert item("Milch").category == "Getränke"
 
 
@@ -152,13 +152,13 @@ def test_history_names_the_move(web):
 def test_list_renders_all_categories_with_drop_targets(web):
     web.post("/shopping/add", {"name": "Milch"})
     page = listing(web)
-    assert page.count('class="shop-items"') == 13  # alle Kategorien, leere als Ablagefläche
+    assert page.count('class="shop-items"') == 13  # all categories, empty ones as drop targets
     assert page.count("is-empty") == 12
     assert f'data-move-url="{web.base}/shopping/__ID__/move"' in page
 
 
 def test_empty_categories_are_hidden_by_attribute(web):
-    """Leere Kategorien sind per hidden-Attribut unsichtbar – auch wenn ein Gerät noch altes CSS hat."""
+    """Empty categories are invisible via the hidden attribute, even if a device still has old CSS."""
     web.post("/shopping/add", {"name": "Milch"})
     sections = re.findall(r"<section class=\"shop-group[^\"]*\" data-category=\"[^\"]*\"[^>]*>", listing(web))
     hidden = [s for s in sections if s.endswith(" hidden>")]

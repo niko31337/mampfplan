@@ -1,4 +1,4 @@
-"""Kategorie-Reihenfolge: dauerhaft wie im Supermarkt."""
+"""Category order: stays like in the supermarket."""
 
 import html
 import re
@@ -28,7 +28,7 @@ def visible_order(browser: Browser) -> list[str]:
 
 
 def test_category_moved_to_front_stays_in_front(web):
-    """Getränke nach vorn – Obst bleibt direkt dahinter, auch wenn später andere Kategorien dazukommen."""
+    """Drinks to the front; fruit stays right behind, even if other categories are added later."""
     web.post("/shopping/add", {"name": "Karotten"})  # Obst & Gemüse
     web.post("/shopping/add", {"name": "Cola"})  # Getränke
     assert visible_order(web) == ["Obst & Gemüse", "Getränke"]
@@ -36,7 +36,7 @@ def test_category_moved_to_front_stays_in_front(web):
     assert post_order(web, category="Getränke", before="Obst & Gemüse").status_code == 200
     assert visible_order(web) == ["Getränke", "Obst & Gemüse"]
 
-    web.post("/shopping/add", {"name": "Brot"})  # Brot & Backwaren kommt dazu
+    web.post("/shopping/add", {"name": "Brot"})  # Brot & Backwaren is added
     web.post("/shopping/add", {"name": "Chips"})  # Süßes & Snacks
     assert visible_order(web) == ["Getränke", "Obst & Gemüse", "Brot & Backwaren", "Süßes & Snacks"]
     assert full_order(web)[:3] == ["Getränke", "Obst & Gemüse", "Brot & Backwaren"]
@@ -48,7 +48,7 @@ def test_insert_after_last_visible_category(web):
     post_order(web, category="Obst & Gemüse", after="Getränke")
     order = full_order(web)
     assert order.index("Obst & Gemüse") == order.index("Getränke") + 1
-    assert order[0] == "Brot & Backwaren"  # übrige Reihenfolge unverändert
+    assert order[0] == "Brot & Backwaren"  # rest of the order unchanged
 
 
 def test_full_store_order_from_the_store_order_page(web):
@@ -65,10 +65,10 @@ def test_store_order_page_lists_all_categories_with_counts(web):
     page = web.get("/shopping/categories")
     assert page.status_code == 200
     names = [html.unescape(c) for c in re.findall(r'<li class="list-item" data-category="([^"]+)">', page.text)]
-    assert names == CATEGORY_ORDER  # auch leere Kategorien
+    assert names == CATEGORY_ORDER  # empty categories too
     assert re.search(r"Obst &amp; Gemüse</span>\s*<span class=\"badge\"[^>]*>2</span>", page.text)
     assert 'id="category-order"' in page.text
-    assert f"{web.base}/shopping/categories" in web.get("/shopping").text  # Link aus der Einkaufsliste
+    assert f"{web.base}/shopping/categories" in web.get("/shopping").text  # link from the shopping list
 
 
 def test_moving_is_undoable(web):
@@ -83,7 +83,7 @@ def test_moving_is_undoable(web):
 def test_same_position_is_no_change(web):
     order = full_order(web)
     successor = order[order.index("Getränke") + 1]
-    post_order(web, category="Getränke", before=successor)  # steht schon genau dort
+    post_order(web, category="Getränke", before=successor)  # already exactly there
     assert full_order(web) == order
     assert "Kategorien umsortiert" not in web.get("/history").text.split("<main>", 1)[1]
 
@@ -107,8 +107,8 @@ def test_order_is_per_household(web):
 def test_drag_script_keeps_list_while_dragging_and_does_not_replace_it_after_drop(anon):
     js = anon.client.get("/static/app.js").text
     post_order = js.split("function postOrder", 1)[1].split("\n}\n", 1)[0]
-    assert "enqueue(" in post_order and "flushQueue()" in post_order  # der Reihe nach, nichts geht verloren
+    assert "enqueue(" in post_order and "flushQueue()" in post_order  # in sequence, nothing gets lost
     assert "htmx.ajax" not in post_order
-    assert "event.detail.shouldSwap = false" in js  # kein Austausch während des Ziehens
-    assert "scrollSensitivity: 120" in js  # großer Randbereich fürs automatische Scrollen
+    assert "event.detail.shouldSwap = false" in js  # no swapping while dragging
+    assert "scrollSensitivity: 120" in js  # large edge area for auto-scrolling
     assert "values.before = next.dataset.category" in js

@@ -64,7 +64,7 @@ def test_cli_rotate_invalidates_old_link(web, capsys):
     assert main(["cli", "rotate"]) == 0
     new_link = capsys.readouterr().out.strip()
     assert new_link.rsplit("/", 1)[1] != "test-token-0123456789abcdefghij"
-    assert web.get("/plan").status_code == 404  # alter Token ist ungültig
+    assert web.get("/plan").status_code == 404  # old token is invalid
 
 
 def test_html_is_escaped(web):

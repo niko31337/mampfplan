@@ -26,7 +26,7 @@ def _require_owner(ctx: Ctx) -> None:
 
 def _require_admin(ctx: Ctx) -> None:
     if not ctx.space.is_admin:
-        raise HTTPException(404, "Nicht gefunden")  # Funktion für andere Haushalte unsichtbar
+        raise HTTPException(404, "Nicht gefunden")  # feature invisible to other households
 
 
 @router.get("")
@@ -114,7 +114,7 @@ def delete_member(ctx: Annotated[Ctx, Depends(get_ctx)], member_id: int):
 
 @router.post("/link/rotate")
 def rotate_own_link(ctx: Annotated[Ctx, Depends(get_ctx)]):
-    """Neuer Link für den eigenen Haushalt (z. B. wenn der alte in falsche Hände geraten ist)."""
+    """New link for your own household (e.g. if the old one fell into the wrong hands)."""
     _require_owner(ctx)
     households.rotate_token(ctx.db, ctx.space)
     return redirect(f"/s/{ctx.space.token}/more")
@@ -156,13 +156,13 @@ def rotate_household_link(ctx: Annotated[Ctx, Depends(get_ctx)], space_id: int):
     if target is None:
         raise HTTPException(404, "Haushalt nicht gefunden")
     households.rotate_token(ctx.db, target)
-    # Eigener Haushalt: der bisherige Link (und damit diese Seite) ist jetzt ungültig
+    # own household: the previous link (and thus this page) is now invalid
     return redirect(f"/s/{ctx.space.token}/households")
 
 
 @router.post("/households/{space_id}/delete")
 def delete_household(ctx: Annotated[Ctx, Depends(get_ctx)], space_id: int, confirm_name: HouseholdNameField = ""):
-    """Löscht einen anderen Haushalt samt allen Daten. Zur Sicherheit muss sein Name eingetippt werden."""
+    """Deletes another household with all its data. For safety, its name has to be typed in."""
     _require_admin(ctx)
     target = ctx.db.get(Space, space_id)
     if target is None:

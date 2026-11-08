@@ -1,4 +1,4 @@
-"""Abruf fremder Seiten für den Rezept-Konverter: SSRF-Schutz, Weiterleitungen, Limits."""
+"""Fetching foreign pages for the recipe converter: SSRF protection, redirects, limits."""
 
 import httpx
 import pytest
@@ -11,7 +11,7 @@ PUBLIC = "93.184.215.14"
 
 @pytest.fixture
 def dns(monkeypatch):
-    """Gefälschte Namensauflösung: Host → Adressen."""
+    """Fake name resolution: host → addresses."""
     table = {"rezepte.example": [PUBLIC], "cdn.example": [PUBLIC]}
     monkeypatch.setattr(fetching, "_resolve", lambda host: table.get(host, [PUBLIC]))
     return table
@@ -28,11 +28,11 @@ def html_response(body="<html><body>Hallo</body></html>", **headers):
 @pytest.mark.parametrize(
     "url",
     [
-        "http://rezepte.example/a",  # kein https
+        "http://rezepte.example/a",  # no https
         "ftp://rezepte.example/a",
         "file:///etc/passwd",
-        "https://rezepte.example:8443/a",  # anderer Port
-        "https://user:pass@rezepte.example/a",  # Zugangsdaten
+        "https://rezepte.example:8443/a",  # other port
+        "https://user:pass@rezepte.example/a",  # credentials
         "https:///pfad",
         "javascript:alert(1)",
         "",
@@ -54,10 +54,10 @@ def test_valid_url_drops_the_fragment():
         "127.0.0.1",
         "10.0.0.5",
         "10.88.0.1",  # VPN
-        "192.168.1.202",  # Heimnetz
-        "172.18.0.2",  # Docker-Netz
-        "169.254.169.254",  # Cloud-Metadaten
-        "100.64.0.1",  # Carrier-NAT
+        "192.168.1.202",  # home network
+        "172.18.0.2",  # Docker network
+        "169.254.169.254",  # cloud metadata
+        "100.64.0.1",  # carrier-grade NAT
         "0.0.0.0",
         "224.0.0.1",
         "::1",

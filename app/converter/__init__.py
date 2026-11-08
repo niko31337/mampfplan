@@ -1,4 +1,4 @@
-"""Rezept-Konverter: macht aus einem Link (Instagram, TikTok, Blog, HelloFresh …) einen Rezept-Vorschlag."""
+"""Recipe converter: turns a link (Instagram, TikTok, blog, HelloFresh …) into a recipe draft."""
 
 import re
 from dataclasses import dataclass, field
@@ -13,7 +13,7 @@ from app.services.units import Conversion, metric_lines, metric_text
 __all__ = ["CONVERTED_SOURCES", "Draft", "FetchError", "convert", "fetch_image", "image_key", "source_kind", "with_source_line"]
 
 CONVERTED_SOURCES = ("instagram", "tiktok", "hellofresh", "link")
-SOCIAL_SOURCES = ("instagram", "tiktok")  # Rezept steht in der Beschreibung des Posts
+SOCIAL_SOURCES = ("instagram", "tiktok")  # the recipe is in the post's caption
 MAX_INGREDIENTS = 100
 MAX_STEPS_CHARS = 18000
 
@@ -27,9 +27,9 @@ class Draft:
     ingredients: list[str] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
     image_url: str | None = None
-    needs_text: bool = False  # Seite liefert keinen Rezepttext (z. B. Instagram/TikTok gesperrt)
-    conversions: list[Conversion] = field(default_factory=list)  # umgerechnete US-Maße (Zutaten)
-    steps_converted: bool = False  # Anleitung enthielt °F, inch, cups …
+    needs_text: bool = False  # page delivers no recipe text (e.g. Instagram/TikTok blocked)
+    conversions: list[Conversion] = field(default_factory=list)  # converted US measurements (ingredients)
+    steps_converted: bool = False  # steps contained °F, inch, cups …
 
     @property
     def found(self) -> bool:
@@ -60,7 +60,7 @@ _BARE_UNIT = re.compile(r"^(g|kg|ml|l|EL|TL|Stück|Stk\.?|Prise|Bund|Pck\.?)\s+(
 
 
 def tidy_ingredient(text: str) -> str:
-    """Kleine Aufräumarbeiten: „nach Geschmack Salz“ → „Salz“, „ml Öl“ (Menge fehlt) → „Öl“."""
+    """Small cleanups: „nach Geschmack Salz“ → „Salz“, „ml Öl“ (amount missing) → „Öl“."""
     text = re.sub(r"\s+", " ", text).strip(" -–•*,;")
     return _BARE_UNIT.sub("", _TASTE.sub("", text))[:150]
 
@@ -70,7 +70,7 @@ def source_line(url: str) -> str:
 
 
 def with_source_line(steps: str, url: str | None) -> str:
-    """Die Quelle steht immer als letzte Zeile der Zubereitung (wird beim Speichern wieder ergänzt)."""
+    """The source is always the last line of the steps (added back on save)."""
     steps = (steps or "").rstrip()
     if not url or url in steps:
         return steps
@@ -78,7 +78,7 @@ def with_source_line(steps: str, url: str | None) -> str:
 
 
 def format_steps(steps: list[str]) -> str:
-    """Schritte nummerieren (Zwischenüberschriften mit Doppelpunkt bleiben unnummeriert)."""
+    """Number the steps (subheadings ending in a colon stay unnumbered)."""
     lines, number = [], 0
     for step in steps:
         step = re.sub(r"\s+", " ", step).strip()
@@ -96,7 +96,7 @@ IMAGE_TYPES = ("image/jpeg", "image/png", "image/gif", "image/webp")
 
 
 def image_key(url: str | None) -> str | None:
-    """Adresse, unter der das Bild abgelegt wird (max. 500 Zeichen; lange signierte Adressen ohne Query)."""
+    """Address the image is stored under (max. 500 characters; long signed addresses without query)."""
     if not url or not url.startswith("https://"):
         return None
     if len(url) > 500:
@@ -105,7 +105,7 @@ def image_key(url: str | None) -> str | None:
 
 
 def fetch_image(url: str) -> bytes | None:
-    """Bild des Rezepts abgesichert laden (gleiche SSRF-Regeln wie für Seiten)."""
+    """Fetch the recipe image safely (same SSRF rules as for pages)."""
     try:
         return fetching.fetch(url, accept=IMAGE_TYPES, max_bytes=fetching.MAX_IMAGE_BYTES).content
     except FetchError:
@@ -117,7 +117,7 @@ _IG_DESCRIPTION = re.compile(r"^[^\"“]{0,200}?:\s*[\"“](.*)[\"”]\.?\s*$", 
 
 
 def instagram_caption(document: str) -> str:
-    """Beschreibung eines Instagram-Posts aus den Meta-Angaben (falls Instagram sie ausliefert)."""
+    """Caption of an Instagram post from the meta tags (if Instagram delivers them)."""
     meta = meta_tags(document)
     for key, pattern in (("og:title", _IG_TITLE), ("og:description", _IG_DESCRIPTION), ("description", _IG_DESCRIPTION)):
         match = pattern.match(meta.get(key, "").strip())
@@ -136,7 +136,7 @@ def _clean_page_title(document: str, meta: dict[str, str]) -> str:
 
 
 def _canonical_tiktok(url: str) -> str:
-    """Kurzlinks führen per Weiterleitung zum Video; dessen Adresse (ohne Tracking-Parameter) ist die Quelle."""
+    """Short links redirect to the video; its address (without tracking parameters) is the source."""
     parts = urlsplit(url)
     if re.match(r"^/@[^/]+/(video|photo)/\d+/?$", parts.path):
         return parts._replace(query="", fragment="").geturl()
@@ -166,9 +166,9 @@ def _from_text(draft: Draft, text: str) -> Draft:
 
 
 def convert(url: str, pasted_text: str = "") -> Draft:
-    """Vorschlag aus dem Link erstellen. Mit eingefügtem Text wird nur dieser ausgewertet.
+    """Build a draft from the link. If text was pasted, only that text is parsed.
 
-    Amerikanische Maße (cup, oz, lb, °F …) werden dabei automatisch metrisch umgerechnet.
+    US measurements (cup, oz, lb, °F …) are converted to metric automatically.
     """
     return _to_metric(_convert(url, pasted_text))
 

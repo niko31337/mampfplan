@@ -1,4 +1,4 @@
-"""Amerikanische Maße → metrisch (Rezept-Konverter und Online-Suche)."""
+"""US measurements → metric (recipe converter and online search)."""
 
 import pytest
 
@@ -12,7 +12,7 @@ from app.services.units import metric_ingredient, metric_line, metric_lines, met
 @pytest.mark.parametrize(
     "line, expected",
     [
-        # Tassen: trockene Zutaten über die Dichte in Gramm, Flüssigkeiten in ml
+        # cups: dry ingredients in grams via density, liquids in ml
         ("1 cup all-purpose flour", "120 g all-purpose flour"),
         ("1/2 cup sugar", "100 g sugar"),
         ("½ cup brown sugar", "110 g brown sugar"),
@@ -23,33 +23,33 @@ from app.services.units import metric_ingredient, metric_line, metric_lines, met
         ("1/4 cup sour cream", "60 g sour cream"),
         ("1 cup cooked rice", "160 g cooked rice"),
         ("2-3 cups chicken broth", "480–720 ml chicken broth"),
-        ("1 cup chopped mystery thing", "240 ml chopped mystery thing"),  # unbekannt: Volumen
-        # Gewicht
+        ("1 cup chopped mystery thing", "240 ml chopped mystery thing"),  # unknown: volume
+        # weight
         ("8 oz cream cheese", "230 g cream cheese"),
         ("4 oz cheddar", "110 g cheddar"),
         ("2 lbs potatoes", "910 g potatoes"),
         ("3 pounds beef", "1,35 kg beef"),
         ("2 sticks butter", "230 g butter"),
-        # Flüssigkeiten
+        # liquids
         ("16 fl oz heavy cream", "470 ml heavy cream"),
         ("8 oz orange juice", "240 ml orange juice"),
         ("1 quart water", "950 ml water"),
         ("1 gallon water", "3,8 l water"),
         ("1 pint stock", "470 ml stock"),
-        # Löffel bleiben Löffel
+        # spoons stay spoons
         ("2 tbsp soy sauce", "2 EL soy sauce"),
         ("2 Tbsp oil", "2 EL oil"),
         ("1 tsp salt", "1 TL salt"),
         ("1/2 teaspoon pepper", "0,5 TL pepper"),
-        # Metrische Angabe in Klammern hat Vorrang
+        # a metric amount in parentheses takes precedence
         ("1 lb (450 g) ground chicken or pork", "450 g ground chicken or pork"),
         ("1/3 cup (80ml) pineapple juice", "80 ml pineapple juice"),
-        # Nur die Klammer umrechnen
+        # only convert the parentheses
         ("1 (14 oz) can diced tomatoes", "1 (400 g) can diced tomatoes"),
         ("1/2 cup (8 Tbsp; 113g) unsalted butter", "113 g unsalted butter"),
         ("1 and 1/2 cups (345g) mashed bananas", "345 g mashed bananas"),
         ("1 and 1/2 cups flour", "180 g flour"),
-        # Mengen mitten in der Zeile
+        # amounts in the middle of the line
         ("optional: 3/4 cup (90g) pecans, or 1 cup (180g) chocolate chips", "optional: 90 g pecans, or 180 g chocolate chips"),
         ("optional: 1 cup chopped walnuts", "optional: 120 g chopped walnuts"),
     ],

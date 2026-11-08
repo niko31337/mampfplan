@@ -1,14 +1,14 @@
-"""Seiten und Bilder von beliebigen, vom Nutzer eingegebenen Adressen laden – gegen SSRF abgesichert.
+"""Fetch pages and images from arbitrary user-supplied addresses, hardened against SSRF.
 
-Der Rezept-Konverter muss fremde Seiten abrufen. Damit niemand über die App interne Dienste
-erreicht (Router, NAS, Home Assistant, Docker-Netz, Cloud-Metadaten …), gilt:
+The recipe converter has to fetch foreign pages. So that nobody can reach internal services through
+the app (router, NAS, Home Assistant, Docker network, cloud metadata …):
 
-- nur https auf Port 443, keine Zugangsdaten in der Adresse
-- der Hostname muss ausschließlich auf öffentliche IP-Adressen zeigen (vor jeder Anfrage geprüft)
-- nach dem Verbindungsaufbau wird die tatsächlich verbundene Adresse noch einmal geprüft
-  (schützt gegen DNS-Rebinding), bevor die Antwort gelesen wird
-- Weiterleitungen werden einzeln verfolgt und jede Zieladresse erneut geprüft (höchstens 5)
-- Größenlimit, kurze Zeitlimits, kein Proxy aus Umgebungsvariablen
+- https on port 443 only, no credentials in the address
+- the hostname must resolve exclusively to public IP addresses (checked before every request)
+- after connecting, the address actually connected to is checked again
+  (protects against DNS rebinding) before the response is read
+- redirects are followed one by one and every target is checked again (at most 5)
+- size limit, short timeouts, no proxy from environment variables
 """
 
 import ipaddress
@@ -31,12 +31,12 @@ HTML_TYPES = ("text/html", "application/xhtml+xml")
 
 
 class FetchError(Exception):
-    """Adresse nicht erlaubt oder Seite nicht abrufbar. Die Meldung ist für Nutzer gedacht."""
+    """Address not allowed or page not retrievable. The message is meant for users."""
 
 
 @dataclass
 class Fetched:
-    url: str  # endgültige Adresse nach Weiterleitungen
+    url: str  # final address after redirects
     content: bytes
     content_type: str
     charset: str | None
@@ -46,7 +46,7 @@ class Fetched:
 
 
 def validate_url(url: str) -> str:
-    """Prüft die Form der Adresse und gibt sie bereinigt zurück (ohne Fragment)."""
+    """Checks the shape of the address and returns it cleaned up (without fragment)."""
     url = (url or "").strip()
     if not url or len(url) > MAX_URL_LENGTH:
         raise FetchError(_("Bitte einen gültigen Link eingeben."))
@@ -83,7 +83,7 @@ def _resolve(host: str) -> list[str]:
 
 
 def check_host(host: str) -> None:
-    """Der Host muss ausschließlich auf öffentliche Adressen zeigen."""
+    """The host must resolve exclusively to public addresses."""
     addresses = _resolve(host)
     if not addresses or not all(_is_public(a) for a in addresses):
         raise FetchError(_("Dieser Link zeigt auf ein internes Netz und wird nicht abgerufen."))
@@ -91,7 +91,7 @@ def check_host(host: str) -> None:
 
 def _check_peer(response: httpx.Response) -> None:
     stream = response.extensions.get("network_stream")
-    if stream is None:  # z. B. HTTP/2 oder Test-Transport: Prüfung vor der Anfrage muss genügen
+    if stream is None:  # e.g. HTTP/2 or test transport: the check before the request has to suffice
         return
     peer = stream.get_extra_info("server_addr")
     if peer and not _is_public(str(peer[0])):

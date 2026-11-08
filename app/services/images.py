@@ -1,8 +1,8 @@
-"""Bild-Cache: Rezeptbilder werden einmal serverseitig geladen und danach von hier ausgeliefert.
+"""Image cache: recipe images are fetched once on the server and served from here afterwards.
 
-So fragen die Browser der Familie nie direkt bei Chefkoch & Co. an. Geladen wird nur von fest
-hinterlegten Bildservern (kein Abruf beliebiger URLs → kein SSRF) – ohne Weiterleitungen, mit
-Größenlimit und Prüfung des Dateiinhalts (nur JPEG/PNG/GIF/WebP, nie SVG).
+That way the family's browsers never contact Chefkoch & co. directly. Images are only fetched from
+fixed image servers (no fetching of arbitrary URLs → no SSRF), without redirects, with a size limit
+and a check of the file content (JPEG/PNG/GIF/WebP only, never SVG).
 """
 
 import hashlib
@@ -44,7 +44,7 @@ class ImageError(Exception):
 
 
 def is_allowed_url(url: str | None) -> bool:
-    """Nur https-URLs der erlaubten Bildserver (ohne Zugangsdaten und ohne fremden Port)."""
+    """Only https URLs of the allowed image servers (without credentials and without a foreign port)."""
     if not url or len(url) > MAX_URL_LENGTH:
         return False
     try:
@@ -62,7 +62,7 @@ def is_allowed_url(url: str | None) -> bool:
 
 
 def sniff_extension(data: bytes) -> str | None:
-    """Dateityp am Inhalt erkennen – dem Content-Type der Gegenseite wird nicht vertraut."""
+    """Detect the file type from the content; the other side's Content-Type is not trusted."""
     if data.startswith(b"\xff\xd8\xff"):
         return "jpg"
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -75,7 +75,7 @@ def sniff_extension(data: bytes) -> str | None:
 
 
 def is_cacheable_url(url: str | None) -> bool:
-    """Form einer Bildadresse, die im Cache liegen darf (https, ohne Zugangsdaten, nicht zu lang)."""
+    """Shape of an image address that may be cached (https, no credentials, not too long)."""
     if not url or len(url) > MAX_URL_LENGTH:
         return False
     try:
@@ -86,10 +86,10 @@ def is_cacheable_url(url: str | None) -> bool:
 
 
 def cached_image_src(url: str | None, base: str) -> str:
-    """Adresse, unter der die eigene App das (zwischengespeicherte) Bild ausliefert; leer, wenn nicht verfügbar.
+    """Address under which the app itself serves the (cached) image; empty if not available.
 
-    Bilder der erlaubten Bildserver lädt der Cache bei Bedarf selbst. Bilder anderer Seiten (Rezept-
-    Konverter) gibt es nur, wenn der Konverter sie beim Umwandeln abgesichert geladen und abgelegt hat.
+    The cache fetches images of the allowed image servers itself when needed. Images of other sites
+    (recipe converter) only exist if the converter fetched and stored them safely while converting.
     """
     if is_allowed_url(url) or (is_cacheable_url(url) and get_image_cache().lookup(url)):
         return f"{base}/img?u={quote(url, safe='')}"
@@ -118,7 +118,7 @@ class ImageCache:
                 age = time.time() - path.stat().st_mtime
             except FileNotFoundError:
                 continue
-            if age > TOUCH_AFTER_SECONDS:  # zuletzt benutzt vermerken, damit Aufräumen die ältesten zuerst löscht
+            if age > TOUCH_AFTER_SECONDS:  # note last use so cleanup deletes the oldest first
                 try:
                     os.utime(path)
                 except OSError:
@@ -127,10 +127,10 @@ class ImageCache:
         return None
 
     def get(self, url: str) -> tuple[Path, str] | None:
-        """Pfad und MIME-Typ des Bildes – aus dem Cache oder frisch geladen; None, wenn nicht möglich.
+        """Path and MIME type of the image, from the cache or freshly fetched; None if not possible.
 
-        Geladen wird nur von den erlaubten Bildservern; andere Bilder gibt es nur, wenn sie über
-        store() abgelegt wurden.
+        Only fetched from the allowed image servers; other images only exist if they were stored
+        via store().
         """
         if not is_cacheable_url(url):
             return None
@@ -139,7 +139,7 @@ class ImageCache:
             return hit
         key = self.key(url)
         if time.monotonic() - self._failures.get(key, -FAILURE_TTL_SECONDS) < FAILURE_TTL_SECONDS:
-            return None  # kürzlich gescheitert: nicht bei jedem Seitenaufruf erneut versuchen
+            return None  # failed recently: don't retry on every page view
         try:
             data, ext = self._download(url)
         except ImageError as exc:
@@ -150,7 +150,7 @@ class ImageCache:
         return self._write(key, data, ext)
 
     def store(self, url: str, data: bytes) -> tuple[Path, str] | None:
-        """Anderweitig (abgesichert) geladenes Bild unter dieser Adresse ablegen; None bei ungültigem Inhalt."""
+        """Store an image fetched elsewhere (safely) under this address; None for invalid content."""
         ext = sniff_extension(data)
         if not is_cacheable_url(url) or ext is None or len(data) > MAX_IMAGE_BYTES:
             return None
@@ -160,14 +160,14 @@ class ImageCache:
         final = self.directory / f"{key}.{ext}"
         temp = self.directory / f".{key}.{os.getpid()}.{threading.get_ident()}.tmp"
         temp.write_bytes(data)
-        os.replace(temp, final)  # atomar: nie halb geschriebene Dateien ausliefern
+        os.replace(temp, final)  # atomic: never serve half-written files
         self._after_write()
         return final, MIME_BY_EXT[ext]
 
     def _download(self, url: str) -> tuple[bytes, str]:
         try:
             with self.client.stream("GET", url, follow_redirects=False) as response:
-                if response.status_code != 200:  # inkl. Weiterleitungen: könnten auf fremde Server zeigen
+                if response.status_code != 200:  # including redirects: they could point to foreign servers
                     raise ImageError(f"HTTP {response.status_code}")
                 declared = response.headers.get("content-length")
                 if declared and declared.isdigit() and int(declared) > MAX_IMAGE_BYTES:
@@ -194,7 +194,7 @@ class ImageCache:
             self.prune()
 
     def prune(self) -> int:
-        """Älteste Dateien löschen, bis der Cache unter dem Limit liegt. Rückgabe: gelöschte Dateien."""
+        """Delete the oldest files until the cache is below the limit. Returns: deleted files."""
         files = []
         for path in self.directory.iterdir():
             try:

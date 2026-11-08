@@ -1,4 +1,4 @@
-"""Mehrsprachigkeit: Sprachwahl, Übersetzungen, Katalog, Verlauf, Datum/Zahlen, Einheiten und Konverter."""
+"""Multiple languages: language choice, translations, catalog, history, dates/numbers, units and converter."""
 
 import html
 import json
@@ -27,7 +27,7 @@ PAGES = [
 
 @pytest.fixture
 def lang():
-    """Sprache für Code außerhalb eines Requests setzen (und danach zurücksetzen)."""
+    """Set the language for code outside a request (and reset it afterwards)."""
     tokens = []
 
     def use(code):
@@ -42,7 +42,7 @@ def html_lang(page: str) -> str:
     return re.search(r'<html lang="([a-z]+)"', page)[1]
 
 
-# --- Sprachwahl ----------------------------------------------------------------------------------
+# --- Language choice -----------------------------------------------------------------------------
 
 
 def test_default_is_german(web):
@@ -58,7 +58,7 @@ def test_default_is_german(web):
         ("es", "es"),
         ("en-GB,en;q=0.9", "en"),
         ("de;q=0.5, es;q=0.9", "es"),
-        ("it-IT,it;q=0.9", "de"),  # nicht unterstützt → Deutsch
+        ("it-IT,it;q=0.9", "de"),  # not supported → German
         ("x" * 50, "de"),
     ],
 )
@@ -103,7 +103,7 @@ def test_language_picker_on_more_who_and_landing(web, anon):
             assert f'value="{code}"' in page
 
 
-# --- Alle Seiten in allen Sprachen -------------------------------------------------------------
+# --- All pages in all languages ---------------------------------------------------------------
 
 
 @pytest.mark.parametrize("code", ["en", "fr", "es"])
@@ -137,14 +137,14 @@ def test_error_messages_are_translated(web):
     assert "Only https:// links are supported." in response.text
 
 
-# --- Übersetzungsdateien ------------------------------------------------------------------------
+# --- Translation files -------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("code", ["en", "fr", "es"])
 def test_translation_files_are_complete(code):
     assert missing(code) == []
     data = json.loads((i18n.DIR / f"{code}.json").read_text(encoding="utf-8"))
-    assert set(data) <= msgids(), set(data) - msgids()  # keine verwaisten Einträge
+    assert set(data) <= msgids(), set(data) - msgids()  # no orphaned entries
     for msgid, text in data.items():
         assert text.strip(), msgid
         assert sorted(re.findall(r"%\((\w+)\)s", msgid)) == sorted(re.findall(r"%\((\w+)\)s", text)), msgid
@@ -155,7 +155,7 @@ def test_missing_translation_falls_back_to_german(lang):
     assert i18n.gettext("Ein Text, den es nicht gibt") == "Ein Text, den es nicht gibt"
 
 
-# --- Katalog und Kategorien -------------------------------------------------------------------
+# --- Catalog and categories ------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("code, query, expected", [("en", "mil", "Milk"), ("fr", "lai", "Lait"), ("es", "lech", "Leche"), ("de", "milc", "Milch")])
@@ -176,7 +176,7 @@ def test_category_is_recognised_in_every_language(web, name):
     web.post("/shopping/add", {"name": name})
     with SessionLocal() as db:
         item = db.scalars(select(ShoppingItem).where(ShoppingItem.name == name)).one()
-        assert item.category == "Milch, Käse & Eier"  # interner Schlüssel bleibt deutsch
+        assert item.category == "Milch, Käse & Eier"  # internal key stays German
 
 
 def test_shopping_list_shows_translated_categories(web):
@@ -184,14 +184,14 @@ def test_shopping_list_shows_translated_categories(web):
     web.client.cookies.set("mp_lang", "es")
     page = web.get("/shopping").text
     assert "<span>Frutas y verduras</span>" in page
-    assert 'data-category="Obst &amp; Gemüse"' in page  # Daten weiter mit internem Schlüssel
+    assert 'data-category="Obst &amp; Gemüse"' in page  # data still uses the internal key
 
 
-# --- Verlauf ----------------------------------------------------------------------------------
+# --- History ---------------------------------------------------------------------------------
 
 
 def test_history_is_shown_in_the_readers_language(web):
-    web.post("/shopping/add", {"name": "Brot"})  # auf Deutsch angelegt
+    web.post("/shopping/add", {"name": "Brot"})  # created in German
     web.client.cookies.set("mp_lang", "en")
     page = web.get("/history").text
     assert "Added “Brot” to the shopping list" in page
@@ -217,7 +217,7 @@ def test_old_plain_text_history_stays_readable(web):
     assert "Alter Eintrag von früher" in web.get("/history").text
 
 
-# --- Datum, Zahlen, API -------------------------------------------------------------------------
+# --- Dates, numbers, API ----------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -261,7 +261,7 @@ def test_api_defaults_to_german_and_rejects_unknown_languages(anon):
     assert anon.get("/api/plan?lang=it").status_code == 422
 
 
-# --- Einheiten und Konverter ------------------------------------------------------------------
+# --- Units and converter ---------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(

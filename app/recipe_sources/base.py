@@ -16,7 +16,7 @@ ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 
 
 class SourceError(Exception):
-    """Quelle nicht erreichbar oder liefert unerwartete Daten."""
+    """Source unreachable or returns unexpected data."""
 
 
 @dataclass
@@ -39,7 +39,7 @@ class ExternalRecipe:
 
 
 def to_metric(recipe: ExternalRecipe) -> ExternalRecipe:
-    """Amerikanische Maße (cup, oz, lb, °F …) in metrische umrechnen – deutsche Rezepte bleiben unverändert."""
+    """Convert US measurements (cup, oz, lb, °F …) to metric; German recipes stay unchanged."""
     for ing in recipe.ingredients:
         ing.amount, ing.unit, ing.name = metric_ingredient(ing.amount, ing.unit, ing.name)
     recipe.steps = metric_text(recipe.steps)
@@ -47,7 +47,7 @@ def to_metric(recipe: ExternalRecipe) -> ExternalRecipe:
 
 
 def safe_https_url(url: str | None) -> str | None:
-    """Nur https-URLs übernehmen (verhindert javascript:- und data:-URLs in href/src)."""
+    """Only accept https URLs (prevents javascript: and data: URLs in href/src)."""
     if url and url.startswith("https://") and len(url) <= 500:
         return url
     return None
@@ -78,7 +78,7 @@ class RecipeSource(ABC):
     def get(self, external_id: str) -> ExternalRecipe:
         if not ID_PATTERN.match(external_id):
             raise SourceError(_("Ungültige Rezept-ID"))
-        # Je Sprache getrennt zwischenspeichern: die Umrechnung nutzt sprachabhängige Löffel-Kürzel
+        # Cache per language: the conversion uses language-dependent spoon abbreviations
         return self._cached(("get", external_id, get_language()), lambda: to_metric(self._get(external_id)))
 
     def _json(self, url: str, **kwargs) -> dict:
