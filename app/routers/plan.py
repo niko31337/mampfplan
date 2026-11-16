@@ -7,11 +7,16 @@ from sqlalchemy.orm import selectinload
 
 from app.config import today
 from app.i18n import N_, _
+from app.i18n import date_short as i18n_date
+from app.routers import shopping as shopping_router
 from app.models import KIND_NOTE, KIND_RECIPE, PlanEntry
 from app.services import history
 from app.services import recipes as recipe_service
 from app.services import shopping as shopping_service
+from app.services import shops as shop_service
 from app.web import Ctx, get_ctx, redirect, render
+
+MAX_IDS = 200
 
 router = APIRouter(prefix="/s/{token}")
 
@@ -33,14 +38,28 @@ def _week_entries(ctx: Ctx, start: date) -> dict[date, list[PlanEntry]]:
     return by_day
 
 
+def today_first(days: dict[date, list[PlanEntry]], current: date) -> list[tuple[date, list[PlanEntry], bool]]:
+    """Days for display: in the current week today comes first, then the rest of the week,
+    the days already past at the end. Returns (day, entries, is_past)."""
+    if current not in days:
+        return [(day, entries, False) for day, entries in days.items()]
+    upcoming = [(day, entries, False) for day, entries in days.items() if day >= current]
+    past = [(day, entries, True) for day, entries in days.items() if day < current]
+    return upcoming + past
+
+
 def _week_context(ctx: Ctx, start: date) -> dict:
+    days = _week_entries(ctx, start)
     return {
         "start": start,
         "end": start + timedelta(days=6),
         "week_number": start.isocalendar().week,
         "prev_week": start - timedelta(days=7),
         "next_week": start + timedelta(days=7),
-        "days": _week_entries(ctx, start),
+        "days": days,
+        "day_list": today_first(days, today()),
+        "week_days": list(days),
+        "shops": shop_service.shops_of(ctx.db, ctx.space.id),
     }
 
 
@@ -152,6 +171,47 @@ def move_entry(ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int, direction: 
     return _respond_week(ctx, entry.day)
 
 
+@router.post("/plan/entries/{entry_id}/day")
+def move_entry_to_day(
+    ctx: Annotated[Ctx, Depends(get_ctx)],
+    entry_id: int,
+    day: Annotated[date, Form()],
+    ids: Annotated[list[int] | None, Form()] = None,
+):
+    """Move an entry to another day. If something is planned there already, it is added as an additional entry
+    (at the end, or at the position given by `ids` – the order of the target day after dragging)."""
+    entry = _get_entry(ctx, entry_id)
+    old_day = entry.day
+    label = _label(entry)
+    with history.record(
+        ctx.db, ctx.space.id, ctx.member.name,
+        history.msg("„%(label)s“ vom %(old)s auf %(day)s verschoben", label=label[:60], old=old_day, day=day),
+    ) as act:
+        if day != old_day:
+            position = _next_position(ctx, day)
+            act.updating(entry)
+            entry.day = day
+            entry.position = position
+            ctx.db.flush()
+        if ids:
+            siblings = list(
+                ctx.db.scalars(
+                    select(PlanEntry)
+                    .where(PlanEntry.space_id == ctx.space.id, PlanEntry.day == day)
+                    .order_by(PlanEntry.position, PlanEntry.id)
+                )
+            )
+            by_id = {s.id: s for s in siblings}
+            wanted = [by_id[i] for i in dict.fromkeys(ids[:MAX_IDS]) if i in by_id]
+            ordered = wanted + [s for s in siblings if s not in wanted]
+            for position, sibling in enumerate(ordered):
+                if sibling.position != position:
+                    act.updating(sibling)
+                    sibling.position = position
+    toast = None if day == old_day else _("„%(label)s“ → %(day)s", label=label[:40], day=i18n_date(day))
+    return _respond_week(ctx, old_day, toast)
+
+
 @router.post("/plan/entries/{entry_id}/cooked")
 def toggle_cooked(ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int):
     entry = _get_entry(ctx, entry_id)
@@ -163,16 +223,22 @@ def toggle_cooked(ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int):
 
 
 @router.post("/plan/entries/{entry_id}/shop")
-def shop_entry(ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int):
-    """Put all ingredients of the planned recipe on the shopping list."""
+def shop_entry(
+    ctx: Annotated[Ctx, Depends(get_ctx)], entry_id: int, shop_id: Annotated[int | None, Form()] = None
+):
+    """Put all ingredients of the planned recipe on the shopping list (the chosen one if there are several)."""
     entry = _get_entry(ctx, entry_id)
     if entry.kind != KIND_RECIPE or entry.recipe is None:
         raise HTTPException(400, _("Nur Rezepte haben Zutaten"))
+    try:
+        shop = shop_service.resolve_shop(ctx.db, ctx.space.id, shop_id)
+    except shop_service.ShopError as exc:
+        raise shopping_router.shop_error(exc) from exc
     recipe = entry.recipe
     with history.record(
         ctx.db, ctx.space.id, ctx.member.name, history.msg("Zutaten von „%(title)s“ auf die Einkaufsliste gesetzt", title=recipe.title[:60])
     ) as act:
         count = shopping_service.add_recipe_ingredients(
-            ctx.db, act, ctx.space.id, recipe.id, recipe.ingredients, added_by=ctx.member.name
+            ctx.db, act, ctx.space.id, recipe.id, recipe.ingredients, added_by=ctx.member.name, shop_id=shop.id
         )
     return _respond_week(ctx, entry.day, _("%(count)s Zutaten auf der Einkaufsliste", count=count))

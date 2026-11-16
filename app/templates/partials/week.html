@@ -1,13 +1,19 @@
-<div id="week" hx-target="#week" hx-swap="outerHTML">
-  {% for day, entries in days.items() %}
-  <section class="day {{ 'is-today' if day == today }}">
+{% from "partials/_shop.html" import shop_logo with context %}
+<div id="week" hx-target="#week" hx-swap="outerHTML" data-move-url="{{ base }}/plan/entries/__ID__/day">
+  {% for day, entries, is_past in day_list %}
+  {% if is_past and (loop.first or not loop.previtem[2]) %}
+  <h2 class="past-divider">{{ _("Bereits vorbei") }}</h2>
+  {% endif %}
+  <section class="day {{ 'is-today' if day == today }} {{ 'is-past' if is_past }}" data-day="{{ day.isoformat() }}">
     <h2>
       <span>{{ day|date_long }}</span>
       {% if day == today %}<span class="badge">{{ _("Heute") }}</span>{% endif %}
     </h2>
 
+    <div class="day-entries" data-day="{{ day.isoformat() }}">
     {% for e in entries %}
-    <article class="entry {{ 'is-cooked' if e.cooked }}">
+    <article class="entry {{ 'is-cooked' if e.cooked }}" data-id="{{ e.id }}">
+      <span class="drag-handle entry-handle" role="img" aria-label="{{ _('Auf einen anderen Tag ziehen') }}" title="{{ _('Auf einen anderen Tag ziehen') }}">⠿</span>
       {% if e.kind == 'recipe' and e.recipe %}
         {% set img = e.recipe.image_url|cached_img(base) %}{% if img %}<img class="thumb" src="{{ img }}" alt="" loading="lazy">{% endif %}
         <div class="entry-main">
@@ -25,16 +31,43 @@
       <div class="entry-tools">
         <button class="icon-btn" aria-label="{{ _('Nach oben') }}" title="{{ _('Nach oben') }}" hx-post="{{ base }}/plan/entries/{{ e.id }}/move" hx-vals='{"direction": "up"}' {{ 'disabled' if loop.first }}>▲</button>
         <button class="icon-btn" aria-label="{{ _('Nach unten') }}" title="{{ _('Nach unten') }}" hx-post="{{ base }}/plan/entries/{{ e.id }}/move" hx-vals='{"direction": "down"}' {{ 'disabled' if loop.last }}>▼</button>
+        <details class="move-menu">
+          <summary class="icon-btn" aria-label="{{ _('Auf einen anderen Tag verschieben') }}" title="{{ _('Auf einen anderen Tag verschieben') }}">📅</summary>
+          <div class="menu" role="menu">
+            {% for other in week_days if other != day %}
+            <button type="button" class="menu-item" role="menuitem" hx-post="{{ base }}/plan/entries/{{ e.id }}/day" hx-vals='{"day": "{{ other.isoformat() }}"}'>
+              {{ other|date_long }}{% if other == today %} · {{ _("Heute") }}{% endif %}
+            </button>
+            {% endfor %}
+            <form class="menu-date" hx-post="{{ base }}/plan/entries/{{ e.id }}/day">
+              <input type="date" name="day" required aria-label="{{ _('Anderes Datum') }}">
+              <button class="btn small">{{ _("Verschieben") }}</button>
+            </form>
+          </div>
+        </details>
         {% if e.kind == 'recipe' and e.recipe and not e.recipe.deleted_at %}
         <button class="icon-btn {{ 'is-on' if e.cooked }}" aria-label="{{ _('Als gekocht markieren') }}" title="{{ _('Als gekocht markieren') }}" hx-post="{{ base }}/plan/entries/{{ e.id }}/cooked">✓</button>
+        {% if shops|length > 1 %}
+        <details class="move-menu">
+          <summary class="icon-btn" aria-label="{{ _('Zutaten auf die Einkaufsliste') }}" title="{{ _('Alle Zutaten auf die Einkaufsliste') }}">🛒</summary>
+          <div class="menu" role="menu">
+            {% for s in shops %}
+            <button type="button" class="menu-item" role="menuitem" hx-post="{{ base }}/plan/entries/{{ e.id }}/shop" hx-vals='{"shop_id": "{{ s.id }}"}'>
+              {{ shop_logo(s) }}<span>{{ s|shop_name }}</span>
+            </button>
+            {% endfor %}
+          </div>
+        </details>
+        {% else %}
         <button class="icon-btn" aria-label="{{ _('Zutaten auf die Einkaufsliste') }}" title="{{ _('Alle Zutaten auf die Einkaufsliste') }}" hx-post="{{ base }}/plan/entries/{{ e.id }}/shop">🛒</button>
+        {% endif %}
         {% endif %}
         <button class="icon-btn" aria-label="{{ _('Entfernen') }}" title="{{ _('Entfernen') }}" hx-post="{{ base }}/plan/entries/{{ e.id }}/delete">✕</button>
       </div>
     </article>
-    {% else %}
-    <p class="empty">{{ _("Nichts geplant") }}</p>
     {% endfor %}
+    </div>
+    {% if not entries %}<p class="empty day-empty">{{ _("Nichts geplant") }}</p>{% endif %}
 
     <div class="day-actions">
       <a class="btn small" href="{{ base }}/plan/pick?day={{ day.isoformat() }}">＋ {{ _("Rezept") }}</a>

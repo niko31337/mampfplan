@@ -13,6 +13,7 @@ from app.recipe_sources.base import safe_https_url
 from app.services import history, images
 from app.services import recipes as recipe_service
 from app.services import shopping as shopping_service
+from app.services import shops as shop_service
 from app.services.ingredients import format_ingredient, parse_lines
 from app.web import Ctx, get_ctx, redirect, render
 
@@ -133,7 +134,10 @@ def _store_image(url: str | None) -> str | None:
 @router.get("/recipes/{recipe_id}")
 def recipe_detail(ctx: Annotated[Ctx, Depends(get_ctx)], recipe_id: int, plan_date: date | None = None):
     recipe = _get_or_404(ctx, recipe_id)
-    return render(ctx, "recipe_detail.html", recipe=recipe, plan_date=plan_date or today())
+    return render(
+        ctx, "recipe_detail.html", recipe=recipe, plan_date=plan_date or today(),
+        shops=shop_service.shops_of(ctx.db, ctx.space.id),
+    )
 
 
 @router.get("/recipes/{recipe_id}/edit")
@@ -180,14 +184,21 @@ def add_to_shopping_list(
     ctx: Annotated[Ctx, Depends(get_ctx)],
     recipe_id: int,
     ingredient_ids: Annotated[list[int] | None, Form()] = None,
+    shop_id: Annotated[int | None, Form()] = None,
 ):
     recipe = _get_or_404(ctx, recipe_id)
     wanted = set(ingredient_ids or [])
     chosen = [i for i in recipe.ingredients if i.id in wanted]
     if chosen:
+        try:
+            shop = shop_service.resolve_shop(ctx.db, ctx.space.id, shop_id)
+        except shop_service.ShopError as exc:
+            raise HTTPException(400, str(exc)) from exc
         with history.record(
             ctx.db, ctx.space.id, ctx.member.name,
             history.msg("%(count)s Zutaten von „%(title)s“ auf die Einkaufsliste gesetzt", count=len(chosen), title=recipe.title[:60]),
         ) as act:
-            shopping_service.add_recipe_ingredients(ctx.db, act, ctx.space.id, recipe.id, chosen, added_by=ctx.member.name)
+            shopping_service.add_recipe_ingredients(
+                ctx.db, act, ctx.space.id, recipe.id, chosen, added_by=ctx.member.name, shop_id=shop.id
+            )
     return redirect(f"{ctx.base}/shopping")

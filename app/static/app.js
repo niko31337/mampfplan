@@ -74,11 +74,46 @@ document.addEventListener(
   true
 );
 
-// Formulare mit data-reset-on-success nach erfolgreichem HTMX-Request leeren
+// Formulare mit data-reset-on-success nach erfolgreichem HTMX-Request leeren.
+// Die gewählte Einkaufsliste (Radio-Buttons) bleibt stehen – wer mehrere Artikel für denselben Laden einträgt,
+// muss nicht jedes Mal neu wählen.
 document.addEventListener("htmx:afterRequest", (event) => {
   const el = event.detail.elt;
-  if (el?.matches?.("[data-reset-on-success]") && event.detail.successful) el.reset();
+  if (el?.matches?.("[data-reset-on-success]") && event.detail.successful) {
+    const chosen = [...el.querySelectorAll("input[type=radio]:checked")];
+    el.reset();
+    chosen.forEach((radio) => (radio.checked = true));
+  }
 });
+
+// Aufklappmenüs (Artikel auf andere Liste, Rezept auf anderen Tag …) schließen, sobald man daneben tippt
+document.addEventListener("click", (event) => {
+  document.querySelectorAll("details.move-menu[open]").forEach((menu) => {
+    if (!menu.contains(event.target)) menu.open = false;
+  });
+  // nach Auswahl eines Menüeintrags schließen
+  const choice = event.target.closest(".move-menu .menu-item");
+  if (choice) choice.closest("details").open = false;
+});
+
+/* ------------------------------------------------------------------ Einkaufslisten ein-/ausklappen */
+// Welche Listen (Läden) eingeklappt sind, merkt sich das Gerät in einem Cookie – der Server rendert sie
+// dann gleich eingeklappt (kein Aufblitzen nach dem Neuladen der Liste).
+
+document.addEventListener(
+  "toggle",
+  (event) => {
+    const details = event.target;
+    if (!details.matches?.("details.shop-list")) return;
+    const list = details.closest("#shopping-list");
+    const cookie = list?.dataset.closedCookie;
+    if (!cookie) return;
+    const closed = [...list.querySelectorAll("details.shop-list:not([open])")].map((d) => d.dataset.shop);
+    const path = base() || "/";
+    document.cookie = `${cookie}=${closed.join(".")}; path=${path}; max-age=31536000; samesite=lax`;
+  },
+  true
+);
 
 /* ------------------------------------------------------------------ Offline-Warteschlange */
 // Abhaken und Umsortieren funktionieren auch ohne Verbindung: Die Aktion wird lokal gemerkt
@@ -106,9 +141,12 @@ function saveQueue(queue) {
   }
 }
 
+const pairValue = (pairs, key) => pairs.find(([k]) => k === key)?.[1];
+
 function queueKey(entry) {
-  const category = entry.pairs.find(([k]) => k === "category")?.[1] || "";
-  return `${entry.path}|${category}`;
+  const category = pairValue(entry.pairs, "category") || "";
+  const shop = pairValue(entry.pairs, "shop_id") || "";
+  return `${entry.path}|${shop}|${category}`;
 }
 
 function enqueue(entry) {
@@ -143,7 +181,17 @@ document.addEventListener("htmx:sendError", onNetworkFailure);
 document.addEventListener("htmx:timeout", onNetworkFailure);
 
 document.addEventListener("htmx:responseError", (event) => {
-  showToast(event.detail.xhr.status === 403 ? t("Sitzung abgelaufen – bitte Seite neu laden.") : t("Das hat leider nicht geklappt."));
+  const xhr = event.detail.xhr;
+  // Der Server kann eine eigene Meldung mitschicken (z. B. „Bitte wähle eine Einkaufsliste.“)
+  const message = xhr.getResponseHeader("X-Mampf-Message");
+  if (message) {
+    showToast(decodeURIComponent(message));
+    const picker = document.querySelector(".shop-picker");
+    picker?.classList.add("needs-choice");
+    setTimeout(() => picker?.classList.remove("needs-choice"), 2500);
+    return;
+  }
+  showToast(xhr.status === 403 ? t("Sitzung abgelaufen – bitte Seite neu laden.") : t("Das hat leider nicht geklappt."));
 });
 
 let flushing = false;
@@ -283,7 +331,7 @@ function markEmpty(section, empty) {
 
 function showDropTargets(show) {
   listEl()?.classList.toggle("is-dragging-item", show);
-  document.querySelectorAll("#shop-groups .shop-group.is-empty").forEach((group) => (group.hidden = !show));
+  document.querySelectorAll("#shopping-list .shop-groups .shop-group.is-empty").forEach((group) => (group.hidden = !show));
 }
 
 // Kürzel rechts neben dem Namen: offen = wer eingetragen hat, gekauft = wer in den Wagen gelegt hat.
@@ -325,11 +373,11 @@ function setItemState(id, checked) {
       heading.textContent = t("Gekauft");
       done.appendChild(heading);
       list.appendChild(done);
-      list.querySelector("#shop-empty")?.remove();
     }
     row.classList.add("is-done");
     row.querySelector(".item-handle")?.remove();
     row.querySelector(".delete-btn")?.remove();
+    row.querySelector(".move-menu")?.remove();
     check.classList.add("is-on");
     check.textContent = "✓";
     check.setAttribute("hx-vals", '{"state": "0"}');
@@ -338,7 +386,7 @@ function setItemState(id, checked) {
       markEmpty(group, true); // bleibt als (versteckte) Ablagefläche fürs Ziehen erhalten
     }
   } else {
-    const container = ensureGroup(list, row.dataset.category);
+    const container = ensureGroup(list, row.dataset.shop, row.dataset.category);
     row.classList.remove("is-done");
     check.classList.remove("is-on");
     check.textContent = "";
@@ -355,8 +403,14 @@ function setItemState(id, checked) {
   initSortables();
 }
 
-function ensureGroup(list, category) {
-  const groups = list.querySelector("#shop-groups");
+function shopGroups(list, shop) {
+  const all = [...list.querySelectorAll(".shop-groups")];
+  return all.find((g) => g.dataset.shop === String(shop)) || all[0];
+}
+
+function ensureGroup(list, shop, category) {
+  const groups = shopGroups(list, shop);
+  shop = groups.dataset.shop;
   let section = [...groups.querySelectorAll(".shop-group")].find((g) => g.dataset.category === category);
   if (!section) {
     section = document.createElement("section");
@@ -372,18 +426,22 @@ function ensureGroup(list, category) {
     const items = document.createElement("div");
     items.className = "shop-items";
     items.dataset.category = category;
+    items.dataset.shop = shop;
     items.dataset.reorderUrl = `${base()}/shopping/reorder`;
     items.dataset.moveUrl = `${base()}/shopping/__ID__/move`;
     section.append(heading, items);
     groups.appendChild(section);
   }
   markEmpty(section, false);
-  list.querySelector("#shop-empty")?.remove();
+  groups.closest(".shop-list")?.querySelector(".shop-empty")?.remove();
   return section.querySelector(".shop-items");
 }
 
-function applyReorder(category, ids) {
-  const container = [...document.querySelectorAll("#shopping-list .shop-items")].find((c) => c.dataset.category === category);
+function applyReorder(shop, category, ids) {
+  const containers = [...document.querySelectorAll("#shopping-list .shop-items")];
+  const container =
+    containers.find((c) => c.dataset.category === category && (!shop || c.dataset.shop === String(shop))) ||
+    containers.find((c) => c.dataset.category === category);
   if (!container) return;
   ids.forEach((id) => {
     const row = container.querySelector(`.shop-item[data-id="${CSS.escape(String(id))}"]`);
@@ -397,24 +455,27 @@ function applyPending() {
   for (const entry of loadQueue()) {
     const toggle = TOGGLE.exec(entry.path);
     const move = MOVE.exec(entry.path);
+    const shop = pairValue(entry.pairs, "shop_id");
     if (move) {
-      const category = entry.pairs.find(([k]) => k === "category")?.[1];
+      const category = pairValue(entry.pairs, "category");
       const row = listEl().querySelector(`.shop-item[data-id="${CSS.escape(move[1])}"]`);
       if (category && row && !row.classList.contains("is-done")) {
         const source = row.closest(".shop-group");
-        ensureGroup(listEl(), category).appendChild(row);
+        const target = shop || row.dataset.shop;
+        ensureGroup(listEl(), target, category).appendChild(row);
         row.dataset.category = category;
+        row.dataset.shop = target;
         if (source && !source.querySelector(".shop-item")) markEmpty(source, true);
-        applyReorder(category, entry.pairs.filter(([k]) => k === "ids").map(([, v]) => v));
+        applyReorder(target, category, entry.pairs.filter(([k]) => k === "ids").map(([, v]) => v));
       }
     } else if (toggle) {
       const state = entry.pairs.find(([k]) => k === "state")?.[1];
       if (state === "0" || state === "1") setItemState(toggle[1], state === "1");
     } else if (entry.path.endsWith("/shopping/reorder")) {
-      const category = entry.pairs.find(([k]) => k === "category")?.[1];
-      applyReorder(category, entry.pairs.filter(([k]) => k === "ids").map(([, v]) => v));
+      const category = pairValue(entry.pairs, "category");
+      applyReorder(shop, category, entry.pairs.filter(([k]) => k === "ids").map(([, v]) => v));
     } else if (entry.path.endsWith("/categories/order")) {
-      const groups = document.getElementById("shop-groups");
+      const groups = shopGroups(listEl(), shop);
       if (!groups) continue;
       const value = (key) => entry.pairs.find(([k]) => k === key)?.[1];
       const section = (name) => [...groups.children].find((g) => g.dataset.category === name);
@@ -502,46 +563,34 @@ function initSortables() {
         setDragActive(false);
         const target = event.to;
         const ids = [...target.querySelectorAll(".shop-item")].map((row) => row.dataset.id);
+        const shop = target.dataset.shop;
         if (event.from === target) {
           if (event.oldIndex !== event.newIndex) {
-            postOrder(target.dataset.reorderUrl, { category: target.dataset.category, ids });
+            postOrder(target.dataset.reorderUrl, { shop_id: shop, category: target.dataset.category, ids });
           }
           return;
         }
+        // auch in eine andere Liste (Laden) möglich
         const row = event.item;
         row.dataset.category = target.dataset.category;
+        row.dataset.shop = shop;
         markEmpty(target.closest(".shop-group"), false);
+        target.closest(".shop-list")?.querySelector(".shop-empty")?.remove();
         if (!event.from.querySelector(".shop-item")) markEmpty(event.from.closest(".shop-group"), true);
-        postOrder(target.dataset.moveUrl.replace("__ID__", row.dataset.id), { category: target.dataset.category, ids });
+        postOrder(target.dataset.moveUrl.replace("__ID__", row.dataset.id), {
+          shop_id: shop,
+          category: target.dataset.category,
+          ids,
+        });
       },
     });
   });
 
-  // Kategorien in der Liste: vor die nächste (bzw. hinter die vorige) sichtbare Kategorie einfügen.
+  // Kategorien in einer Liste: vor die nächste (bzw. hinter die vorige) sichtbare Kategorie einfügen.
   // Der Server merkt sich das dauerhaft – auch relativ zu gerade leeren, ausgeblendeten Kategorien.
-  const groups = document.getElementById("shop-groups");
-  if (groups && !Sortable.get(groups)) {
-    Sortable.create(groups, {
-      ...common,
-      handle: ".cat-handle",
-      draggable: ".shop-group:not(.is-empty)",
-      onStart: () => setDragActive(true),
-      onEnd: (event) => {
-        setDragActive(false);
-        if (event.oldIndex === event.newIndex) return;
-        const moved = event.item;
-        const values = { category: moved.dataset.category };
-        const next = visibleSibling(moved, "next");
-        const previous = visibleSibling(moved, "previous");
-        if (next) values.before = next.dataset.category;
-        else if (previous) values.after = previous.dataset.category;
-        else return;
-        postOrder(groups.dataset.orderUrl, values);
-      },
-    });
-  }
+  document.querySelectorAll("#shopping-list .shop-groups").forEach((groups) => initCategorySortable(groups, common));
 
-  // Seite „Ladenreihenfolge“: alle Kategorien, die vollständige Reihenfolge wird übernommen
+  // Seite „Ladenreihenfolge“: alle Kategorien einer Liste, die vollständige Reihenfolge wird übernommen
   const storeOrder = document.getElementById("category-order");
   if (storeOrder && !Sortable.get(storeOrder)) {
     Sortable.create(storeOrder, {
@@ -552,10 +601,92 @@ function initSortables() {
         setDragActive(false);
         if (event.oldIndex === event.newIndex) return;
         const categories = [...storeOrder.children].map((row) => row.dataset.category);
-        postOrder(storeOrder.dataset.orderUrl, { categories });
+        postOrder(storeOrder.dataset.orderUrl, { shop_id: storeOrder.dataset.shop, categories });
       },
     });
   }
+
+  // Einstellungen: Reihenfolge der Einkaufslisten
+  const shopOrder = document.getElementById("shop-order");
+  if (shopOrder && !Sortable.get(shopOrder)) {
+    Sortable.create(shopOrder, {
+      ...common,
+      handle: ".shop-handle",
+      onEnd: (event) => {
+        if (event.oldIndex === event.newIndex) return;
+        const rows = [...shopOrder.children];
+        rows.forEach((row, index) => {
+          const [up, down] = row.querySelectorAll(".no-js-order button");
+          if (up) up.disabled = index === 0;
+          if (down) down.disabled = index === rows.length - 1;
+        });
+        postOrder(shopOrder.dataset.orderUrl, { ids: rows.map((row) => row.dataset.id) });
+      },
+    });
+  }
+
+  // Wochenplan: Einträge auf einen anderen Tag ziehen (dort kommen sie zusätzlich dazu)
+  document.querySelectorAll("#week .day-entries").forEach((container) => {
+    if (Sortable.get(container)) return;
+    Sortable.create(container, {
+      ...common,
+      group: "plan-entries",
+      handle: ".entry-handle",
+      draggable: ".entry",
+      onStart: () => document.getElementById("week")?.classList.add("is-dragging-entry"),
+      onEnd: (event) => {
+        document.getElementById("week")?.classList.remove("is-dragging-entry");
+        if (event.from === event.to && event.oldIndex === event.newIndex) return;
+        const week = document.getElementById("week");
+        const ids = [...event.to.querySelectorAll(".entry")].map((entry) => entry.dataset.id);
+        moveEntryToDay(week.dataset.moveUrl.replace("__ID__", event.item.dataset.id), event.to.dataset.day, ids);
+      },
+    });
+  });
+}
+
+// Eintrag verschieben und danach die Woche vom Server neu anzeigen (inkl. Rückgängig-Button und Hinweis)
+async function moveEntryToDay(url, day, ids) {
+  const body = new URLSearchParams([["day", day], ...ids.map((id) => ["ids", id])]);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "X-CSRF-Token": csrfToken(), "Content-Type": "application/x-www-form-urlencoded", "HX-Request": "true" },
+      body,
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Error(String(response.status));
+    const html = await response.text();
+    if (window.htmx?.swap) htmx.swap("#week", html, { swapStyle: "outerHTML" });
+    else location.reload();
+  } catch {
+    showToast(t("Das hat leider nicht geklappt."));
+    location.reload();
+  }
+}
+
+function initCategorySortable(groups, common) {
+  if (Sortable.get(groups)) return;
+  Sortable.create(groups, {
+    ...common,
+    handle: ".cat-handle",
+    draggable: ".shop-group:not(.is-empty)",
+    onStart: () => setDragActive(true),
+    onEnd: (event) => {
+      setDragActive(false);
+      if (event.oldIndex === event.newIndex) return;
+      const moved = event.item;
+      const values = { category: moved.dataset.category };
+      const next = visibleSibling(moved, "next");
+      const previous = visibleSibling(moved, "previous");
+      if (next) values.before = next.dataset.category;
+      else if (previous) values.after = previous.dataset.category;
+      else return;
+      values.shop_id = groups.dataset.shop;
+      postOrder(groups.dataset.orderUrl, values);
+    },
+  });
 }
 
 /* ------------------------------------------------------------------ Display an (Wake Lock) */

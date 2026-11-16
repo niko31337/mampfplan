@@ -9,7 +9,7 @@ from app.config import get_settings, today
 from app.db import get_db
 from app.i18n import _
 from app.models import Member, Space
-from app.services import households, history, stats
+from app.services import households, history, shops, stats
 from app.services.seed import share_url
 from app.web import Ctx, get_ctx, get_space, redirect, render, set_member_cookie, templates
 
@@ -64,6 +64,8 @@ def _more(ctx: Ctx, error: str | None = None, status_code: int = 200):
         share_link=share_url(get_settings(), ctx.space),
         members=households.members_of(ctx.db, ctx.space.id),
         is_owner=households.is_owner(ctx.db, ctx.member),
+        shops=shops.shops_of(ctx.db, ctx.space.id),
+        presets=shops.PRESETS.values(),
         error=error,
     )
 
@@ -110,6 +112,83 @@ def delete_member(ctx: Annotated[Ctx, Depends(get_ctx)], member_id: int):
     except households.HouseholdError as exc:
         return _more(ctx, error=str(exc), status_code=400)
     return redirect(f"{ctx.base}/more")
+
+
+# --- Shopping lists (shops) -------------------------------------------------------------------
+
+ShopNameField = Annotated[str, Form(max_length=shops.MAX_SHOP_NAME_LENGTH * 2)]
+
+
+def _shop_of_household(ctx: Ctx, shop_id: int):
+    shop = shops.get_shop(ctx.db, ctx.space.id, shop_id)
+    if shop is None:
+        raise HTTPException(404, "Einkaufsliste nicht gefunden")
+    return shop
+
+
+def _back_to_shops(ctx: Ctx):
+    return redirect(f"{ctx.base}/more#shops")
+
+
+@router.post("/shops")
+def add_shop(
+    ctx: Annotated[Ctx, Depends(get_ctx)],
+    kind: Annotated[str, Form(max_length=20)] = "custom",
+    name: ShopNameField = "",
+):
+    preset = shops.PRESETS.get(kind)
+    label = " ".join(name.split()) or (preset.name if preset else "")
+    try:
+        with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Einkaufsliste „%(name)s“ angelegt", name=label[:50])) as act:
+            shops.add_shop(ctx.db, act, ctx.space.id, kind, name)
+    except shops.ShopError as exc:
+        return _more(ctx, error=str(exc), status_code=400)
+    return _back_to_shops(ctx)
+
+
+@router.post("/shops/order")
+def order_shops(ctx: Annotated[Ctx, Depends(get_ctx)], ids: Annotated[list[int] | None, Form()] = None):
+    """Order of the lists (drag & drop in the settings)."""
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Einkaufslisten umsortiert")) as act:
+        shops.set_shop_order(ctx.db, act, ctx.space.id, (ids or [])[:shops.MAX_SHOPS])
+    if ctx.is_partial:
+        return Response(status_code=204)
+    return _back_to_shops(ctx)
+
+
+@router.post("/shops/{shop_id}/move")
+def move_shop(ctx: Annotated[Ctx, Depends(get_ctx)], shop_id: int, direction: Annotated[str, Form(pattern="^(up|down)$")]):
+    shop = _shop_of_household(ctx, shop_id)
+    with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Einkaufslisten umsortiert")) as act:
+        shops.move_shop(ctx.db, act, shop, direction)
+    return _back_to_shops(ctx)
+
+
+@router.post("/shops/{shop_id}/rename")
+def rename_shop(ctx: Annotated[Ctx, Depends(get_ctx)], shop_id: int, name: ShopNameField):
+    shop = _shop_of_household(ctx, shop_id)
+    old = shops.display_name(shop)
+    try:
+        with history.record(
+            ctx.db, ctx.space.id, ctx.member.name,
+            history.msg("Einkaufsliste „%(old)s“ in „%(name)s“ umbenannt", old=old[:50], name=" ".join(name.split())[:50]),
+        ) as act:
+            shops.rename_shop(ctx.db, act, shop, name)
+    except shops.ShopError as exc:
+        return _more(ctx, error=str(exc), status_code=400)
+    return _back_to_shops(ctx)
+
+
+@router.post("/shops/{shop_id}/delete")
+def delete_shop(ctx: Annotated[Ctx, Depends(get_ctx)], shop_id: int):
+    shop = _shop_of_household(ctx, shop_id)
+    name = shops.display_name(shop)
+    try:
+        with history.record(ctx.db, ctx.space.id, ctx.member.name, history.msg("Einkaufsliste „%(name)s“ gelöscht", name=name[:50])) as act:
+            shops.delete_shop(ctx.db, act, shop)
+    except shops.ShopError as exc:
+        return _more(ctx, error=str(exc), status_code=400)
+    return _back_to_shops(ctx)
 
 
 @router.post("/link/rotate")

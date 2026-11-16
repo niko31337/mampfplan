@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% from "partials/_shop.html" import shop_picker with context %}
 {% set nav = 'shopping' %}
 {% block title %}{{ _('Einkaufsliste') }} – Mampfplan{% endblock %}
 {% block content %}
 <div class="row spread">
   <h1>{{ _('Einkaufsliste') }}</h1>
   <div class="row">
-    <a class="btn small" href="{{ base }}/shopping/categories" title="{{ _('Kategorien in Ladenreihenfolge bringen') }}">↕ {{ _("Laden") }}</a>
+    {% if not multi %}<a class="btn small" href="{{ base }}/shopping/categories?shop={{ shops[0].id }}" title="{{ _('Kategorien in Ladenreihenfolge bringen') }}">↕ {{ _("Laden") }}</a>{% endif %}
     <a class="btn small" href="{{ base }}/shopping/catalog">📚 {{ _('Katalog') }}</a>
   </div>
 </div>
@@ -20,9 +21,11 @@
            hx-target="#suggestions" hx-swap="innerHTML">
     <button class="btn primary">＋</button>
   </div>
+  {% if multi %}{{ shop_picker(shops) }}{% endif %}
   <div id="suggestions"></div>
 </form>
 
 {% include "partials/shopping_list.html" %}
 <p class="muted small center">{{ _("Tipp: Am Griff ⠿ ziehen, um Artikel und Kategorien zu sortieren.") }}</p>
+{% if multi %}<p class="muted small center">{{ _("Listen und ihre Reihenfolge legst du unter „Mehr“ fest.") }} <a href="{{ base }}/more#shops">{{ _("Einkaufslisten verwalten") }}</a></p>{% endif %}
 {% endblock %}

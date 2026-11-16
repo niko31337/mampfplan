@@ -120,7 +120,10 @@ def _error_page(request: Request, status: int, message: str):
 @app.exception_handler(StarletteHTTPException)
 async def http_error_handler(request: Request, exc: StarletteHTTPException):
     message = _("Das haben wir nicht gefunden.") if exc.status_code == 404 else translate(str(exc.detail))
-    return _error_page(request, exc.status_code, message)
+    response = _error_page(request, exc.status_code, message)
+    if exc.headers:  # e.g. X-Mampf-Message: shown as a toast by app.js
+        response.headers.update(exc.headers)
+    return response
 
 
 @app.exception_handler(RequestValidationError)

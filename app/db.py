@@ -44,6 +44,8 @@ ADDED_COLUMNS = [
     ("shopping_items", "checked_by", "VARCHAR(50)"),
     ("spaces", "is_admin", "BOOLEAN NOT NULL DEFAULT 0"),
     ("spaces", "created_at", "DATETIME"),
+    ("shopping_items", "shop_id", "INTEGER REFERENCES shops(id)"),
+    ("category_order", "shop_id", "INTEGER REFERENCES shops(id)"),
 ]
 
 

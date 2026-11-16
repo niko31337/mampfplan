@@ -143,6 +143,29 @@ templates.env.filters["source_label"] = source_label
 templates.env.globals["weekday_name"] = i18n.weekday_name
 
 
+def _shop_name(shop) -> str:
+    from app.services.shops import display_name
+
+    return display_name(shop)
+
+
+def _shop_preset(shop):
+    from app.services.shops import preset_of
+
+    return preset_of(shop)
+
+
+def _shop_initials(shop) -> str:
+    from app.services.shops import initials
+
+    return initials(shop)
+
+
+templates.env.filters["shop_name"] = _shop_name
+templates.env.globals["shop_preset"] = _shop_preset
+templates.env.globals["shop_initials"] = _shop_initials
+
+
 class NeedsProfile(Exception):
     """The visitor hasn't picked a profile (member) yet."""
 

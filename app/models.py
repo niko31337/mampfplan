@@ -77,11 +77,25 @@ class PlanEntry(Base):
     recipe: Mapped[Recipe | None] = relationship()
 
 
+class Shop(Base):
+    """A shopping list of the household, usually one per store (Lidl, Aldi, dm, ...)."""
+
+    __tablename__ = "shops"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id"), index=True)
+    name: Mapped[str] = mapped_column(String(50))
+    # preset key (logo), "custom" for a freely named list, "default" for the automatically created one
+    kind: Mapped[str] = mapped_column(String(20), default="custom")
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class ShoppingItem(Base):
     __tablename__ = "shopping_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id"), index=True)
+    shop_id: Mapped[int | None] = mapped_column(ForeignKey("shops.id"), index=True)
     name: Mapped[str] = mapped_column(String(100))
     amount: Mapped[float | None] = mapped_column(Float)
     unit: Mapped[str] = mapped_column(String(20), default="")
@@ -96,12 +110,13 @@ class ShoppingItem(Base):
 
 
 class CategoryOrder(Base):
-    """Custom order of the categories on the shopping list (e.g. by the route through the supermarket)."""
+    """Custom order of the categories on a shopping list (e.g. by the route through the supermarket)."""
 
     __tablename__ = "category_order"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     space_id: Mapped[int] = mapped_column(ForeignKey("spaces.id"), index=True)
+    shop_id: Mapped[int | None] = mapped_column(ForeignKey("shops.id"), index=True)
     category: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer, default=0)
 

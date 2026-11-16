@@ -1,5 +1,7 @@
 """Rename/delete profiles and delete households."""
 
+import re
+
 import pytest
 from sqlalchemy import func, select
 
@@ -96,7 +98,7 @@ def test_only_owner_may_rename_or_delete(anon):
     assert anon.post(f"/members/{anna}/rename", {"name": "Hacker"}).status_code == 403
     assert anon.post(f"/members/{anna}/delete").status_code == 403
     assert ">Anna</button>" in anon.get("/who").text
-    assert "/rename" not in anon.get("/more").text
+    assert not re.search(r"/members/\d+/rename", anon.get("/more").text)
 
 
 def test_profiles_of_other_households_cannot_be_changed(web):
