@@ -88,30 +88,27 @@ def add_item(
     category: str | None = None,
     recipe_id: int | None = None,
     added_by: str | None = None,
+    *,
+    shop_id: int,
 ) -> tuple[ShoppingItem, bool]:
-    """Adds an item or merges it with an open item of the same name.
+    """Adds an item to a list (shop) or merges it with an open item of the same name there.
 
     When merging, it keeps track of who originally added the item.
     Returns: (item, merged?)
     """
     name = clean_name(name)[:100]
     unit = unit.strip()[:20]
-    existing = db.scalars(
-        select(ShoppingItem).where(ShoppingItem.space_id == space_id, ShoppingItem.checked.is_(False))
-    ).all()
-    for item in existing:
-        if item.name.casefold() != name.casefold() or item.unit.casefold() != unit.casefold():
-            continue
-        if item.amount is None and amount is None:
-            return item, True  # already on the list
-        if item.amount is not None and amount is not None:
+    item = _mergeable(db, space_id, shop_id, name, amount, unit)
+    if item is not None:
+        if amount is not None:
             act.updating(item)
             item.amount += amount
-            return item, True
+        return item, True  # already on the list
 
     last_position = db.scalar(select(func.max(ShoppingItem.position)).where(ShoppingItem.space_id == space_id))
     item = ShoppingItem(
         space_id=space_id,
+        shop_id=shop_id,
         name=name,
         amount=amount,
         unit=unit,
@@ -127,6 +124,25 @@ def add_item(
     return item, False
 
 
+def _mergeable(
+    db: Session, space_id: int, shop_id: int, name: str, amount: float | None, unit: str, exclude_id: int | None = None
+) -> ShoppingItem | None:
+    """Open item on the same list that a new item with this name/amount can be merged into."""
+    existing = db.scalars(
+        select(ShoppingItem).where(
+            ShoppingItem.space_id == space_id, ShoppingItem.shop_id == shop_id, ShoppingItem.checked.is_(False)
+        )
+    ).all()
+    for item in existing:
+        if item.id == exclude_id:
+            continue
+        if item.name.casefold() != name.casefold() or item.unit.casefold() != unit.casefold():
+            continue
+        if (item.amount is None) == (amount is None):
+            return item
+    return None
+
+
 def add_recipe_ingredients(
     db: Session,
     act: Action,
@@ -134,9 +150,11 @@ def add_recipe_ingredients(
     recipe_id: int,
     ingredients: list[RecipeIngredient],
     added_by: str | None = None,
+    *,
+    shop_id: int,
 ) -> int:
     for ing in ingredients:
-        add_item(db, act, space_id, ing.name, ing.amount, ing.unit, recipe_id=recipe_id, added_by=added_by)
+        add_item(db, act, space_id, ing.name, ing.amount, ing.unit, recipe_id=recipe_id, added_by=added_by, shop_id=shop_id)
     return len(ingredients)
 
 
@@ -175,13 +193,30 @@ def search_catalog(db: Session, query: str, limit: int = 12, lang: str | None = 
 # --- Order -----------------------------------------------------------------------------------
 
 
-def category_order(db: Session, space_id: int) -> list[str]:
-    """Categories in the configured order (unsaved ones are appended in the default order)."""
+def _shop_or_default(db: Session, space_id: int, shop_id: int | None) -> int | None:
+    from app.services.shops import default_shop_id
+
+    return shop_id if shop_id is not None else default_shop_id(db, space_id)
+
+
+def _shop_filter(column, shop_id: int | None):
+    return column.is_(None) if shop_id is None else column == shop_id
+
+
+def category_order(db: Session, space_id: int, shop_id: int | None = None) -> list[str]:
+    """Categories of a list (shop) in the configured order (unsaved ones are appended in the default order).
+
+    Without `shop_id`: the household's first list.
+    """
+    shop_id = _shop_or_default(db, space_id, shop_id)
     saved = list(
         db.scalars(
-            select(CategoryOrder.category).where(CategoryOrder.space_id == space_id).order_by(CategoryOrder.position)
+            select(CategoryOrder.category)
+            .where(CategoryOrder.space_id == space_id, _shop_filter(CategoryOrder.shop_id, shop_id))
+            .order_by(CategoryOrder.position)
         )
     )
+    saved = list(dict.fromkeys(c for c in saved if c in CATEGORY_ORDER))
     return saved + [c for c in CATEGORY_ORDER if c not in saved]
 
 
@@ -189,8 +224,10 @@ def item_sort_key(item: ShoppingItem) -> tuple[int, str, int]:
     return item.position, item.name.casefold(), item.id
 
 
-def reorder_items(db: Session, act: Action, space_id: int, category: str, ordered_ids: list[int]) -> bool:
-    """Sets the order of the open items of a category.
+def reorder_items(
+    db: Session, act: Action, space_id: int, shop_id: int, category: str, ordered_ids: list[int]
+) -> bool:
+    """Sets the order of the open items of a category on a list (shop).
 
     Items missing from `ordered_ids` (e.g. added by someone else in the meantime)
     keep their previous order at the end. Unknown IDs are ignored.
@@ -200,6 +237,7 @@ def reorder_items(db: Session, act: Action, space_id: int, category: str, ordere
         db.scalars(
             select(ShoppingItem).where(
                 ShoppingItem.space_id == space_id,
+                ShoppingItem.shop_id == shop_id,
                 ShoppingItem.checked.is_(False),
                 ShoppingItem.category == category,
             )
@@ -247,40 +285,83 @@ def remember_category(db: Session, act: Action, space_id: int, name: str, catego
 
 
 def move_to_category(
-    db: Session, act: Action, space_id: int, item: ShoppingItem, category: str, ordered_ids: list[int]
+    db: Session,
+    act: Action,
+    space_id: int,
+    item: ShoppingItem,
+    category: str,
+    ordered_ids: list[int],
+    shop_id: int | None = None,
 ) -> None:
-    """Move an item into another category, to the desired position there, and remember the correction."""
-    if item.category != category:
+    """Move an item into another category (optionally on another list), to the desired position there,
+    and remember the category correction."""
+    shop_id = shop_id or item.shop_id
+    if item.category != category or item.shop_id != shop_id:
         act.updating(item)
-        item.category = category
-        remember_category(db, act, space_id, item.name, category)
+        if item.category != category:
+            item.category = category
+            remember_category(db, act, space_id, item.name, category)
+        item.shop_id = shop_id
         db.flush()
-    reorder_items(db, act, space_id, category, ordered_ids)
+    reorder_items(db, act, space_id, shop_id, category, ordered_ids)
 
 
-def set_category_order(db: Session, act: Action, space_id: int, ordered_visible: list[str]) -> bool:
+def move_to_shop(db: Session, act: Action, space_id: int, item: ShoppingItem, shop_id: int) -> ShoppingItem:
+    """Move an item to another list. It keeps its category, so it lands in the right place there.
+
+    If the same item is already open on the target list, the two are merged.
+    Returns: the item on the target list.
+    """
+    if item.shop_id == shop_id:
+        return item
+    if not item.checked:
+        twin = _mergeable(db, space_id, shop_id, item.name, item.amount, item.unit, exclude_id=item.id)
+        if twin is not None:
+            if item.amount is not None:
+                act.updating(twin)
+                twin.amount += item.amount
+            act.deleting(item)
+            return twin
+    last_position = db.scalar(
+        select(func.max(ShoppingItem.position)).where(
+            ShoppingItem.space_id == space_id, ShoppingItem.shop_id == shop_id, ShoppingItem.category == item.category
+        )
+    )
+    act.updating(item)
+    item.shop_id = shop_id
+    item.position = 0 if last_position is None else last_position + 1
+    return item
+
+
+def set_category_order(db: Session, act: Action, space_id: int, shop_id: int, ordered_visible: list[str]) -> bool:
     """Reorders the given categories without changing the positions of the others.
 
     With all categories (page „Store order“) this is exactly the desired overall order.
     """
-    full = category_order(db, space_id)
+    full = category_order(db, space_id, shop_id)
     wanted = [c for c in dict.fromkeys(ordered_visible) if c in full]
     slots = [i for i, c in enumerate(full) if c in wanted]
     new_full = list(full)
     for slot, category in zip(slots, wanted, strict=True):
         new_full[slot] = category
-    return _save_category_order(db, act, space_id, full, new_full)
+    return _save_category_order(db, act, space_id, shop_id, full, new_full)
 
 
 def move_category(
-    db: Session, act: Action, space_id: int, category: str, before: str | None = None, after: str | None = None
+    db: Session,
+    act: Action,
+    space_id: int,
+    shop_id: int,
+    category: str,
+    before: str | None = None,
+    after: str | None = None,
 ) -> bool:
     """Insert a category directly before `before` (or after `after`); the others keep their order.
 
     That way a category moved to the front stays at the front, even if other categories
     become visible later (the supermarket's order).
     """
-    full = category_order(db, space_id)
+    full = category_order(db, space_id, shop_id)
     if category not in full or category in (before, after):
         return False
     new_full = [c for c in full if c != category]
@@ -290,20 +371,24 @@ def move_category(
         new_full.insert(new_full.index(after) + 1, category)
     else:
         return False
-    return _save_category_order(db, act, space_id, full, new_full)
+    return _save_category_order(db, act, space_id, shop_id, full, new_full)
 
 
-def _save_category_order(db: Session, act: Action, space_id: int, old: list[str], full: list[str]) -> bool:
+def _save_category_order(
+    db: Session, act: Action, space_id: int, shop_id: int, old: list[str], full: list[str]
+) -> bool:
     if full == old:
         return False
     rows = {
         row.category: row
-        for row in db.scalars(select(CategoryOrder).where(CategoryOrder.space_id == space_id))
+        for row in db.scalars(
+            select(CategoryOrder).where(CategoryOrder.space_id == space_id, CategoryOrder.shop_id == shop_id)
+        )
     }
     for position, name in enumerate(full):
         row = rows.get(name)
         if row is None:
-            row = CategoryOrder(space_id=space_id, category=name, position=position)
+            row = CategoryOrder(space_id=space_id, shop_id=shop_id, category=name, position=position)
             db.add(row)
             db.flush()
             act.created(row)

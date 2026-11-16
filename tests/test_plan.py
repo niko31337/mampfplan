@@ -125,3 +125,82 @@ def test_second_member_can_change_and_see_history(anon):
     page = anon.get("/history").text
     assert re.search(r"von Ben.*?Ben", page, re.S) and "von Anna" in page
     assert "von Anna" in anon.get(f"/plan?week={DAY}").text
+
+
+# --- Today first, moving entries between days -------------------------------------------------
+
+
+def _fix_today(monkeypatch, day: date):
+    from app import web as web_module
+    from app.routers import plan as plan_router
+
+    monkeypatch.setattr(plan_router, "today", lambda: day)
+    monkeypatch.setattr(web_module, "today", lambda: day)
+
+
+def _day_order(page: str) -> list[str]:
+    return re.findall(r'<section class="day[^"]*" data-day="([\d-]+)"', page)
+
+
+def test_today_is_at_the_top_and_past_days_at_the_end(web, monkeypatch):
+    _fix_today(monkeypatch, date(2026, 10, 21))  # Wednesday
+    page = web.get("/plan").text
+    assert _day_order(page) == [
+        "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25", "2026-10-19", "2026-10-20",
+    ]  # fmt: skip
+    assert page.index("Bereits vorbei") > page.index('data-day="2026-10-25"')
+    assert page.index("Bereits vorbei") < page.index('data-day="2026-10-19"')
+
+
+def test_other_weeks_keep_monday_first(web, monkeypatch):
+    _fix_today(monkeypatch, date(2026, 10, 21))
+    page = web.get("/plan?week=2026-10-26").text
+    assert _day_order(page)[0] == "2026-10-26"
+    assert "Bereits vorbei" not in page
+    current = web.get("/plan?week=2026-10-19").text  # explicitly the current week: today first again
+    assert _day_order(current)[0] == "2026-10-21"
+
+
+def test_move_entry_to_a_day_that_already_has_a_recipe(web):
+    pasta, salad = make_recipe(web, "Pasta"), make_recipe(web, "Salat")
+    web.post("/plan/recipe", {"day": DAY, "recipe_id": pasta})
+    web.post("/plan/recipe", {"day": "2026-10-22", "recipe_id": salad})
+    [entry] = entry_ids(DAY)
+
+    response = web.post(f"/plan/entries/{entry}/day", {"day": "2026-10-22"}, htmx=True)
+    assert response.status_code == 200
+    assert entries(DAY) == []
+    assert entries("2026-10-22") == [("recipe", salad, None), ("recipe", pasta, None)]  # added, nothing replaced
+
+    # move the salad on to another day
+    salad_entry = entry_ids("2026-10-22")[0]
+    web.post(f"/plan/entries/{salad_entry}/day", {"day": "2026-10-23"})
+    assert entries("2026-10-22") == [("recipe", pasta, None)]
+    assert entries("2026-10-23") == [("recipe", salad, None)]
+
+    web.post("/undo")
+    assert entries("2026-10-22") == [("recipe", salad, None), ("recipe", pasta, None)]
+
+
+def test_drop_entry_at_a_position(web):
+    a, b, c = make_recipe(web, "A"), make_recipe(web, "B"), make_recipe(web, "C")
+    web.post("/plan/recipe", {"day": DAY, "recipe_id": a})
+    web.post("/plan/recipe", {"day": "2026-10-22", "recipe_id": b})
+    web.post("/plan/recipe", {"day": "2026-10-22", "recipe_id": c})
+    moving = entry_ids(DAY)[0]
+    first, second = entry_ids("2026-10-22")
+    web.post(f"/plan/entries/{moving}/day", {"day": "2026-10-22", "ids": [first, moving, second]}, htmx=True)
+    assert entries("2026-10-22") == [("recipe", b, None), ("recipe", a, None), ("recipe", c, None)]
+
+
+def test_move_entry_of_other_household_is_refused(web):
+    assert web.post("/plan/entries/99999/day", {"day": DAY}).status_code == 404
+
+
+def test_week_offers_move_menu(web):
+    pasta = make_recipe(web, "Pasta")
+    web.post("/plan/recipe", {"day": DAY, "recipe_id": pasta})
+    page = web.get(f"/plan?week={DAY}").text
+    [entry] = entry_ids(DAY)
+    assert page.count(f"/plan/entries/{entry}/day") == 7  # 6 other weekdays + free date
+    assert "entry-handle" in page

@@ -241,3 +241,81 @@ progress.bar { width: 100%; height: 10px; accent-color: var(--accent); }
 .undone { text-decoration: line-through; color: var(--muted); }
 .center { text-align: center; }
 .big-btn-list { display: grid; gap: 0.7rem; margin-top: 1rem; }
+
+/* Mehrere Einkaufslisten (Läden) */
+.shop-logo {
+  width: 22px; height: 22px; border-radius: 6px; flex: none; object-fit: contain; background: #fff;
+  vertical-align: middle;
+}
+.shop-logo.is-small { width: 16px; height: 16px; border-radius: 4px; }
+.shop-initial {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent); font-size: 0.75rem; font-weight: 700;
+}
+.shop-initial.is-small { font-size: 0.6rem; }
+.shop-list { margin-bottom: 0.4rem; }
+details.shop-list {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0 0.8rem; margin-bottom: 0.7rem;
+}
+details.shop-list[open] { padding-bottom: 0.5rem; }
+.shop-head {
+  display: flex; align-items: center; gap: 0.55rem; min-height: 52px; cursor: pointer; list-style: none;
+  user-select: none; -webkit-user-select: none;
+}
+.shop-head::-webkit-details-marker { display: none; }
+.shop-title { flex: 1; min-width: 0; font-weight: 700; font-size: 1.05rem; overflow-wrap: anywhere; }
+.shop-order-link { display: inline-flex; align-items: center; justify-content: center; }
+.shop-chevron { color: var(--muted); transition: transform 0.15s ease; width: 1.2rem; text-align: center; }
+details.shop-list:not([open]) .shop-chevron { transform: rotate(-90deg); }
+details.shop-list .shop-group:first-child h2 { margin-top: 0.2rem; }
+.shop-empty { margin: 0.4rem 0 0.2rem; }
+.shop-done .shop-logo { opacity: 0.8; }
+
+.shop-picker { margin: 0.5rem 0 0; }
+.shop-picker legend { padding: 0; margin-bottom: 0.3rem; }
+.shop-choices { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.shop-choice {
+  position: relative; display: inline-flex; align-items: center; gap: 0.4rem; margin: 0;
+  min-height: 38px; padding: 0 0.8rem 0 0.45rem; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--card); font-weight: 600; font-size: 0.92rem; cursor: pointer;
+}
+.shop-choice input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.shop-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.shop-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shop-picker.needs-choice .shop-choice { border-color: var(--danger); animation: nudge 0.4s ease 2; }
+@keyframes nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+form.card { padding-top: 0.5rem; }
+
+/* Aufklappmenü (Artikel auf andere Liste, Eintrag auf anderen Tag, Zutaten auf Liste X) */
+.move-menu { position: relative; flex: none; }
+.move-menu > summary { list-style: none; display: inline-flex; align-items: center; justify-content: center; }
+.move-menu > summary::-webkit-details-marker { display: none; }
+.move-menu[open] > summary { color: var(--accent); background: var(--accent-soft); }
+.move-menu .menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 15; min-width: 13rem; max-width: 80vw;
+  display: grid; gap: 2px; padding: 0.35rem; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.menu-item {
+  display: flex; align-items: center; gap: 0.5rem; min-height: 40px; padding: 0 0.6rem; border: 0; border-radius: 8px;
+  background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; white-space: nowrap;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--accent-soft); }
+.menu-date { display: flex; gap: 0.4rem; padding: 0.35rem 0.2rem 0.1rem; border-top: 1px solid var(--line); margin-top: 0.2rem; }
+.menu-date input { min-height: 36px; padding: 0.3rem 0.5rem; }
+
+/* Einstellungen: Einkaufslisten */
+.shop-row { gap: 0.5rem; flex-wrap: wrap; }
+.shop-row .no-js-order { display: flex; }
+.shop-handle { height: 32px; }
+.inline-fields { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.inline-fields > * { flex: 1 1 10rem; }
+.shop-tab { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+/* Wochenplan: heute oben, vergangene Tage unten, Einträge zwischen Tagen ziehen */
+.past-divider { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; margin: 1.2rem 0 0.5rem; }
+.day.is-past { opacity: 0.75; }
+.entry-handle { min-width: 24px; margin-left: -0.3rem; }
+#week.is-dragging-entry .day-entries { min-height: 48px; border: 2px dashed var(--line); border-radius: 12px; padding: 2px 4px; }
+#week.is-dragging-entry .day-empty { display: none; }

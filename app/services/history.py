@@ -22,6 +22,7 @@ from app.models import (
     PlanEntry,
     Recipe,
     RecipeIngredient,
+    Shop,
     ShoppingItem,
 )
 
@@ -29,6 +30,7 @@ from app.models import (
 UNDOABLE_MODELS = {
     "plan_entries": PlanEntry,
     "shopping_items": ShoppingItem,
+    "shops": Shop,
     "category_order": CategoryOrder,
     "category_overrides": CategoryOverride,
     "recipes": Recipe,

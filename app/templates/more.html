@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/_shop.html" import shop_logo with context %}
 {% set nav = 'more' %}
 {% block title %}{{ _('Mehr') }} – Mampfplan{% endblock %}
 {% block content %}
@@ -12,6 +13,55 @@
   <a class="btn" href="{{ base }}/shopping/catalog">📚 {{ _('Artikelkatalog') }}</a>
   {% if space.is_admin %}<a class="btn" href="{{ base }}/households">🏠 {{ _('Haushalte verwalten') }}</a>{% endif %}
 </div>
+
+<section class="card" id="shops">
+  <h2>🛒 {{ _('Einkaufslisten') }}</h2>
+  <p class="muted small">{{ _("Lege für jeden Laden eine eigene Liste an. In dieser Reihenfolge erscheinen sie im Einkauf – zum Sortieren am Griff ⠿ ziehen. Bei mehreren Listen wählst du beim Hinzufügen, wohin ein Artikel kommt.") }}</p>
+  <ul id="shop-order" class="list" data-order-url="{{ base }}/shops/order">
+    {% for s in shops %}
+    <li class="list-item shop-row" data-id="{{ s.id }}">
+      <span class="drag-handle shop-handle" role="img" aria-label="{{ _('%(category)s verschieben', category=s|shop_name) }}" title="{{ _('Verschieben') }}">⠿</span>
+      {{ shop_logo(s) }}
+      <div class="grow">{{ s|shop_name }}</div>
+      <form method="post" action="{{ base }}/shops/{{ s.id }}/move" class="no-js-order">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <button class="icon-btn" name="direction" value="up" aria-label="{{ _('Nach oben') }}" title="{{ _('Nach oben') }}" {{ 'disabled' if loop.first }}>▲</button>
+        <button class="icon-btn" name="direction" value="down" aria-label="{{ _('Nach unten') }}" title="{{ _('Nach unten') }}" {{ 'disabled' if loop.last }}>▼</button>
+      </form>
+      <details class="member-edit">
+        <summary class="btn small" aria-label="{{ _('Liste %(name)s bearbeiten', name=s|shop_name) }}" title="{{ _('Bearbeiten') }}">✏️</summary>
+        <div class="member-edit-body">
+          <form method="post" action="{{ base }}/shops/{{ s.id }}/rename" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <input type="text" name="name" value="{{ s|shop_name }}" maxlength="50" required aria-label="{{ _('Neuer Name für %(name)s', name=s|shop_name) }}">
+            <button class="btn small primary">{{ _('Umbenennen') }}</button>
+          </form>
+          {% if shops|length > 1 %}
+          <form method="post" action="{{ base }}/shops/{{ s.id }}/delete"
+                data-confirm="{{ _('Liste „%(name)s“ löschen? Ihre Artikel wandern auf die erste andere Liste.', name=s|shop_name) }}">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <button class="btn small danger">{{ _('Liste löschen') }}</button>
+          </form>
+          {% endif %}
+        </div>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+  {% set used = shops|map(attribute='kind')|list %}
+  <form method="post" action="{{ base }}/shops" class="stack shop-add">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <label for="shop-kind">{{ _("Neue Liste") }}</label>
+    <div class="inline-fields">
+      <select id="shop-kind" name="kind">
+        {% for p in presets if p.key not in used %}<option value="{{ p.key }}">{{ p.name }}</option>{% endfor %}
+        <option value="custom">{{ _("Eigener Name …") }}</option>
+      </select>
+      <input type="text" name="name" maxlength="50" placeholder="{{ _('Name (optional bei bekannten Läden)') }}" aria-label="{{ _('Name der Liste') }}">
+    </div>
+    <button class="btn primary">＋ {{ _('Liste anlegen') }}</button>
+  </form>
+</section>
 
 <section class="card">
   <h2>🌐 {{ _('Sprache') }}</h2>

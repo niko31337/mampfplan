@@ -1,0 +1,23 @@
+{# Logo und Auswahl der Einkaufslisten (Läden). Import: {% from "partials/_shop.html" import … with context %} #}
+{% macro shop_logo(shop, extra='') -%}
+  {%- set preset = shop_preset(shop) -%}
+  {%- if preset -%}
+    <img class="shop-logo {{ extra }}" src="{{ base }}/shops/logo/{{ preset.key }}" alt="" width="22" height="22" loading="lazy">
+  {%- else -%}
+    <span class="shop-logo shop-initial {{ extra }}" aria-hidden="true">{{ shop_initials(shop) }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro shop_picker(shops, id='shop-picker') -%}
+<fieldset class="shop-picker" id="{{ id }}">
+  <legend class="small muted">{{ _("Auf welche Liste?") }}</legend>
+  <div class="shop-choices">
+    {% for s in shops %}
+    <label class="shop-choice">
+      <input type="radio" name="shop_id" value="{{ s.id }}" required>
+      {{ shop_logo(s) }}<span>{{ s|shop_name }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</fieldset>
+{%- endmacro %}

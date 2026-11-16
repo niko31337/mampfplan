@@ -12,7 +12,7 @@ import threading
 import time
 from functools import lru_cache
 from pathlib import Path
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urljoin, urlsplit
 
 import httpx
 
@@ -36,7 +36,8 @@ FAILURE_TTL_SECONDS = 300
 TOUCH_AFTER_SECONDS = 24 * 3600
 PRUNE_EVERY_N_WRITES = 20
 
-MIME_BY_EXT = {"jpg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp"}
+MIME_BY_EXT = {"jpg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp", "ico": "image/x-icon"}
+MAX_REDIRECTS = 3
 
 
 class ImageError(Exception):
@@ -71,6 +72,8 @@ def sniff_extension(data: bytes) -> str | None:
         return "gif"
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "webp"
+    if data[:4] == b"\x00\x00\x01\x00":  # favicon.ico (store logos)
+        return "ico"
     return None
 
 
@@ -149,6 +152,32 @@ class ImageCache:
         self._failures.pop(key, None)
         return self._write(key, data, ext)
 
+    def get_from_site(self, url: str, domain: str) -> tuple[Path, str] | None:
+        """Like get(), for a fixed address on a known website (store favicons).
+
+        Redirects are followed, but only to https addresses on the same website.
+        """
+        hit = self.lookup(url)
+        if hit:
+            return hit
+        key = self.key(url)
+        if time.monotonic() - self._failures.get(key, -FAILURE_TTL_SECONDS) < FAILURE_TTL_SECONDS:
+            return None
+
+        def same_site(target: str) -> bool:
+            parts = urlsplit(target)
+            host = parts.hostname or ""
+            return parts.scheme == "https" and (host == domain or host.endswith("." + domain)) and parts.port in (None, 443)
+
+        try:
+            data, ext = self._download(url, may_follow=same_site)
+        except ImageError as exc:
+            log.info("Logo nicht geladen (%s): %s", exc, url)
+            self._failures[key] = time.monotonic()
+            return None
+        self._failures.pop(key, None)
+        return self._write(key, data, ext)
+
     def store(self, url: str, data: bytes) -> tuple[Path, str] | None:
         """Store an image fetched elsewhere (safely) under this address; None for invalid content."""
         ext = sniff_extension(data)
@@ -164,20 +193,31 @@ class ImageCache:
         self._after_write()
         return final, MIME_BY_EXT[ext]
 
-    def _download(self, url: str) -> tuple[bytes, str]:
+    def _download(self, url: str, may_follow=None) -> tuple[bytes, str]:
+        """Fetch an image. Redirects only if `may_follow(target)` allows them (otherwise: error)."""
+        chunks: list[bytes] = []
         try:
-            with self.client.stream("GET", url, follow_redirects=False) as response:
-                if response.status_code != 200:  # including redirects: they could point to foreign servers
-                    raise ImageError(f"HTTP {response.status_code}")
-                declared = response.headers.get("content-length")
-                if declared and declared.isdigit() and int(declared) > MAX_IMAGE_BYTES:
-                    raise ImageError("zu groß")
-                chunks, total = [], 0
-                for chunk in response.iter_bytes():
-                    total += len(chunk)
-                    if total > MAX_IMAGE_BYTES:
+            for _hop in range(MAX_REDIRECTS + 1):
+                with self.client.stream("GET", url, follow_redirects=False) as response:
+                    if response.is_redirect and may_follow is not None:
+                        target = urljoin(url, response.headers.get("location", ""))
+                        if may_follow(target):
+                            url = target
+                            continue
+                    if response.status_code != 200:  # including redirects: they could point to foreign servers
+                        raise ImageError(f"HTTP {response.status_code}")
+                    declared = response.headers.get("content-length")
+                    if declared and declared.isdigit() and int(declared) > MAX_IMAGE_BYTES:
                         raise ImageError("zu groß")
-                    chunks.append(chunk)
+                    total = 0
+                    for chunk in response.iter_bytes():
+                        total += len(chunk)
+                        if total > MAX_IMAGE_BYTES:
+                            raise ImageError("zu groß")
+                        chunks.append(chunk)
+                    break
+            else:
+                raise ImageError("zu viele Weiterleitungen")
         except httpx.HTTPError as exc:
             raise ImageError(type(exc).__name__) from exc
         data = b"".join(chunks)

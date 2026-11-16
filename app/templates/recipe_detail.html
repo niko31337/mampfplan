@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/_shop.html" import shop_picker with context %}
 {% set nav = 'recipes' %}
 {% block title %}{{ recipe.title }} – Mampfplan{% endblock %}
 {% block content %}
@@ -41,6 +42,7 @@
       </li>
       {% endfor %}
     </ul>
+    {% if shops|length > 1 %}{{ shop_picker(shops, 'recipe-shop-picker') }}{% endif %}
     <button class="btn primary block">🛒 {{ _('Auswahl auf die Einkaufsliste') }}</button>
   </form>
   {% else %}

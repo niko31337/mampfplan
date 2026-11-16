@@ -24,6 +24,7 @@ from app.models import (
     PlanEntry,
     Recipe,
     RecipeIngredient,
+    Shop,
     ShoppingItem,
     Space,
 )
@@ -125,6 +126,7 @@ def delete_household(db: Session, space: Space) -> None:
         delete(ShoppingItem).where(ShoppingItem.space_id == space.id),
         delete(CategoryOrder).where(CategoryOrder.space_id == space.id),
         delete(CategoryOverride).where(CategoryOverride.space_id == space.id),
+        delete(Shop).where(Shop.space_id == space.id),
         delete(RecipeIngredient).where(RecipeIngredient.recipe_id.in_(recipe_ids)),
         delete(Recipe).where(Recipe.space_id == space.id),
         delete(Member).where(Member.space_id == space.id),
