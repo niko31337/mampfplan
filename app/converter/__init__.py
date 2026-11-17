@@ -8,6 +8,7 @@ from app.converter import fetch as fetching
 from app.converter.fetch import FetchError
 from app.converter.html import clean, meta_tags, page_title, structured_recipe, text_lines, tiktok_post
 from app.converter.text import parse_text, restore_lines, strip_symbols, title_from
+from app.services.ingredients import UNITS
 from app.services.units import Conversion, metric_lines, metric_text
 
 __all__ = ["CONVERTED_SOURCES", "Draft", "FetchError", "convert", "fetch_image", "image_key", "source_kind", "with_source_line"]
@@ -57,12 +58,34 @@ def source_kind(url: str) -> str:
 
 _TASTE = re.compile(r"^nach (geschmack|belieben)\s+", re.I)
 _BARE_UNIT = re.compile(r"^(g|kg|ml|l|EL|TL|Stück|Stk\.?|Prise|Bund|Pck\.?)\s+(?=[A-ZÄÖÜ])")
+# „Spaghetti 320 g“, „Tuorli (di uova medie) 6“ (GialloZafferano and others put the amount last)
+_TRAILING_AMOUNT = re.compile(
+    r"^(?P<name>[^\d½¼¾⅓⅔].*?)[\s,:]+"
+    r"(?P<amount>\d+(?:[.,]\d+)?(?:\s*/\s*\d+)?(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?|[½¼¾⅓⅔])"
+    r"(?:\s*(?P<unit>[^\W\d_]+\.?))?$"
+)
+# „Mehl Type 405“, „Farina tipo 00“: the number belongs to the name
+_NUMBER_IN_NAME = re.compile(r"\b(typ|type|tipo|nr\.?|no\.?|n\.|größe|size|stufe)$", re.I)
+
+
+def amount_to_front(text: str) -> str:
+    """„Spaghetti 320 g“ → „320 g Spaghetti“, so the shopping list recognises (and adds up) the amount."""
+    match = _TRAILING_AMOUNT.match(text)
+    if not match:
+        return text
+    name, unit = match["name"].strip(" ,:"), match["unit"] or ""
+    if unit and unit.lower().rstrip(".") not in UNITS and unit.lower() not in UNITS:
+        return text
+    if _NUMBER_IN_NAME.search(name):
+        return text
+    return " ".join(part for part in (match["amount"], unit, name) if part)
 
 
 def tidy_ingredient(text: str) -> str:
-    """Small cleanups: „nach Geschmack Salz“ → „Salz“, „ml Öl“ (amount missing) → „Öl“."""
+    """Small cleanups: „nach Geschmack Salz“ → „Salz“, „ml Öl“ (amount missing) → „Öl“,
+    „Spaghetti 320 g“ → „320 g Spaghetti“."""
     text = re.sub(r"\s+", " ", text).strip(" -–•*,;")
-    return _BARE_UNIT.sub("", _TASTE.sub("", text))[:150]
+    return amount_to_front(_BARE_UNIT.sub("", _TASTE.sub("", text)))[:150]
 
 
 def source_line(url: str) -> str:

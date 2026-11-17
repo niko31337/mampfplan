@@ -105,6 +105,30 @@ def parse_lines(text: str, limit: int = 100) -> list[tuple[float | None, str, st
     return result
 
 
+DEFAULT_SERVINGS = 4  # recipes without a servings count are treated as „for 4“
+MAX_SERVINGS = 50
+_FINE_UNITS = {"g", "gr", "mg", "ml"}
+_DECIMAL_UNITS = {"kg", "l", "dl", "cl", "liter"}
+
+
+def scale_amount(amount: float | None, unit: str, factor: float) -> float | None:
+    """Scale an amount to other servings and round it the way you'd measure in the kitchen.
+
+    Grams/ml: whole numbers (halves below 10, steps of 5 from 100); kg/l: two decimals;
+    spoons, pieces and the rest: quarters below 5, halves below 20, then whole numbers.
+    """
+    if amount is None or factor == 1:
+        return amount
+    value, unit = amount * factor, unit.lower().rstrip(".")
+    if unit in _FINE_UNITS:
+        step = 0.5 if value < 10 else 1 if value < 100 else 5
+    elif unit in _DECIMAL_UNITS:
+        step = 0.01
+    else:
+        step = 0.25 if value < 5 else 0.5 if value < 20 else 1
+    return round(max(step, round(value / step) * step), 2)
+
+
 def format_amount(amount: float | None) -> str:
     if amount is None:
         return ""

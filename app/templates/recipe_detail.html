@@ -23,21 +23,40 @@
   </form>
 </section>
 
-<section class="card">
+{# Changing the servings only reloads this card (the full page is the fallback without JavaScript) #}
+{% macro servings_link(n, label, text, cls='btn small servings-step') -%}
+{%- set url = request.url.include_query_params(servings=n) -%}
+<a class="{{ cls }}" href="{{ url.path }}?{{ url.query }}" hx-get="{{ url.path }}?{{ url.query }}"
+   hx-select="#ingredients" hx-target="#ingredients" hx-swap="outerHTML" hx-replace-url="true"
+   aria-label="{{ label }}">{{ text }}</a>
+{%- endmacro %}
+<section class="card" id="ingredients">
   <div class="row spread">
     <h2>{{ _('Zutaten') }}</h2>
     {% if recipe.ingredients %}<button type="button" class="btn small" data-check-all="#ingredient-list">{{ _("Alle wählen") }}</button>{% endif %}
   </div>
   {% if recipe.ingredients %}
+  <div class="servings" role="group" aria-label="{{ _('Portionen') }}">
+    {% if portions.wanted > 1 %}{{ servings_link(portions.wanted - 1, _('Weniger Portionen'), '−') }}{% else %}<span class="btn small servings-step" aria-disabled="true">−</span>{% endif %}
+    <strong class="servings-count" aria-live="polite">{{ ngettext('%(num)s Portion', '%(num)s Portionen', portions.wanted) }}</strong>
+    {% if portions.wanted < max_servings %}{{ servings_link(portions.wanted + 1, _('Mehr Portionen'), '+') }}{% else %}<span class="btn small servings-step" aria-disabled="true">+</span>{% endif %}
+  </div>
+  {% if portions.wanted != portions.base %}
+  <p class="muted small">{{ ngettext('Umgerechnet vom Rezept für %(num)s Portion.', 'Umgerechnet vom Rezept für %(num)s Portionen.', portions.base) }}
+    {{ servings_link(portions.base, _('Zurücksetzen'), _('Zurücksetzen'), 'servings-reset') }}</p>
+  {% elif portions.assumed %}
+  <p class="muted small">{{ _("Ohne Portionsangabe gilt ein Rezept als für %(num)s Portionen.", num=portions.base) }}</p>
+  {% endif %}
   <p class="muted small">{{ _("Tippe an, was du einkaufen musst.") }}</p>
   <form method="post" action="{{ base }}/recipes/{{ recipe.id }}/shop">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+    <input type="hidden" name="servings" value="{{ portions.wanted }}">
     <ul class="ingredients" id="ingredient-list">
       {% for i in recipe.ingredients %}
       <li>
         <label>
           <input type="checkbox" name="ingredient_ids" value="{{ i.id }}">
-          <span>{{ i.amount|quantity(i.unit) }} {{ i.name }}</span>
+          <span>{{ portions.amount(i)|quantity(i.unit) }} {{ i.name }}</span>
         </label>
       </li>
       {% endfor %}

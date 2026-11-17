@@ -154,6 +154,11 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .ingredients { list-style: none; padding: 0; margin: 0; }
 .ingredients label { display: flex; align-items: center; gap: 0.7rem; margin: 0; padding: 0.45rem 0; font-weight: 400; border-top: 1px solid var(--line); min-height: var(--tap); }
 .ingredients li:first-child label { border-top: 0; }
+.servings { display: flex; align-items: center; gap: 0.6rem; margin: 0.3rem 0 0.2rem; }
+.servings-step { min-width: var(--tap); justify-content: center; font-size: 1.2rem; text-decoration: none; }
+.servings-step[aria-disabled="true"] { opacity: 0.35; pointer-events: none; }
+.servings-count { min-width: 7.5em; text-align: center; }
+.servings-reset { margin-left: 0.3rem; white-space: nowrap; }
 input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
 
 /* Einkaufsliste */

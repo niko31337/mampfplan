@@ -1,4 +1,5 @@
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
@@ -159,9 +160,12 @@ def add_recipe_ingredients(
     added_by: str | None = None,
     *,
     shop_id: int,
+    amount_of: Callable[[RecipeIngredient], float | None] | None = None,
 ) -> int:
+    """`amount_of` can scale the amounts (other servings than the recipe is written for)."""
     for ing in ingredients:
-        add_item(db, act, space_id, ing.name, ing.amount, ing.unit, recipe_id=recipe_id, added_by=added_by, shop_id=shop_id)
+        amount = amount_of(ing) if amount_of else ing.amount
+        add_item(db, act, space_id, ing.name, amount, ing.unit, recipe_id=recipe_id, added_by=added_by, shop_id=shop_id)
     return len(ingredients)
 
 

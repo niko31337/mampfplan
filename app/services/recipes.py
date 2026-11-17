@@ -1,9 +1,12 @@
+from dataclasses import dataclass
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Recipe, RecipeIngredient
 from app.recipe_sources.base import safe_https_url
 from app.services.history import Action
+from app.services.ingredients import DEFAULT_SERVINGS, MAX_SERVINGS, scale_amount
 
 
 def create_recipe(
@@ -57,6 +60,28 @@ def parse_servings(raw: str) -> int | None:
     if raw.isdigit() and 0 < int(raw) <= 100:
         return int(raw)
     return None
+
+
+@dataclass(frozen=True)
+class Portions:
+    """Servings the recipe is written for (`base`) and the servings someone wants to cook (`wanted`)."""
+
+    base: int
+    wanted: int
+    assumed: bool  # the recipe has no servings count: DEFAULT_SERVINGS is assumed
+
+    @property
+    def factor(self) -> float:
+        return self.wanted / self.base
+
+    def amount(self, ingredient: RecipeIngredient) -> float | None:
+        return scale_amount(ingredient.amount, ingredient.unit, self.factor)
+
+
+def portions(recipe: Recipe, wanted: int | None = None) -> Portions:
+    base = recipe.servings or DEFAULT_SERVINGS
+    wanted = min(max(wanted or base, 1), MAX_SERVINGS)
+    return Portions(base=base, wanted=wanted, assumed=recipe.servings is None)
 
 
 def get_recipe(db: Session, space_id: int, recipe_id: int) -> Recipe | None:
