@@ -218,7 +218,7 @@ def parse_text(lines: list[Line] | list[str], title_hint: str = "") -> TextRecip
     start = next((i for i, row in enumerate(rows) if row.text and (h := _heading(row.text)) and h[0] == "ingredients"), None)
     steps_at = next((i for i, row in enumerate(rows) if row.text and (h := _heading(row.text)) and h[0] == "steps"), None)
     if start is None and steps_at is None:
-        return result
+        return _parse_paragraphs(rows, title_hint)
     if start is not None and steps_at is not None and steps_at < start:
         start = None  # steps before the ingredients: then only take the steps
 
@@ -248,6 +248,63 @@ def parse_text(lines: list[Line] | list[str], title_hint: str = "") -> TextRecip
 
     if result.servings is None:
         result.servings = find_servings(" ".join(r.text for r in rows))
+    return result
+
+
+def _paragraphs(rows: list[Line]) -> list[list[Line]]:
+    paragraphs: list[list[Line]] = [[]]
+    for row in rows:
+        if _is_spacer(row) or row.heading:
+            if paragraphs[-1]:
+                paragraphs.append([])
+            continue
+        paragraphs[-1].append(row)
+    return [p for p in paragraphs if p]
+
+
+def _is_ingredient_paragraph(paragraph: list[Line]) -> bool:
+    """Mostly short lines that start with an amount („200 g Champignons“, „1 Prise Salz“)."""
+    texts = [_content(r.text) for r in paragraph if not _is_group_label(r.text)]
+    texts = [t for t in texts if t]
+    if len(texts) < 3:
+        return False
+    with_amount = sum(1 for t in texts if _starts_with_quantity(t))
+    sentences = sum(1 for t in texts if _is_sentence(t) and t.rstrip().endswith((".", "!")))
+    return with_amount >= 0.5 * len(texts) and sentences <= 0.2 * len(texts)
+
+
+def _is_step_paragraph(paragraph: list[Line]) -> bool:
+    """Sentences („Die Pilze dazugeben und kräftig anbraten.“), not a single closing remark."""
+    texts = [_content(r.text) for r in paragraph]
+    if any(_is_stop(r.text) for r in paragraph) or not any(texts):
+        return False
+    if len(texts) == 1:
+        return texts[0].rstrip().endswith((".", "!")) and len(texts[0].split()) >= 4
+    return sum(1 for t in texts if len(t.split()) >= 4) >= 0.5 * len(texts)
+
+
+def _parse_paragraphs(rows: list[Line], title_hint: str = "") -> TextRecipe:
+    """No headings at all: title, a paragraph of ingredients, then paragraphs of steps.
+
+    Typical Instagram caption: „Spitzkohlrouladen 💚 / 1 grosser Spitzkohl / 200 g Champignons … /
+    Vom Spitzkohl 8 Blätter lösen … / Die Kräutersauce findet ihr bald auf meinem Kanal 📲“.
+    """
+    result = TextRecipe()
+    paragraphs = _paragraphs(rows)
+    found = next((i for i, p in enumerate(paragraphs) if _is_ingredient_paragraph(p)), None)
+    if found is None:
+        return result
+    result.title = title_hint or title_from([r.text for p in paragraphs[:found] for r in p])
+    for row in paragraphs[found]:
+        if _is_stop(row.text):
+            break
+        if not _is_group_label(row.text):
+            result.ingredients.extend(_ingredient(row.text))
+    for paragraph in paragraphs[found + 1 :]:
+        if not _is_step_paragraph(paragraph):
+            break
+        result.steps.extend(text for text in (_content(r.text) for r in paragraph) if text)
+    result.servings = find_servings(" ".join(r.text for r in rows))
     return result
 
 

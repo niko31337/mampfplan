@@ -207,6 +207,9 @@ def _to_metric(draft: Draft) -> Draft:
 def _convert(url: str, pasted_text: str) -> Draft:
     url = fetching.validate_url(url)
     draft = Draft(source_url=url, source=source_kind(url))
+    if draft.source == "instagram":
+        # „…/reel/ID/?mdxt=…“, „?igsh=…“: tracking parameters would hide duplicates and clutter the source line
+        draft.source_url = urlsplit(url)._replace(query="", fragment="").geturl()
     if pasted_text.strip():
         return _from_text(draft, pasted_text)
 

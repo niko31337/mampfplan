@@ -787,3 +787,59 @@ def test_tiktok_title_ignores_leading_hashtags_and_headings(pages):
     draft = convert(url)
     assert draft.title == "Rezept von @fisch"
     assert draft.ingredient_text == "1 kg Sardellen\n8 EL Maismehl\n2 TL Salz"
+
+
+# --- Captions without any headings -------------------------------------------------------------
+
+CAPTION_NO_HEADINGS = """Kürbis-Risotto mit Salbei 🧡
+ 
+1 kleiner Hokkaido
+250 g Risottoreis
+1 Zwiebel
+1 l Gemüsebrühe
+50 g Parmesan
+Ein Schuss Weisswein
+Etwas Butter
+ 
+Den Kürbis entkernen und in kleine Würfel schneiden.
+Die Zwiebel fein hacken und in Butter glasig dünsten. Den Reis dazugeben und kurz mitrösten.
+Mit Weisswein ablöschen und nach und nach die Brühe angiessen.
+ 
+Zum Schluss Parmesan unterrühren und mit Salbei servieren.
+ 
+Mehr Rezepte gibt es bald auf meinem Kanal 📲"""
+
+
+def test_caption_without_headings_uses_its_paragraphs():
+    result = parse_text(CAPTION_NO_HEADINGS.splitlines())
+    assert result.title == "Kürbis-Risotto mit Salbei"
+    assert result.ingredients == [
+        "1 kleiner Hokkaido", "250 g Risottoreis", "1 Zwiebel", "1 l Gemüsebrühe", "50 g Parmesan",
+        "Ein Schuss Weisswein", "Etwas Butter",
+    ]  # fmt: skip
+    assert result.steps == [
+        "Den Kürbis entkernen und in kleine Würfel schneiden.",
+        "Die Zwiebel fein hacken und in Butter glasig dünsten. Den Reis dazugeben und kurz mitrösten.",
+        "Mit Weisswein ablöschen und nach und nach die Brühe angiessen.",
+        "Zum Schluss Parmesan unterrühren und mit Salbei servieren.",
+    ]  # the closing remark is not a step
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Was für ein Sonntag ☀️\n\nWir waren am See und haben gepicknickt.\nMorgen geht es weiter.",
+        "Top 3 Restaurants in Basel\n\n1. Rhyschänzli\n2. Volkshaus\n3. Zum Goldenen Fass\n\nWelches ist euer Favorit?",
+    ],
+)
+def test_text_without_ingredients_paragraph_stays_empty(text):
+    result = parse_text(text.splitlines())
+    assert result.ingredients == [] and result.steps == []
+
+
+def test_instagram_link_drops_tracking_parameters(pages):
+    pages["https://www.instagram.com/reel/abc/?mdxt=xyz"] = instagram_page(CAPTION_NO_HEADINGS)
+    draft = convert("https://www.instagram.com/reel/abc/?mdxt=xyz")
+    assert draft.source_url == "https://www.instagram.com/reel/abc/"
+    assert draft.steps_text.endswith("Quelle: https://www.instagram.com/reel/abc/")
+    assert "250 g Risottoreis" in draft.ingredient_text
