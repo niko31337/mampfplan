@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import select
 
 from app import i18n
-from app.converter.text import parse_text
+from app.converter.text import parse_text, restore_lines
 from app.db import SessionLocal
 from app.i18n.extract import missing, msgids
 from app.models import ActivityLog, ShoppingItem, Space
@@ -58,7 +58,8 @@ def test_default_is_german(web):
         ("es", "es"),
         ("en-GB,en;q=0.9", "en"),
         ("de;q=0.5, es;q=0.9", "es"),
-        ("it-IT,it;q=0.9", "de"),  # not supported → German
+        ("it-IT,it;q=0.9", "it"),
+        ("pt-BR,pt;q=0.9", "de"),  # not supported → German
         ("x" * 50, "de"),
     ],
 )
@@ -99,14 +100,14 @@ def test_switching_needs_csrf_and_a_known_language(web):
 def test_language_picker_on_more_who_and_landing(web, anon):
     for page in (web.get("/more").text, web.get("/who").text, web.client.get("/").text):
         assert 'action="/lang"' in page
-        for code in ("de", "en", "fr", "es"):
+        for code in ("de", "en", "fr", "es", "it"):
             assert f'value="{code}"' in page
 
 
 # --- All pages in all languages ---------------------------------------------------------------
 
 
-@pytest.mark.parametrize("code", ["en", "fr", "es"])
+@pytest.mark.parametrize("code", ["en", "fr", "es", "it"])
 def test_all_pages_are_translated(web, code):
     web.post("/recipes/new", {"title": "Pasta", "ingredients": "200 g Spaghetti", "steps": "Kochen."})
     web.post("/shopping/add", {"name": "Milch"})
@@ -120,7 +121,7 @@ def test_all_pages_are_translated(web, code):
             assert marker not in visible, (code, path, marker)
 
 
-@pytest.mark.parametrize("code, expected", [("en", "Bought"), ("fr", "Acheté"), ("es", "Comprado")])
+@pytest.mark.parametrize("code, expected", [("en", "Bought"), ("fr", "Acheté"), ("es", "Comprado"), ("it", "Acquistato")])
 def test_js_texts_are_translated(web, code, expected):
     web.client.cookies.set("mp_lang", code)
     page = web.get("/shopping").text
@@ -140,7 +141,7 @@ def test_error_messages_are_translated(web):
 # --- Translation files -------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("code", ["en", "fr", "es"])
+@pytest.mark.parametrize("code", ["en", "fr", "es", "it"])
 def test_translation_files_are_complete(code):
     assert missing(code) == []
     data = json.loads((i18n.DIR / f"{code}.json").read_text(encoding="utf-8"))
@@ -158,7 +159,7 @@ def test_missing_translation_falls_back_to_german(lang):
 # --- Catalog and categories ------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("code, query, expected", [("en", "mil", "Milk"), ("fr", "lai", "Lait"), ("es", "lech", "Leche"), ("de", "milc", "Milch")])
+@pytest.mark.parametrize("code, query, expected", [("en", "mil", "Milk"), ("fr", "lai", "Lait"), ("es", "lech", "Leche"), ("it", "latt", "Latte"), ("de", "milc", "Milch")])
 def test_catalog_suggestions_in_the_chosen_language(web, code, query, expected):
     web.client.cookies.set("mp_lang", code)
     page = web.get(f"/shopping/suggest?name={query}").text
@@ -171,7 +172,7 @@ def test_catalog_page_and_categories_are_translated(web):
     assert "Fruits &amp; légumes" in page and ">Pommes</button>" in page
 
 
-@pytest.mark.parametrize("name", ["Milk", "Lait", "Leche", "Milch"])
+@pytest.mark.parametrize("name", ["Milk", "Lait", "Leche", "Latte", "Milch"])
 def test_category_is_recognised_in_every_language(web, name):
     web.post("/shopping/add", {"name": name})
     with SessionLocal() as db:
@@ -227,6 +228,7 @@ def test_old_plain_text_history_stays_readable(web):
         ("en", "Tuesday, 3 November", "3 Nov"),
         ("fr", "mardi 3 novembre", "03/11"),
         ("es", "martes, 3 de noviembre", "03/11"),
+        ("it", "martedì 3 novembre", "03/11"),
     ],
 )
 def test_dates(lang, code, long, short):
@@ -235,7 +237,7 @@ def test_dates(lang, code, long, short):
     assert i18n.date_short(date(2026, 11, 3)) == short
 
 
-@pytest.mark.parametrize("code, expected", [("de", "1,5"), ("en", "1.5"), ("fr", "1,5"), ("es", "1,5")])
+@pytest.mark.parametrize("code, expected", [("de", "1,5"), ("en", "1.5"), ("fr", "1,5"), ("es", "1,5"), ("it", "1,5")])
 def test_decimal_separator(lang, code, expected):
     lang(code)
     assert format_amount(1.5) == expected
@@ -247,7 +249,7 @@ def test_week_view_uses_translated_weekdays(web):
     assert "lunes, 2 de noviembre" in page and "Semana 45" in page
 
 
-@pytest.mark.parametrize("code, monday", [("de", "Montag"), ("en", "Monday"), ("fr", "lundi"), ("es", "lunes")])
+@pytest.mark.parametrize("code, monday", [("de", "Montag"), ("en", "Monday"), ("fr", "lundi"), ("es", "lunes"), ("it", "lunedì")])
 def test_api_weekday_language(anon, monkeypatch, code, monday):
     from app.routers import api
 
@@ -258,7 +260,7 @@ def test_api_weekday_language(anon, monkeypatch, code, monday):
 
 def test_api_defaults_to_german_and_rejects_unknown_languages(anon):
     assert anon.get("/api/plan", headers={"Accept-Language": "en"}).json()["days"][0]["weekday"] in i18n.WEEKDAYS["de"]
-    assert anon.get("/api/plan?lang=it").status_code == 422
+    assert anon.get("/api/plan?lang=pt").status_code == 422
 
 
 # --- Units and converter ---------------------------------------------------------------------
@@ -274,15 +276,19 @@ def test_api_defaults_to_german_and_rejects_unknown_languages(anon):
         ("2 cucharadas de aceite", (2.0, "cucharadas", "aceite")),
         ("2 dientes de ajo", (2.0, "dientes", "ajo")),
         ("1 taza de arroz", (1.0, "taza", "arroz")),
+        ("2 cucchiai di olio", (2.0, "cucchiai", "olio")),
+        ("1 pizzico di sale", (1.0, "pizzico", "sale")),
+        ("2 spicchi d'aglio", (2.0, "spicchi", "aglio")),
+        ("1 noce moscata", (1.0, "", "noce moscata")),
         ("1 cup of flour", (1.0, "cup", "flour")),
         ("200 g Mehl", (200.0, "g", "Mehl")),
     ],
 )
-def test_french_and_spanish_units(line, expected):
+def test_french_spanish_and_italian_units(line, expected):
     assert parse_line(line) == expected
 
 
-@pytest.mark.parametrize("code, expected", [("de", "2 EL soy sauce"), ("en", "2 tbsp soy sauce"), ("fr", "2 cs soy sauce"), ("es", "2 cda soy sauce")])
+@pytest.mark.parametrize("code, expected", [("de", "2 EL soy sauce"), ("en", "2 tbsp soy sauce"), ("fr", "2 cs soy sauce"), ("es", "2 cda soy sauce"), ("it", "2 cucchiai soy sauce")])
 def test_us_spoons_use_the_display_language(lang, code, expected):
     lang(code)
     assert metric_line("2 tbsp soy sauce") == expected
@@ -325,6 +331,41 @@ Sígueme para más recetas"""
     assert result.steps == ["Pelar las patatas.", "Freír y mezclar con los huevos."]
 
 
+def test_italian_spoons_are_singular_or_plural(lang):
+    lang("it")
+    assert metric_line("1 tsp salt") == "1 cucchiaino salt"
+    assert metric_line("3 tsp salt") == "3 cucchiaini salt"
+
+
+def test_italian_recipe_caption():
+    text = """Tiramisù veloce ☕
+
+Ingredienti per 4 persone:
+- 250 g di mascarpone
+- 3 uova
+Per la crema:
+- 2 cucchiai di zucchero
+
+Procedimento:
+1. Montare le uova con lo zucchero.
+2. Aggiungere il mascarpone.
+
+Seguimi per altre ricette! #tiramisu"""
+    result = parse_text(text.splitlines())
+    assert result.title == "Tiramisù veloce"
+    assert result.servings == 4
+    assert result.ingredients == ["250 g di mascarpone", "3 uova", "2 cucchiai di zucchero"]
+    assert result.steps == ["Montare le uova con lo zucchero.", "Aggiungere il mascarpone."]
+
+
+def test_italian_caption_without_line_breaks():
+    text = "Pasta al pesto INGREDIENTI per 2 persone 200 g di spaghetti 50 g di pesto PROCEDIMENTO 1. Cuocere la pasta. 2. Condire."
+    result = parse_text(restore_lines(text).splitlines())
+    assert result.servings == 2
+    assert result.ingredients == ["200 g di spaghetti", "50 g di pesto"]
+    assert result.steps == ["Cuocere la pasta.", "Condire."]
+
+
 def test_search_starts_with_mealdb_outside_german(web):
     web.client.cookies.set("mp_lang", "en")
     page = web.get("/search").text
@@ -335,5 +376,10 @@ def test_search_starts_with_mealdb_outside_german(web):
 
 def test_category_guess_service_directly():
     with SessionLocal() as db:
+        assert shopping.guess_category(db, "Pepe") == "Gewürze, Öle & Soßen"
+        # translated names only match at a word start: the Italian „Latte“ must not catch German compounds
+        assert shopping.guess_category(db, "Lasagneblätter") != "Milch, Käse & Eier"
+        assert shopping.guess_category(db, "Wurstplatte") != "Milch, Käse & Eier"
+        assert shopping.guess_category(db, "Putenbrustfilet") == "Fleisch, Fisch & Wurst"  # German compounds still match anywhere
         assert shopping.guess_category(db, "Toothpaste") == "Hygiene & Drogerie"
         assert shopping.guess_category(db, "Papel higiénico") == "Haushalt & Reinigung"

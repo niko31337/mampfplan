@@ -62,20 +62,27 @@ def guess_category(db: Session, name: str) -> str:
         return DEFAULT_CATEGORY
     best: tuple[int, str] | None = None
     # names in all languages: „Milk“, „Lait“ and „Leche“ end up in dairy just like „Milch“
-    names = db.execute(select(CatalogItem.name, CatalogItem.category).order_by(CatalogItem.id)).all()
-    names += db.execute(
+    german = db.execute(select(CatalogItem.name, CatalogItem.category).order_by(CatalogItem.id)).all()
+    translated = db.execute(
         select(CatalogName.name, CatalogItem.category).join(CatalogItem, CatalogItem.id == CatalogName.catalog_item_id)
     ).all()
-    for name, category in names:
-        known = _stem_key(name)
-        if not known:
-            continue
-        if known == needle:
-            return category
-        if len(known) >= 4 and len(needle) >= 4 and (known in needle or needle in known):
-            if best is None or len(known) > best[0]:
-                best = (len(known), category)
+    for word_start, rows in ((False, german), (True, translated)):
+        for name, category in rows:
+            known = _stem_key(name)
+            if not known:
+                continue
+            if known == needle:
+                return category
+            if len(known) >= 4 and len(needle) >= 4 and (_part_of(known, needle, word_start) or _part_of(needle, known, word_start)):
+                if best is None or len(known) > best[0]:
+                    best = (len(known), category)
     return best[1] if best else DEFAULT_CATEGORY
+
+
+def _part_of(part: str, whole: str, word_start: bool) -> bool:
+    """German compounds match anywhere („Rinderhack“); translated names only at a word start,
+    so the Italian „Latte“ doesn't catch „Lasagneblätter“ or „Wurstplatte“."""
+    return f" {part}" in f" {whole}" if word_start else part in whole
 
 
 def add_item(

@@ -26,7 +26,7 @@ def seed_catalog(db: Session) -> None:
 
 
 def _seed_catalog_names(db: Session) -> None:
-    """Add translated catalog names (en/fr/es); existing ones stay unchanged."""
+    """Add translated catalog names (en/fr/es/it); existing ones stay unchanged."""
     if not TRANSLATIONS_FILE.exists():
         return
     data = json.loads(TRANSLATIONS_FILE.read_text(encoding="utf-8"))
@@ -36,7 +36,7 @@ def _seed_catalog_names(db: Session) -> None:
         item_id = items.get(german)
         if item_id is None or not isinstance(names, list):
             continue
-        for lang, name in zip(("en", "fr", "es"), names, strict=False):
+        for lang, name in zip(("en", "fr", "es", "it"), names, strict=False):
             if (item_id, lang) not in present and name:
                 db.add(CatalogName(catalog_item_id=item_id, lang=lang, name=name[:100]))
     db.commit()

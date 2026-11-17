@@ -1,4 +1,4 @@
-"""Multiple languages (German, English, French, Spanish), deliberately lean, without extra packages.
+"""Multiple languages (German, English, French, Spanish, Italian), deliberately lean, without extra packages.
 
 - The key is the German source text (like gettext); if a translation is missing, it is shown.
 - The language is per device: cookie `mp_lang`, otherwise the browser language, otherwise German.
@@ -11,7 +11,7 @@ from contextvars import ContextVar
 from functools import lru_cache
 from pathlib import Path
 
-LANGUAGES = {"de": "Deutsch", "en": "English", "fr": "Français", "es": "Español"}
+LANGUAGES = {"de": "Deutsch", "en": "English", "fr": "Français", "es": "Español", "it": "Italiano"}
 DEFAULT_LANGUAGE = "de"
 LANG_COOKIE = "mp_lang"
 DIR = Path(__file__).resolve().parent
@@ -99,18 +99,21 @@ WEEKDAYS = {
     "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     "fr": ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
     "es": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
+    "it": ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"],
 }
 WEEKDAYS_SHORT = {
     "de": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
     "en": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     "fr": ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."],
     "es": ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"],
+    "it": ["lun", "mar", "mer", "gio", "ven", "sab", "dom"],
 }
 MONTHS = {
     "de": ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
     "en": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
     "fr": ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
     "es": ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+    "it": ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"],
 }  # fmt: skip
 
 
@@ -123,7 +126,7 @@ def date_long(d, lang: str | None = None) -> str:
     day, month, weekday = d.day, MONTHS[lang][d.month - 1], WEEKDAYS[lang][d.weekday()]
     if lang == "en":
         return f"{weekday}, {day} {month}"
-    if lang == "fr":
+    if lang in ("fr", "it"):
         return f"{weekday} {day} {month}"
     if lang == "es":
         return f"{weekday}, {day} de {month}"
@@ -134,14 +137,14 @@ def date_short(d, lang: str | None = None) -> str:
     lang = lang or get_language()
     if lang == "en":
         return f"{d.day} {MONTHS['en'][d.month - 1][:3]}"
-    return f"{d.day:02d}/{d.month:02d}" if lang in ("fr", "es") else d.strftime("%d.%m.")
+    return f"{d.day:02d}/{d.month:02d}" if lang in ("fr", "es", "it") else d.strftime("%d.%m.")
 
 
 def date_numeric(d, lang: str | None = None) -> str:
     lang = lang or get_language()
     if lang == "en":
         return f"{d.day} {MONTHS['en'][d.month - 1][:3]} {d.year}"
-    return f"{d.day:02d}/{d.month:02d}/{d.year}" if lang in ("fr", "es") else d.strftime("%d.%m.%Y")
+    return f"{d.day:02d}/{d.month:02d}/{d.year}" if lang in ("fr", "es", "it") else d.strftime("%d.%m.%Y")
 
 
 def decimal_separator(lang: str | None = None) -> str:

@@ -16,6 +16,11 @@ UNITS = {
     "cda", "cdas", "cdta", "cdtas", "cucharada", "cucharadas", "cucharadita", "cucharaditas", "pizca", "pizcas",
     "diente", "dientes", "lata", "latas", "taza", "tazas", "sobre", "sobres", "rebanada", "rebanadas",
     "manojo", "ramita", "ramitas", "vaso", "vasos",
+    # Italian
+    "cucchiaio", "cucchiai", "cucchiaino", "cucchiaini", "pizzico", "pizzichi", "spicchio", "spicchi",
+    "lattina", "lattine", "barattolo", "barattoli", "scatola", "scatole", "bustina", "bustine", "fetta", "fette",
+    "mazzetto", "mazzetti", "mazzo", "rametto", "rametti", "bicchiere", "bicchieri", "tazza", "tazze",
+    "confezione", "confezioni", "vasetto", "vasetti", "foglia", "foglie",
 }  # fmt: skip
 
 _UNICODE_FRACTIONS = {"½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3}
@@ -31,7 +36,7 @@ _NUMBER = re.compile(
 _RANGE_SEP = re.compile(r"\s*[-–]\s*")
 _UNIT_WORD = re.compile(r"([^\W\d_]+)\.?")  # letters incl. accents (cuillère, pincée)
 _SPOON_KIND = re.compile(r"^à\s+(soupe|café)\b\.?", re.I)
-_LINKING_WORD = re.compile(r"^(?:de\s+|d['’]\s*|of\s+)", re.I)
+_LINKING_WORD = re.compile(r"^(?:de\s+|d['’]\s*|of\s+|di\s+)", re.I)
 
 
 def _match_value(m: re.Match) -> float:
@@ -75,7 +80,7 @@ def parse_measure(text: str) -> tuple[float | None, str, str]:
         if spoon:
             unit = "cs" if spoon[1].lower() == "soupe" else "cc"
             rest = rest[spoon.end() :].strip()
-        # „1 pincée de sel“, „2 dientes de ajo“, „1 cup of flour“ → just the name
+        # „1 pincée de sel“, „2 dientes de ajo“, „1 pizzico di sale“, „1 cup of flour“ → just the name
         rest = _LINKING_WORD.sub("", rest, count=1)
     return amount, unit, rest
 

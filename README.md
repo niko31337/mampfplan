@@ -7,7 +7,7 @@ A small family web app for a **weekly meal plan** and a **shopping list**: built
 - **Meal plan** with several recipes *or* notes per day (e.g. "Eating out"); reorder them with ▲▼.
 - **Recipes**: create your own (ingredients + steps), edit, delete.
 - **Recipe search** in public databases: **Chefkoch** (German, unofficial API), **TheMealDB** (English), optionally **Spoonacular** (English, API key required). Results are saved as your own editable copy. **Only the server downloads recipe images** (once, then from its cache): the family's browsers never contact Chefkoch & co. directly.
-- **Recipe from link** (Recipes → "🔗 From link"): paste a link to an Instagram post, a TikTok video (short links like `vm.tiktok.com/…` work too), a food blog or a HelloFresh recipe page. The app turns it into a draft with title, servings, ingredients, steps and image, which you can edit freely before saving. The source link is always the last line of the steps (clickable) and is added back on save and edit if it was deleted. The converter understands pages with recipe markup (schema.org, e.g. HelloFresh and WordPress recipe plugins) and plain text with sections like "Ingredients" / "Instructions" (in German, English, French and Spanish, with emojis, bullet points or ingredients on a single line). For Instagram and TikTok it reads the post or video caption (for TikTok including the thumbnail). If the platform doesn't hand out the caption (the platform decides, e.g. for servers in data centers), the app asks for the text: copy the caption, paste it, done.
+- **Recipe from link** (Recipes → "🔗 From link"): paste a link to an Instagram post, a TikTok video (short links like `vm.tiktok.com/…` work too), a food blog or a HelloFresh recipe page. The app turns it into a draft with title, servings, ingredients, steps and image, which you can edit freely before saving. The source link is always the last line of the steps (clickable) and is added back on save and edit if it was deleted. The converter understands pages with recipe markup (schema.org, e.g. HelloFresh and WordPress recipe plugins) and plain text with sections like "Ingredients" / "Instructions" (in German, English, French, Spanish and Italian, with emojis, bullet points or ingredients on a single line). For Instagram and TikTok it reads the post or video caption (for TikTok including the thumbnail). If the platform doesn't hand out the caption (the platform decides, e.g. for servers in data centers), the app asks for the text: copy the caption, paste it, done.
 - **US measurements are converted automatically** (recipe from link and online search): cups to grams (dry ingredients via a density table, e.g. 1 cup flour ≈ 120 g, sugar ≈ 200 g, butter ≈ 227 g) or ml (liquids and anything unknown), oz/lb/sticks to g, fl oz/pint/quart to ml, tbsp/tsp to the spoon units of the chosen language; in the steps also °F → °C and inch → cm. If the author already wrote the metric amount ("1 cup (125 g) flour"), that amount is used. The draft lists every conversion so you can check it.
 - **Shopping list**: add the ingredients of a (planned) recipe with one click, type items freely ("2 l milk") or search the **item catalog** (~270 groceries, household and toiletry items). Ticking an item moves it to "Bought". Identical items are merged (500 g + 250 g flour = 750 g). Ingredient names are cleaned up ("Karotte(n)" → "Karotte") and sorted into a category via the catalog. Items and categories can be reordered by **drag & drop** on the ⠿ handle, e.g. to match your route through the supermarket. Under **"↕ Store"** you put all categories, including currently empty ones, into the order of your supermarket once (e.g. drinks, fruit & vegetables, snacks …); a category moved in the list is placed before its new neighbor and stays there. Drag a misfiled item **into another category** (empty categories show up as drop targets while dragging); the household remembers the correction for next time.
 - **Recipe → shopping list**: in the recipe view nothing is ticked by default; tick only what you're actually missing (or "Select all").
@@ -18,7 +18,7 @@ A small family web app for a **weekly meal plan** and a **shopping list**: built
 - **Undo** for every action (button at the top right), several times in a row.
 - **Sharing**: anyone with the link can view and change the plan and the list. No password, no user account; on first visit you just pick your profile (for the history and initials).
 - **Multiple households**: each household has its own recipes, meal plan, shopping list and its own secret link. The household created on first start manages the others ("More → Manage households"); in every household the first profile creates further profiles.
-- **Four languages**: German, English, French and Spanish, chosen per device (see [Languages](#languages)).
+- **Five languages**: German, English, French, Spanish and Italian, chosen per device (see [Languages](#languages)).
 
 ## Running with Docker
 
@@ -96,7 +96,7 @@ The domain must be included in the certbot certificate. After changes run `docke
 
 ### Meal plan as JSON (e.g. for Home Assistant)
 
-`GET /s/<token>/api/plan?days=7` returns the plan from today for `days` days (1–14, default 7). The endpoint is read-only and needs no profile; it only shows the household the token belongs to. A wrong token returns 404, an invalid `days` 422. Weekdays are German by default; `lang=en|fr|es` switches them. Response for `?days=7&lang=en`:
+`GET /s/<token>/api/plan?days=7` returns the plan from today for `days` days (1–14, default 7). The endpoint is read-only and needs no profile; it only shows the household the token belongs to. A wrong token returns 404, an invalid `days` 422. Weekdays are German by default; `lang=en|fr|es|it` switches them. Response for `?days=7&lang=en`:
 
 ```json
 {
@@ -130,14 +130,14 @@ rest:
 
 ### Languages
 
-Mampfplan is available in **German, English, French and Spanish**. The language is set **per device**: on first visit it follows the browser language (German otherwise); you can change it under **"More → Language"**, on the profile picker and on the start page (stored in the cookie `mp_lang`).
+Mampfplan is available in **German, English, French, Spanish and Italian**. The language is set **per device**: on first visit it follows the browser language (German otherwise); you can change it under **"More → Language"**, on the profile picker and on the start page (stored in the cookie `mp_lang`).
 
 - **Translated:** the whole interface, messages, history and undo (retroactively too: everyone sees the history in their own language), categories, the item catalog (suggestions while typing in your own language), dates and decimal separators.
 - **Not translated:** whatever you enter yourselves. Recipes, notes and items stay as they were written.
-- **The list recognizes categories across languages:** "Milk", "Lait" and "Leche" end up in dairy just like "Milch".
-- Ingredients also understand French and Spanish units (cs/cc, pincée, gousse, cda/cdta, pizca, diente …); the recipe converter recognizes French and Spanish captions (Ingrédients/Préparation, Ingredientes/Preparación). Converted US spoons are called EL/TL, tbsp/tsp, cs/cc or cda/cdta depending on the language.
+- **The list recognizes categories across languages:** "Milk", "Lait", "Leche" and "Latte" end up in dairy just like "Milch".
+- Ingredients also understand French, Spanish and Italian units (cs/cc, pincée, gousse, cda/cdta, pizca, diente, cucchiaio/cucchiaino, pizzico, spicchio …); the recipe converter recognizes French, Spanish and Italian captions (Ingrédients/Préparation, Ingredientes/Preparación, Ingredienti/Procedimento). Converted US spoons are called EL/TL, tbsp/tsp, cs/cc, cda/cdta or cucchiaio/cucchiaino depending on the language.
 - Recipe search starts with Chefkoch in German and with TheMealDB in the other languages.
-- The JSON endpoint still returns German weekdays by default; `?lang=en|fr|es` switches them.
+- The JSON endpoint still returns German weekdays by default; `?lang=en|fr|es|it` switches them.
 
 **Adding a language or changing texts:** translations live in `app/i18n/<language>.json` (the key is the German text), catalog names in `seed/catalog.translations.json`. `python -m app.i18n.extract fr` lists the missing texts of a language; a test makes sure every language file is complete.
 
@@ -182,7 +182,7 @@ app/
     stats.py         statistics queries
     units.py         US measurements → metric (cup, oz, lb, fl oz, °F, inch)
   recipe_sources/    Chefkoch, TheMealDB, Spoonacular (shared interface)
-  i18n/              languages: selection, translations (en/fr/es.json), dates/numbers, text extraction
+  i18n/              languages: selection, translations (en/fr/es/it.json), dates/numbers, text extraction
   converter/         recipe from link: fetch.py (hardened fetching), html.py (meta, JSON-LD, text),
                      text.py (detect ingredients/steps in plain text)
   templates/, static/   Jinja2 + HTMX (served locally, no CDN)

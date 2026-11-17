@@ -31,7 +31,7 @@ def plan(
     space: Annotated[Space, Depends(get_space)],
     db: Annotated[Session, Depends(get_db)],
     days: Annotated[int, Query(ge=1, le=14)] = 7,
-    lang: Annotated[str, Query(pattern="^(de|en|fr|es)$")] = "de",
+    lang: Annotated[str, Query(pattern="^(de|en|fr|es|it)$")] = "de",
 ):
     start = today()
     end = start + timedelta(days=days - 1)

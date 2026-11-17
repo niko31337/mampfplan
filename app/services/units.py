@@ -50,14 +50,18 @@ SPOONS_BY_LANG = {
     "en": {"tbsp": "tbsp", "tsp": "tsp"},
     "fr": {"tbsp": "cs", "tsp": "cc"},
     "es": {"tbsp": "cda", "tsp": "cdta"},
+    "it": {"tbsp": "cucchiaio", "tsp": "cucchiaino"},
 }
+# Italian has no common short form: spell it out, plural above one ("2 cucchiai")
+SPOON_PLURALS = {"cucchiaio": "cucchiai", "cucchiaino": "cucchiaini"}
 SPOONS = SPOONS_BY_LANG["de"]
 
 
-def _spoon(key: str) -> str:
+def _spoon(key: str, amount: float = 1) -> str:
     from app.i18n import get_language
 
-    return SPOONS_BY_LANG.get(get_language(), SPOONS)[key]
+    name = SPOONS_BY_LANG.get(get_language(), SPOONS)[key]
+    return SPOON_PLURALS.get(name, name) if amount > 1 else name
 
 # grams per US cup (240 ml). Specific terms first so „brown sugar“ doesn't count as „sugar“.
 CUP_GRAMS: list[tuple[str, float]] = [
@@ -151,7 +155,7 @@ def _metric(value: float, unit: str) -> tuple[float, str]:
 def convert_amount(amount: float, key: str, name: str) -> tuple[float, str] | None:
     """Amount in a US unit → (amount, metric unit). None if the unit isn't converted."""
     if key in SPOONS:
-        return amount, _spoon(key)
+        return amount, _spoon(key, amount)
     if key == "stick":
         return _metric(amount * GRAMS["stick"], "g")
     if key == "lb":
